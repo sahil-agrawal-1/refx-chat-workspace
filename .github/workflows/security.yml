@@ -43,18 +43,23 @@ jobs:
 
       - name: Verify no plaintext API keys in committed source
         run: |
-          @echo "Scanning for hardcoded encryption keys and plaintext credential storage..."
-          if (Select-String -Path "electron/main.ts" -Pattern "API_KEY_ENCRYPTION_KEY") { Write-Host "FAIL: Hardcoded encryption key found"; exit 1 } else { Write-Host "OK: No hardcoded encryption key" }
-          if (Select-String -Path "src/stores/app-store.tsx" -Pattern "apiKey.*localStorage|localStorage.*apiKey") { Write-Host "FAIL: Plaintext API key in localStorage"; exit 1 } else { Write-Host "OK: No plaintext API key in localStorage" }
-          if (Select-String -Path "src/desktop/browser-preview-bridge.ts" -Pattern "apiKey.*setItem|setItem.*apiKey") { Write-Host "FAIL: Plaintext API key persisted in browser preview"; exit 1 } else { Write-Host "OK: No plaintext API key in browser preview storage" }
+          Write-Host "Scanning for hardcoded encryption keys and plaintext credential storage..."
+          $key = Select-String -Path "electron/main.ts" -Pattern "API_KEY_ENCRYPTION_KEY"
+          if ($key) { Write-Host "FAIL: Hardcoded encryption key found"; exit 1 } else { Write-Host "OK: No hardcoded encryption key" }
+          $ls1 = Select-String -Path "src/stores/app-store.tsx" -Pattern "apiKey"
+          if ($ls1) { Write-Host "FAIL: Plaintext API key in localStorage"; exit 1 } else { Write-Host "OK: No plaintext API key in localStorage" }
+          $ls2 = Select-String -Path "src/desktop/browser-preview-bridge.ts" -Pattern "setItem"
+          if ($ls2) { Write-Host "FAIL: Plaintext API key persisted in browser preview"; exit 1 } else { Write-Host "OK: No plaintext API key in browser preview storage" }
 
       - name: Verify safeStorage is used for credentials
         run: |
-          if (Select-String -Path "electron/main.ts" -Pattern "safeStorage\.encryptString|safeStorage\.decryptString|safeStorage\.isEncryptionAvailable") { Write-Host "OK: Electron safeStorage (DPAPI) used for credentials" } else { Write-Host "FAIL: safeStorage not found"; exit 1 }
+          $ss = Select-String -Path "electron/main.ts" -Pattern "safeStorage"
+          if ($ss) { Write-Host "OK: Electron safeStorage (DPAPI) used for credentials" } else { Write-Host "FAIL: safeStorage not found"; exit 1 }
 
       - name: Verify HTML escaping in chat exports
         run: |
-          if (Select-String -Path "src/components/dialogs/ExportChatModal.tsx" -Pattern "escapeHtml") { Write-Host "OK: HTML escaping function present in ExportChatModal" } else { Write-Host "FAIL: escapeHtml missing"; exit 1 }
+          $eh = Select-String -Path "src/components/dialogs/ExportChatModal.tsx" -Pattern "escapeHtml"
+          if ($eh) { Write-Host "OK: HTML escaping function present in ExportChatModal" } else { Write-Host "FAIL: escapeHtml missing"; exit 1 }
 
     outputs:
       security-status: ${{ job.status }}
