@@ -2355,7 +2355,12 @@ async function startProviderChatWithTools(
 
     const toolCalls = assistantMsg.tool_calls || assistantMsg.toolCalls || [];
     if (!toolCalls || toolCalls.length === 0) {
-      finalContent = assistantMsg.content || '';
+      finalContent =
+        assistantMsg.content ||
+        assistantMsg.reasoning ||
+        assistantMsg.reasoning_content ||
+        assistantMsg.reasoning_details?.map?.((r: any) => r?.text || r?.content || '').join('\n') ||
+        '';
       break;
     }
 
