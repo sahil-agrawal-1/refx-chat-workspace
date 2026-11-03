@@ -1191,6 +1191,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             desktopBridge.database
               .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed" } })
               .catch(() => {});
+            desktopBridge.fs.getPendingChanges().then((pending) => {
+              if (Array.isArray(pending)) setPendingChanges(pending);
+            }).catch(() => {});
             setIsGenerating(false);
             activeAssistantMsgIdRef.current = null;
             activeRequestIdRef.current = null;
