@@ -1,0 +1,6 @@
+{
+  "name": "REFX - Windows AI Workspace",
+  "description": "REFX - Local-first Windows AI desktop application, featuring multi-provider model integration, local Ollama runtime, workspace file explorer, diff reviews, and integrated terminal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

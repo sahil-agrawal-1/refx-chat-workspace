@@ -1,0 +1,30 @@
+import React from 'react';
+
+export interface LogoProps extends React.SVGProps<SVGSVGElement> {
+  width?: number | string;
+  height?: number | string;
+  className?: string;
+}
+
+export const Logo: React.FC<LogoProps> = ({ width = 46, height = 48, className, ...props }) => {
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 46 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...props}
+    >
+      <path
+        d="M30.6346 17.6869C32.2132 18.5983 32.2132 20.8768 30.6346 21.7882L16.9266 29.7025C14.5037 31.1014 12.0845 27.8803 14.1033 25.9433L18.7903 21.4462C19.7617 20.5142 19.7617 18.9609 18.7903 18.0289L14.1033 13.5319C12.0845 11.5949 14.5037 8.37371 16.9266 9.7726L30.6346 17.6869Z"
+        fill="white"
+      />
+      <path
+        d="M14.4293 25.659C12.8508 26.5704 12.8508 28.8489 14.4293 29.7603L28.1373 37.6746C30.5603 39.0735 32.9795 35.8524 30.9607 33.9153L26.2737 29.4183C25.3023 28.4863 25.3023 26.933 26.2737 26.001L30.9607 21.504C32.9795 19.5669 30.5603 16.3458 28.1373 17.7447L14.4293 25.659Z"
+        fill="white"
+      />
+    </svg>
+  );
+};
