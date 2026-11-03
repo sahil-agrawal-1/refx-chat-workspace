@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type {
@@ -54,6 +55,77 @@ const CREDENTIALS_FILE = path.join(app.getPath('userData'), 'provider-credential
 
 // Authorized workspace root for filesystem containment (resolved realpath).
 let authorizedWorkspaceRoot: string | null = null;
+
+interface PendingFileChange {
+  id: string;
+  filePath: string;
+  operationType: 'create' | 'modify' | 'rename' | 'move' | 'delete' | 'patch';
+  originalContent: string;
+  newContent: string;
+  originalHash: string;
+  createdAt: number;
+  status: 'pending' | 'approved' | 'rejected' | 'applied' | 'failed';
+  backupPath?: string;
+  newPath?: string;
+}
+
+const pendingFileChanges = new Map<string, PendingFileChange>();
+
+function pendingChangesFile(): string {
+  return path.join(app.getPath('userData'), 'pending-file-changes.json');
+}
+
+function loadPendingChanges(): void {
+  try {
+    const f = pendingChangesFile();
+    if (!fs.existsSync(f)) return;
+    const raw = fs.readFileSync(f, 'utf8');
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) {
+      for (const item of arr) {
+        if (item && item.id) pendingFileChanges.set(item.id, item);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function savePendingChanges(): void {
+  try {
+    const arr = Array.from(pendingFileChanges.values());
+    fs.writeFileSync(pendingChangesFile(), JSON.stringify(arr, null, 2), 'utf8');
+  } catch {
+    // ignore
+  }
+}
+
+function hashContent(content: string): string {
+  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
+function computeFileChange(change: PendingFileChange): any {
+  // compute additions/deletions roughly
+  const originalLines = change.originalContent.split(/\r?\n/);
+  const newLines = change.newContent.split(/\r?\n/);
+  let additions = 0;
+  let deletions = 0;
+  // simple diff count: lines in new not in original
+  const origSet = new Set(originalLines);
+  const newSet = new Set(newLines);
+  for (const l of newLines) if (!origSet.has(l)) additions++;
+  for (const l of originalLines) if (!newSet.has(l)) deletions++;
+  return {
+    id: change.id,
+    filePath: change.newPath || change.filePath,
+    action: change.operationType === 'create' ? 'create' : change.operationType === 'delete' ? 'delete' : 'modify',
+    originalContent: change.originalContent,
+    newContent: change.newContent,
+    additions,
+    deletions,
+    status: change.status === 'applied' ? 'approved' : change.status === 'rejected' ? 'rejected' : 'pending',
+  };
+}
 
 // In-memory cache of decrypted credentials keyed by providerId.
 // Populated on demand from the encrypted store; cleared on process exit.
@@ -212,6 +284,160 @@ function resolveWithinWorkspace(inputPath: string, allowMissing = false): string
 function isWithinRoot(candidate: string): boolean {
   const root = ensureWorkspaceRoot();
   return candidate === root || candidate.startsWith(root + path.sep);
+}
+
+function proposeFileChange(request: any): any {
+  const type = request?.type || 'modify';
+  const targetPath = resolveWithinWorkspace(request?.path);
+  const originalExists = fs.existsSync(targetPath);
+  let originalContent = '';
+  if (originalExists) {
+    const stat = fs.statSync(targetPath);
+    if (stat.isDirectory()) throw new Error('Cannot modify a directory.');
+    if (stat.size > MAX_FILE_SIZE_BYTES) throw new Error('File too large.');
+    const buf = fs.readFileSync(targetPath);
+    if (buf.includes(0)) throw new Error('Binary files are not supported.');
+    originalContent = buf.toString('utf8');
+  }
+  const originalHash = originalExists ? hashContent(originalContent) : '';
+
+  let newContent = request?.content ?? '';
+  let newPath: string | undefined;
+  if (type === 'rename' || type === 'move') {
+    if (!request?.newPath) throw new Error('newPath is required.');
+    newPath = resolveWithinWorkspace(request.newPath);
+    if (fs.existsSync(newPath)) throw new Error('Target path already exists.');
+    newContent = originalContent;
+  }
+  if (type === 'delete') {
+    newContent = '';
+  }
+  if (type === 'patch' && request?.patch) {
+    // Store patch; attempt naive apply: if newContent not provided, keep original
+    if (!request?.content) newContent = originalContent;
+  }
+
+  // Duplicate pending check
+  for (const existing of pendingFileChanges.values()) {
+    if (existing.filePath === targetPath && existing.status === 'pending') {
+      throw new Error('A pending change already exists for this file.');
+    }
+  }
+
+  const id = `change-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  const change: PendingFileChange = {
+    id,
+    filePath: targetPath,
+    operationType: type,
+    originalContent,
+    newContent,
+    originalHash,
+    createdAt: Date.now(),
+    status: 'pending',
+    newPath,
+  };
+
+  // Backup for existing files
+  if (originalExists && type !== 'create') {
+    const backupDir = path.join(app.getPath('userData'), 'backups', 'file-changes', id);
+    fs.mkdirSync(backupDir, { recursive: true });
+    const backupPath = path.join(backupDir, path.basename(targetPath) + '.bak');
+    fs.writeFileSync(backupPath, originalContent, 'utf8');
+    // verify
+    const verify = fs.readFileSync(backupPath, 'utf8');
+    if (hashContent(verify) !== originalHash) throw new Error('Backup verification failed.');
+    change.backupPath = backupPath;
+  }
+
+  pendingFileChanges.set(id, change);
+  savePendingChanges();
+  return computeFileChange(change);
+}
+
+function getPendingChanges(): any[] {
+  return Array.from(pendingFileChanges.values())
+    .filter((c) => c.status === 'pending')
+    .map(computeFileChange);
+}
+
+function applyFileChange(id: string): boolean {
+  const change = pendingFileChanges.get(id);
+  if (!change || change.status !== 'pending') return false;
+
+  // Expiry: 24h
+  if (Date.now() - change.createdAt > 24 * 60 * 60 * 1000) {
+    change.status = 'rejected';
+    savePendingChanges();
+    return false;
+  }
+
+  // Revalidate hash
+  if (fs.existsSync(change.filePath)) {
+    const stat = fs.statSync(change.filePath);
+    if (stat.isDirectory()) throw new Error('Target is a directory.');
+    const buf = fs.readFileSync(change.filePath);
+    const currentHash = hashContent(buf.toString('utf8'));
+    if (change.originalHash && currentHash !== change.originalHash) {
+      throw new Error('File changed since proposal; original hash mismatch.');
+    }
+  } else if (change.originalHash) {
+    throw new Error('Original file no longer exists.');
+  }
+
+  try {
+    if (change.operationType === 'delete') {
+      if (fs.existsSync(change.filePath)) {
+        // prefer trash
+        try {
+          shell.trashItem(change.filePath);
+        } catch {
+          fs.renameSync(change.filePath, change.filePath + '.deleted-' + Date.now());
+        }
+      }
+    } else if (change.operationType === 'rename' || change.operationType === 'move') {
+      if (!change.newPath) throw new Error('Missing newPath.');
+      fs.renameSync(change.filePath, change.newPath);
+    } else {
+      // create/modify/patch/write
+      const dir = path.dirname(change.filePath);
+      fs.mkdirSync(dir, { recursive: true });
+      const tmp = change.filePath + '.tmp-' + Date.now();
+      fs.writeFileSync(tmp, change.newContent, 'utf8');
+      fs.renameSync(tmp, change.filePath);
+    }
+    change.status = 'applied';
+    savePendingChanges();
+    db.recordOperation(null, 'file_change', 'applied');
+    return true;
+  } catch (err) {
+    change.status = 'failed';
+    savePendingChanges();
+    // rollback if backup
+    if (change.backupPath && fs.existsSync(change.backupPath)) {
+      try {
+        fs.writeFileSync(change.filePath, fs.readFileSync(change.backupPath, 'utf8'), 'utf8');
+      } catch {
+        // ignore
+      }
+    }
+    throw err;
+  }
+}
+
+function rejectFileChange(id: string): boolean {
+  const change = pendingFileChanges.get(id);
+  if (!change || change.status !== 'pending') return false;
+  change.status = 'rejected';
+  savePendingChanges();
+  return true;
+}
+
+function restoreFileBackup(id: string): boolean {
+  const change = pendingFileChanges.get(id);
+  if (!change || !change.backupPath) return false;
+  if (!fs.existsSync(change.backupPath)) return false;
+  fs.writeFileSync(change.filePath, fs.readFileSync(change.backupPath, 'utf8'), 'utf8');
+  return true;
 }
 
 function registerIpcHandlers(): void {
@@ -874,6 +1100,34 @@ function registerIpcHandlers(): void {
     } catch {
       return null;
     }
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.PROPOSE_CHANGE, async (_event, request: any) => {
+    try {
+      return proposeFileChange(request);
+    } catch (err: any) {
+      throw new Error(err?.message || 'Failed to propose change.');
+    }
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_PENDING_CHANGES, async () => {
+    return getPendingChanges();
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.APPROVE_CHANGE, async (_event, id: string) => {
+    try {
+      return applyFileChange(id);
+    } catch (err: any) {
+      throw new Error(err?.message || 'Failed to apply change.');
+    }
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.REJECT_CHANGE, async (_event, id: string) => {
+    return rejectFileChange(id);
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.RESTORE_BACKUP, async (_event, id: string) => {
+    return restoreFileBackup(id);
   });
 }
 
@@ -2108,6 +2362,7 @@ if (!hasLock) {
 
   app.whenReady().then(() => {
     db.initDatabase();
+    loadPendingChanges();
     registerIpcHandlers();
     createWindow();
 
@@ -2207,6 +2462,27 @@ async function executeWorkspaceTool(name: string, args: any): Promise<string> {
         walk(root, 0);
         return JSON.stringify(results);
       }
+
+      case 'create_file': {
+        const change = proposeFileChange({ type: 'create', path: args?.path, content: args?.content ?? '' });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, diff: 'pending review' });
+      }
+      case 'edit_file': {
+        const change = proposeFileChange({ type: 'modify', path: args?.path, content: args?.content ?? '' });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath });
+      }
+      case 'rename_file': {
+        const change = proposeFileChange({ type: 'rename', path: args?.path, newPath: args?.newPath });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, newPath: change.newPath });
+      }
+      case 'move_file': {
+        const change = proposeFileChange({ type: 'move', path: args?.path, newPath: args?.newPath });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, newPath: change.newPath });
+      }
+      case 'delete_file': {
+        const change = proposeFileChange({ type: 'delete', path: args?.path });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath });
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -2270,6 +2546,80 @@ const WORKSPACE_TOOLS_OPENAI = [
       name: 'get_workspace_info',
       description: 'Get information about the selected workspace.',
       parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_file',
+      description: 'Propose creating a new file in the workspace (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Absolute file path.' },
+          content: { type: 'string', description: 'File content.' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'edit_file',
+      description: 'Propose modifying an existing file (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Absolute file path.' },
+          content: { type: 'string', description: 'New full file content.' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rename_file',
+      description: 'Propose renaming a file (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Current absolute file path.' },
+          newPath: { type: 'string', description: 'New absolute file path.' },
+        },
+        required: ['path', 'newPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'move_file',
+      description: 'Propose moving a file (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Current absolute file path.' },
+          newPath: { type: 'string', description: 'New absolute file path.' },
+        },
+        required: ['path', 'newPath'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_file',
+      description: 'Propose deleting a file (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Absolute file path.' },
+        },
+        required: ['path'],
+      },
     },
   },
 ];

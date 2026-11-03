@@ -240,6 +240,36 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       }
       return null;
     },
+    proposeFileChange: async (request: any) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.proposeFileChange) {
+        return window.desktop.fs.proposeFileChange(request);
+      }
+      return null;
+    },
+    getPendingChanges: async () => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.getPendingChanges) {
+        return window.desktop.fs.getPendingChanges();
+      }
+      return [];
+    },
+    approveFileChange: async (id: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.approveFileChange) {
+        return window.desktop.fs.approveFileChange(id);
+      }
+      return false;
+    },
+    rejectFileChange: async (id: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.rejectFileChange) {
+        return window.desktop.fs.rejectFileChange(id);
+      }
+      return false;
+    },
+    restoreFileBackup: async (id: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.restoreFileBackup) {
+        return window.desktop.fs.restoreFileBackup(id);
+      }
+      return false;
+    },
     writeFile: async (filePath: string, content: string): Promise<boolean> => {
       if (typeof window !== 'undefined' && window.desktop?.fs?.writeFile) {
         return window.desktop.fs.writeFile(filePath, content);

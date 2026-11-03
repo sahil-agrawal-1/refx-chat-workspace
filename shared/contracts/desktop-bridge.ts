@@ -42,6 +42,7 @@ export interface FileDiffChunk {
 }
 
 export interface FileChange {
+  id?: string;
   filePath: string;
   action: 'create' | 'modify' | 'delete';
   originalContent?: string;
@@ -188,6 +189,11 @@ export interface IFileSystemBridge {
   searchFiles(workspacePath: string, query: string): Promise<FileSearchResult[]>;
   searchText(workspacePath: string, query: string): Promise<TextSearchResult[]>;
   getFileMetadata(filePath: string): Promise<FileMetadata | null>;
+  proposeFileChange(request: any): Promise<any>;
+  getPendingChanges(): Promise<any[]>;
+  approveFileChange(id: string): Promise<boolean>;
+  rejectFileChange(id: string): Promise<boolean>;
+  restoreFileBackup(id: string): Promise<boolean>;
   writeFile(filePath: string, content: string): Promise<boolean>;
   watchDirectory(dirPath: string, callback: (event: 'add' | 'change' | 'unlink', path: string) => void): () => void;
 }
@@ -357,6 +363,11 @@ export const FILESYSTEM_IPC_CHANNELS = {
   SEARCH_FILES: 'desktop:fsSearchFiles',
   SEARCH_TEXT: 'desktop:fsSearchText',
   GET_FILE_METADATA: 'desktop:fsGetFileMetadata',
+  PROPOSE_CHANGE: 'desktop:fsProposeChange',
+  GET_PENDING_CHANGES: 'desktop:fsGetPendingChanges',
+  APPROVE_CHANGE: 'desktop:fsApproveChange',
+  REJECT_CHANGE: 'desktop:fsRejectChange',
+  RESTORE_BACKUP: 'desktop:fsRestoreBackup',
 } as const;
 
 export const CREDENTIAL_IPC_CHANNELS = {

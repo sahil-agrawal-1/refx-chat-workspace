@@ -267,6 +267,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // verifies and connects them. No provider is mandatory.
       setProviders(provs);
 
+      // Load pending file changes
+      try {
+        const pending = await desktopBridge.fs.getPendingChanges();
+        if (Array.isArray(pending)) setPendingChanges(pending);
+      } catch {
+        // ignore
+      }
+
       // Load conversations from persistent storage
       try {
         const persistedConvs = await desktopBridge.database.getConversations();
@@ -751,30 +759,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const approveChange = (filePath: string) => {
-    setPendingChanges((prev) =>
-      prev.map((c) => (c.filePath === filePath ? { ...c, status: 'approved' as const } : c))
-    );
-    setNotification({
-      title: 'Modification Approved',
-      message: `Accepted changes to ${filePath.split('\\').pop()}`,
-      type: 'success',
+  const approveChange = (id: string) => {
+    desktopBridge.fs.approveFileChange(id).then((ok) => {
+      if (ok) {
+        setPendingChanges((prev) => prev.filter((c) => c.id !== id && c.filePath !== id));
+        setNotification({
+          title: 'Modification Applied',
+          message: 'Change applied successfully.',
+          type: 'success',
+        });
+      } else {
+        setNotification({
+          title: 'Apply Failed',
+          message: 'Change could not be applied.',
+          type: 'warning',
+        });
+      }
+    }).catch((err: any) => {
+      setNotification({
+        title: 'Apply Failed',
+        message: err?.message || 'Change could not be applied.',
+        type: 'warning',
+      });
     });
   };
 
-  const rejectChange = (filePath: string) => {
-    setPendingChanges((prev) =>
-      prev.map((c) => (c.filePath === filePath ? { ...c, status: 'rejected' as const } : c))
-    );
-    setNotification({
-      title: 'Modification Rejected',
-      message: `Discarded changes for ${filePath.split('\\').pop()}`,
-      type: 'warning',
-    });
+  const rejectChange = (id: string) => {
+    desktopBridge.fs.rejectFileChange(id).then(() => {
+      setPendingChanges((prev) => prev.filter((c) => c.id !== id && c.filePath !== id));
+      setNotification({
+        title: 'Modification Rejected',
+        message: 'Change discarded.',
+        type: 'warning',
+      });
+    }).catch(() => {});
+  };
+
+  const proposeFileChange = async (request: any) => {
+    try {
+      const change = await desktopBridge.fs.proposeFileChange(request);
+      if (change) {
+        setPendingChanges((prev) => [...prev, change]);
+        setBottomPanel('diff');
+        if (change.filePath) setActiveDiffFile(change);
+      }
+      return change;
+    } catch (err: any) {
+      setNotification({
+        title: 'Change Proposal Failed',
+        message: err?.message || 'Could not propose change.',
+        type: 'warning',
+      });
+      return null;
+    }
+  };
+
+  const restoreFileBackup = async (id: string) => {
+    const ok = await desktopBridge.fs.restoreFileBackup(id);
+    if (ok) {
+      setNotification({ title: 'Restored', message: 'File restored from backup.', type: 'success' });
+    }
+    return ok;
   };
 
   const approveAllChanges = () => {
-    setPendingChanges((prev) => prev.map((c) => ({ ...c, status: 'approved' as const })));
+    const ids = pendingChanges.map((c) => c.id).filter(Boolean) as string[];
+    ids.forEach((id) => approveChange(id));
   };
 
   const addTaskMemory = async (title: string, content: string, tags: string[] = []) => {
