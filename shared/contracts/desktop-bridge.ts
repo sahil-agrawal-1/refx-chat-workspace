@@ -236,7 +236,8 @@ export interface OllamaStreamEvent {
  */
 export interface ModelInferenceRequest {
   requestId: string;
-  providerType: ProviderType;
+  providerId: string;
+  providerType?: ProviderType;
   model: string;
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   temperature?: number;

@@ -334,7 +334,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // encrypted storage via Electron safeStorage (Windows DPAPI).
     const { apiKey, ...providerWithoutKey } = provider;
     const updated = await desktopBridge.provider.saveProvider(providerWithoutKey);
-    setProviders((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    // Preserve the API key in the in-memory provider state (but it is NOT
+    // persisted to localStorage — it goes to Electron safeStorage via IPC).
+    setProviders((prev) => prev.map((p) => (p.id === updated.id ? { ...updated, apiKey: provider.apiKey } : p)));
 
     // Persist the credential securely in the main process. If encryption is
     // unavailable, fail securely — do not fall back to plaintext.
@@ -847,6 +849,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Start the chat with the selected provider
         const startResult = await window.desktop.startProviderChat({
           requestId,
+          providerId: selectedProvider?.id ?? "",
           providerType: selectedProvider?.type ?? "ollama",
           model: selectedModel,
           messages: historyMessages,

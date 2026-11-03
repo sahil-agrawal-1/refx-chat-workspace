@@ -29,8 +29,8 @@ export const ProviderModal: React.FC = () => {
 
   React.useEffect(() => {
     if (currentProvider) {
-      setFormConfig({ ...currentProvider });
-      setVerifyResult(null);
+      setFormConfig((prev) => ({ ...currentProvider, apiKey: currentProvider.apiKey || prev?.apiKey || '' }));
+      setVerifyResult((vr) => vr);
     }
   }, [selectedProviderId, currentProvider]);
 

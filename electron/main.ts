@@ -1173,7 +1173,7 @@ async function startProviderChatOpenAICompatible(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = getCredentialForProvider(request.providerType);
+  const apiKey = getCredentialForProvider(request.providerId);
   const baseUrl = request.baseUrl || (request.providerType === 'openai' ? 'https://api.openai.com/v1' : '');
 
   const abortController = new AbortController();
@@ -1256,7 +1256,7 @@ async function startProviderChatGemini(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = getCredentialForProvider(request.providerType);
+  const apiKey = getCredentialForProvider(request.providerId);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
@@ -1418,7 +1418,7 @@ async function startProviderChatAnthropic(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = getCredentialForProvider(request.providerType);
+  const apiKey = getCredentialForProvider(request.providerId);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
@@ -1594,7 +1594,7 @@ async function startProviderChatOpenRouter(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = getCredentialForProvider(request.providerType);
+  const apiKey = getCredentialForProvider(request.providerId);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
