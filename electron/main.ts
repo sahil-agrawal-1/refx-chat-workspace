@@ -572,7 +572,7 @@ async function verifyProviderConnection(
         if (!apiKey) {
           return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
         }
-        return verifyGeminiConnection(apiKey, abortController, timeoutMs);
+        return await verifyGeminiConnection(apiKey, abortController, timeoutMs);
       }
 
       case 'openai': {
@@ -580,7 +580,7 @@ async function verifyProviderConnection(
         if (!apiKey) {
           return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
         }
-        return verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
+        return await verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
       }
 
       case 'anthropic': {
@@ -588,7 +588,7 @@ async function verifyProviderConnection(
         if (!apiKey) {
           return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
         }
-        return verifyAnthropicConnection(config, apiKey, abortController, timeoutMs);
+        return await verifyAnthropicConnection(config, apiKey, abortController, timeoutMs);
       }
 
       case 'openrouter': {
@@ -596,21 +596,21 @@ async function verifyProviderConnection(
         if (!apiKey) {
           return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
         }
-        return verifyOpenRouterConnection(config, apiKey, abortController, timeoutMs);
+        return await verifyOpenRouterConnection(config, apiKey, abortController, timeoutMs);
       }
 
       case 'lm_studio': {
-        return verifyLMStudioConnection(config, abortController, timeoutMs);
+        return await verifyLMStudioConnection(config, abortController, timeoutMs);
       }
 
       case 'openai_compatible': {
         const apiKey = getCredentialForProvider(config.id);
-        return verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
+        return await verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
       }
 
       case 'custom_local': {
         const apiKey = getCredentialForProvider(config.id);
-        return verifyCustomLocalConnection(config, apiKey, abortController, timeoutMs);
+        return await verifyCustomLocalConnection(config, apiKey, abortController, timeoutMs);
       }
 
       default:
