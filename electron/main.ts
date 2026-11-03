@@ -634,33 +634,133 @@ async function verifyGeminiConnection(
   abortController: AbortController,
   timeoutMs: number
 ): Promise<ProviderVerificationResult> {
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=20';
+  const startTime = Date.now();
+
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+    const res = await fetch(endpoint, {
       headers: { 'x-goog-api-key': apiKey },
       signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
     });
+    const durationMs = Date.now() - startTime;
+
     if (!res.ok) {
+      if (res.status === 400) {
+        return {
+          success: false,
+          models: [],
+          status: 'provider-unavailable',
+          message: `Gemini verification failed: bad request (HTTP 400). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: http_400.`,
+        };
+      }
       if (res.status === 401 || res.status === 403) {
-        return { success: false, models: [], status: 'auth-failed', message: 'Invalid Gemini API key.' };
+        return {
+          success: false,
+          models: [],
+          status: 'auth-failed',
+          message: `Gemini verification failed: authentication error (HTTP ${res.status}). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: auth_failed.`,
+        };
       }
       if (res.status === 429) {
-        return { success: false, models: [], status: 'rate-limited', message: 'Gemini rate limit exceeded.' };
+        return {
+          success: false,
+          models: [],
+          status: 'rate-limited',
+          message: `Gemini verification failed: rate limited (HTTP 429). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: rate_limited.`,
+        };
       }
-      return { success: false, models: [], status: 'provider-unavailable', message: `Gemini API returned HTTP ${res.status}: ${res.statusText}` };
+      if (res.status >= 500) {
+        return {
+          success: false,
+          models: [],
+          status: 'provider-unavailable',
+          message: `Gemini verification failed: server error (HTTP ${res.status}). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: server_error.`,
+        };
+      }
+      return {
+        success: false,
+        models: [],
+        status: 'provider-unavailable',
+        message: `Gemini verification failed: HTTP ${res.status}. Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: http_error.`,
+      };
     }
+
     const data = (await res.json()) as { models?: Array<{ name?: string }> };
     const models = (data.models?.map((m) => m.name?.replace('models/', '') || '') || []).filter((m): m is string => Boolean(m));
+    const successDurationMs = Date.now() - startTime;
     return models.length > 0
-      ? { success: true, models, status: 'connected', message: `Connected to Gemini. ${models.length} model(s) discovered.` }
-      : { success: false, models: [], status: 'model-unavailable', message: 'Gemini connected but no models discovered.' };
+      ? {
+          success: true,
+          models,
+          status: 'connected',
+          message: `Connected to Gemini. ${models.length} model(s) discovered. Duration: ${successDurationMs}ms. Endpoint: ${endpoint}.`,
+        }
+      : {
+          success: false,
+          models: [],
+          status: 'model-unavailable',
+          message: 'Gemini connected but no models discovered.',
+        };
   } catch (err: any) {
+    const durationMs = Date.now() - startTime;
+
     if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-      return { success: false, models: [], status: 'provider-unavailable', message: 'Gemini verification timed out.' };
+      return {
+        success: false,
+        models: [],
+        status: 'provider-unavailable',
+        message: `Gemini verification timed out after ${durationMs}ms. Endpoint: ${endpoint}. Category: timeout.`,
+      };
     }
+
+    // DNS resolution errors
+    if (
+      err.code === 'ENOTFOUND' ||
+      err.code === 'EAI_AGAIN' ||
+      err.code === 'EAI_FAIL' ||
+      err.code === 'ENETUNREACH'
+    ) {
+      return {
+        success: false,
+        models: [],
+        status: 'provider-unavailable',
+        message: `Gemini verification failed: DNS resolution error (${err.code}). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: dns.`,
+      };
+    }
+
+    // TLS/SSL errors
+    if (
+      err.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
+      err.code === 'CERT_HAS_EXPIRED' ||
+      err.code === 'EPROTO' ||
+      err.code === 'ECONNRESET' ||
+      (err.message && /tls|ssl/i.test(err.message))
+    ) {
+      return {
+        success: false,
+        models: [],
+        status: 'provider-unavailable',
+        message: `Gemini verification failed: TLS/SSL error (${err.code}). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: tls.`,
+      };
+    }
+
+    // Connection errors
+    if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+      return {
+        success: false,
+        models: [],
+        status: 'provider-unavailable',
+        message: `Gemini verification failed: connection error (${err.code}). Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: connection.`,
+      };
+    }
+
     let message = err.message || 'Gemini verification failed.';
-    if (err.status === 401 || err.status === 403) message = 'Invalid Gemini API key.';
-    else if (err.status === 429) message = 'Gemini rate limit exceeded.';
-    return { success: false, models: [], status: 'provider-unavailable', message };
+    return {
+      success: false,
+      models: [],
+      status: 'provider-unavailable',
+      message: `Gemini verification failed: ${message}. Duration: ${durationMs}ms. Endpoint: ${endpoint}. Category: unknown.`,
+    };
   }
 }
 
