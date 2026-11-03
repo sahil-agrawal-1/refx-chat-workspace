@@ -46,7 +46,7 @@ interface AppContextValue {
   selectedModel: string;
   setSelectedModel: (model: string, providerId?: string) => void;
   saveProviderConfig: (provider: ProviderConfig) => Promise<void>;
-  verifyProviderConnection: (providerId: string) => Promise<{ success: boolean; models: string[]; message?: string }>;
+  verifyProviderConnection: (providerId: string) => Promise<ProviderVerificationResult>;
 
   // Workspaces & File Explorer
   selectedWorkspace: ProjectWorkspace | null;
@@ -219,48 +219,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const provs = await desktopBridge.provider.getProviders();
       let activeProvs = provs;
 
-      // Auto-detect Ollama in Electron on startup
-      if (typeof window !== 'undefined' && window.desktop?.listOllamaModels) {
-        try {
-          const ollamaRes = await window.desktop.listOllamaModels();
-          if (ollamaRes.success && ollamaRes.models.length > 0) {
-            activeProvs = provs.map((p) => {
-              if (p.id === 'ollama') {
-                const selected =
-                  p.selectedModel && ollamaRes.models.includes(p.selectedModel)
-                    ? p.selectedModel
-                    : ollamaRes.models[0];
-                return {
-                  ...p,
-                  status: 'connected',
-                  discoveredModels: ollamaRes.models,
-                  selectedModel: selected,
-                };
-              }
-              return p;
-            });
-            setProviders(activeProvs);
-            const ollamaProv = activeProvs.find((p) => p.id === 'ollama');
-            if (ollamaProv && ollamaProv.selectedModel) {
-              setSelectedModelInternal(ollamaProv.selectedModel);
-              setSelectedProviderId('ollama');
-            }
-          } else {
-            setProviders(provs);
-          }
-        } catch {
-          setProviders(provs);
-        }
-      } else {
-        setProviders(provs);
-      }
+      // No auto-detection of Ollama or any other provider on startup.
+      // Providers remain in their configured state until the user explicitly
+      // verifies and connects them. No provider is mandatory.
+      setProviders(provs);
 
-      // Check if any provider is configured
-      const connected = activeProvs.find((p) => p.status === 'connected' && p.selectedModel);
-      if (connected) {
-        setSelectedModelInternal(connected.selectedModel);
-        setSelectedProviderId(connected.id);
-      }
+      // Do not auto-select any provider. The user chooses which provider
+      // to use via the Model Providers modal. No provider is mandatory.
 
       // Migrate any existing plaintext API keys from localStorage to secure
       // Electron safeStorage. Migration is explicit: only after the main
@@ -749,7 +714,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: "msg-sys-" + Date.now(),
           role: "system",
           content:
-            "No model provider connected. To run prompts, open **AI Models & Providers** and connect to your local Ollama / LM Studio runtime, or configure an API key for Google Gemini, Anthropic, or OpenAI.",
+            "No model provider connected. To run prompts, open **AI Models & Providers** and configure and verify a provider (Ollama, LM Studio, Google Gemini, Anthropic, OpenAI, OpenRouter, or a custom endpoint).",
           timestamp: Date.now(),
         };
 

@@ -163,6 +163,11 @@ test('sendMessage with no existing conversation creates a conversation and never
   const store = await renderStore();
   assert.equal(store.sendMessage, latest.sendMessage);
 
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
+
   await act(async () => {
     await store.sendMessage('hello world');
   });
@@ -185,6 +190,11 @@ test('sendMessage with no existing conversation creates a conversation and never
 
 test('multiple consecutive messages append to the same conversation with correct ordered history', async () => {
   const store = await renderStore();
+
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
 
   await act(async () => {
     await store.sendMessage('first');
@@ -214,6 +224,11 @@ test('multiple consecutive messages append to the same conversation with correct
 
 test('new conversation creation does not disturb other conversations', async () => {
   const store = await renderStore();
+
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
 
   await act(async () => {
     await store.sendMessage('in conv one');
@@ -268,6 +283,11 @@ test('provider errors carry the accurate provider label, not a hardcoded "Ollama
   startOverride = { success: false, error: 'upstream failure' };
   const store = await renderStore();
 
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
+
   await act(async () => {
     await store.sendMessage('oops');
   });
@@ -316,6 +336,11 @@ test('thrown error from provider resets isGenerating and reports the error', asy
   startThrows = true;
   const store = await renderStore();
 
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
+
   await act(async () => {
     await store.sendMessage('crash');
   });
@@ -333,6 +358,11 @@ test('thrown error from provider resets isGenerating and reports the error', asy
 test('stopGeneration cancels the stream and resets isGenerating consistently', async () => {
   streamDelay = 300; // stream 'done' arrives late
   const store = await renderStore();
+
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
 
   await act(async () => {
     await store.sendMessage('stop me');
@@ -357,6 +387,11 @@ test('stopGeneration cancels the stream and resets isGenerating consistently', a
 test('stop and retry: a stopped generation can be retried in the same conversation', async () => {
   streamDelay = 200;
   const store = await renderStore();
+
+  // Verify Ollama provider before sending
+  await act(async () => {
+    await store.verifyProviderConnection('ollama');
+  });
 
   await act(async () => {
     await store.sendMessage('first try');

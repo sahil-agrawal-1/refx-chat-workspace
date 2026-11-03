@@ -15,7 +15,7 @@ import type { ProviderConfig } from '@/types';
 
 export const ProviderModal: React.FC = () => {
   const { activeModal, closeModal, providers, saveProviderConfig, verifyProviderConnection } = useAppStore();
-  const [selectedProviderId, setSelectedProviderId] = useState<string>(providers[0]?.id || 'ollama');
+  const [selectedProviderId, setSelectedProviderId] = useState<string>(providers[0]?.id || '');
   const [showApiKey, setShowApiKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{
@@ -24,7 +24,7 @@ export const ProviderModal: React.FC = () => {
     message?: string;
   } | null>(null);
 
-  const currentProvider = providers.find((p) => p.id === selectedProviderId) || providers[0];
+  const currentProvider = providers.find((p) => p.id === selectedProviderId) || providers[0] || null;
   const [formConfig, setFormConfig] = useState<ProviderConfig | null>(null);
 
   React.useEffect(() => {
@@ -79,7 +79,7 @@ export const ProviderModal: React.FC = () => {
       isOpen={activeModal === 'providers'}
       onClose={closeModal}
       title="Model Providers & Endpoints"
-      subtitle="Configure local models (Ollama, LM Studio) or cloud provider API keys."
+      subtitle="Configure and verify AI model providers (Ollama, LM Studio, Google Gemini, Anthropic, OpenAI, OpenRouter, or custom endpoints)."
       maxWidth="max-w-3xl"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 min-h-[400px]">
@@ -150,7 +150,7 @@ export const ProviderModal: React.FC = () => {
                 type="text"
                 value={formConfig.baseUrl}
                 onChange={(e) => handleFieldChange('baseUrl', e.target.value)}
-                placeholder="http://localhost:11434"
+                placeholder="e.g. http://localhost:11434 or https://api.openai.com/v1"
                 className="w-full bg-[#131315] border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
               />
               <p className="text-[11px] text-[#6c6c74] mt-1">
@@ -196,7 +196,7 @@ export const ProviderModal: React.FC = () => {
                 type="text"
                 value={formConfig.selectedModel}
                 onChange={(e) => handleFieldChange('selectedModel', e.target.value)}
-                placeholder="e.g. qwen2.5-coder, gemini-2.5-pro, claude-3-7-sonnet"
+                placeholder="e.g. gemini-2.5-pro, claude-3-7-sonnet, gpt-4o, qwen2.5-coder, or a custom model ID"
                 className="w-full bg-[#131315] border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
               />
             </div>
