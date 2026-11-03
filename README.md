@@ -4,14 +4,16 @@ Local-first Windows AI desktop application for chat with local and cloud model p
 
 ## Project Status
 
-The chat layer (conversation management, message streaming, provider integration, error handling, and generation state) has been repaired and tested. See **Chat-State Repair** below.
+The chat layer (conversation management, message streaming, provider integration, error handling, and generation state) has been repaired and tested (P1). API key storage has been hardened with Electron safeStorage encryption (P2). Real provider verification and model discovery has been implemented for all providers (P3).
+
+See **Chat-State Repair (P1)**, **Security Hardening (P2)**, and **Provider Verification (P3)** below.
 
 ## Features
 
 - **Multi-provider chat**: Ollama, LM Studio, Google Gemini, Anthropic, OpenAI, OpenRouter, OpenAI-compatible, and Custom Local endpoints.
 - **Conversations**: Create, select, and delete conversations with persistent history (localStorage).
 - **Streaming inference**: Real-time streaming responses via Electron desktop bridge (`desktop:startProviderChat` / `desktop:providerStream`).
-- **Model selection**: Connected provider models shown in a dropdown selector.
+- **Model selection**: Connected provider models shown in a dropdown selector with real discovery and status indicators.
 - **Workspace & file explorer**: Select a project workspace folder and browse files.
 - **Terminal panel**: Integrated terminal session (PowerShell/CMD/Bash) with output streaming.
 - **Diff review**: Side-by-side file modification review with Accept/Reject actions.
@@ -49,6 +51,8 @@ The chat layer (conversation management, message streaming, provider integration
 │   ├── stores/
 │   │   ├── app-store.tsx    # Centralized React state store (chat, providers, memory, terminal)
 │   │   ├── app-store.test.tsx   # Chat store behavior tests
+│   │   ├── security.test.ts   # Security behavior tests
+│   │   ├── provider-verification.test.ts  # Provider verification tests
 │   │   └── test-shim.ts     # DOM shims for Node.js test environment
 │   ├── types/               # TypeScript type definitions
 │   └── utils/
@@ -59,6 +63,7 @@ The chat layer (conversation management, message streaming, provider integration
 │       └── app_logo.svg     # REFX logo (inline SVG source)
 ├── build/
 │   └── icon.ico             # Generated multi-size Windows app icon
+├── security.md              # Security documentation
 ├── electron-builder config  # in package.json "build" field
 ├── index.html
 ├── package.json
@@ -90,6 +95,50 @@ The `src/stores/app-store.tsx` chat flow was fixed across five categories:
 - Thrown provider error resets `isGenerating`
 - Stop generation cancels and resets; stop-and-retry works
 
+## Security Hardening (P2)
+
+API key storage has been completely rearchitected:
+
+- **Electron `safeStorage` (Windows DPAPI)** replaces the hardcoded AES-256-CBC encryption key — credentials are encrypted at rest in `app userData/provider-credentials.json`.
+- **API keys never cross IPC to the renderer** — `saveCredential` is send-only; `getCredentialForProvider()` is main-process-internal only.
+- **API keys stripped before localStorage persistence** — provider metadata is saved without the key; the key is sent separately to the main process.
+- **Migration path** — existing plaintext keys in localStorage are detected, encrypted via `safeStorage`, confirmed stored, then removed from localStorage. Never silently discarded.
+- **Fail securely** — if `safeStorage.isEncryptionAvailable()` returns false, credentials are not saved; no plaintext fallback.
+- **XSS prevention in chat exports** — `escapeHtml()` sanitizes all user-controlled content (title, model, role, message content); `isSafeUrl()` validates URLs (`javascript:`, `data:`, `file:` rejected).
+
+### Security Tests (`src/stores/security.test.ts`)
+
+22 tests cover:
+- HTML escaping (`&`, `<`, `>`, quotes, `/`, script tags, event handlers, SVG XSS)
+- URL scheme validation (https/http accepted; javascript/data/file rejected)
+- Credential encryption/decryption round-trip
+- Fail-secure behavior when encryption is unavailable
+- Credential migration flow
+
+## Provider Verification (P3)
+
+Real API verification and model discovery implemented for all 8 providers:
+
+| Provider | Endpoint | Auth Method |
+|----------|----------|-------------|
+| Ollama | `GET /api/tags` | None (local) |
+| Google Gemini | `GET /v1beta/models` | `x-goog-api-key` header |
+| OpenAI | `GET /v1/models` | `Bearer` header |
+| Anthropic | `GET /v1/models` | `x-api-key` + `anthropic-version` headers |
+| OpenRouter | `GET /api/v1/key` + `GET /api/v1/models` | `Bearer` header |
+| LM Studio | `GET /v1/models` | None (local) |
+| OpenAI-compatible | `GET /v1/models` | `Bearer` header (optional) |
+| Custom local | `GET /v1/models` | `Bearer` header (optional) |
+
+### Connection status states (9 distinct states)
+`not-configured`, `connecting`, `connected`, `auth-failed`, `rate-limited`, `provider-unavailable`, `model-unavailable`, `model-discovery-unsupported`, `auth-verified-model-untested`
+
+A successful authentication check does **not** imply every model supports inference — model discovery is separate from model capability testing.
+
+### Provider Verification Tests (`src/stores/provider-verification.test.ts`)
+
+18 tests cover all providers with valid credentials, invalid credentials, missing credentials, unavailable endpoints, rate limits, model discovery, manual model selection, provider switching, and secure credential retrieval.
+
 ## Desktop Bridge Contract (`IDesktopBridge`)
 
 The frontend is decoupled from the OS via `shared/contracts/desktop-bridge.ts`:
@@ -99,7 +148,7 @@ The frontend is decoupled from the OS via `shared/contracts/desktop-bridge.ts`:
 - `provider` — model discovery, API key management, connection verification
 - `system` — Windows platform detection, architecture, app versioning
 
-`BrowserPreviewBridgeAdapter` implements this contract in Stage 1 (browser preview). Electron's `contextBridge` replaces it in Stage 2 without modifying UI components.
+`BrowserPreviewBridgeAdapter` implements this contract in Stage 1 (browser preview). Electron's `contextBridge` replaces it in Stage 2 without modifying UI components. Cloud provider verification requires the Electron runtime (secure credential storage).
 
 ## Running and Verifying
 
@@ -117,6 +166,8 @@ pnpm lint
 
 # Run unit tests (Node.js via tsx)
 pnpm tsx src/stores/app-store.test.tsx
+pnpm tsx src/stores/security.test.ts
+pnpm tsx src/stores/provider-verification.test.ts
 pnpm tsx src/utils/diff.test.ts
 
 # Production web build
@@ -141,6 +192,12 @@ pnpm electron:build
 | `pnpm electron:dev` | Dev server + Electron |
 | `pnpm electron:start` | Production Electron |
 | `pnpm electron:build` | Package Windows installer & portable |
+
+## Security Pipeline
+
+- **GitHub Actions** (`.github/workflows/security.yml`) — runs lint, builds, all tests, and security-specific scans on every push/PR.
+- **Pre-commit hook** (`.git/hooks/pre-commit`) — rejects commits locally if any check fails (lint, builds, tests).
+- See `security.md` for full security documentation.
 
 ## App Name & Icon
 
