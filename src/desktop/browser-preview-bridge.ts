@@ -152,22 +152,22 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   private loadFromStorage() {
     try {
-      const savedProviders = localStorage.getItem('antigravity_providers');
+      const savedProviders = localStorage.getItem('refx_providers');
       if (savedProviders) {
         const parsed = JSON.parse(savedProviders);
         if (Array.isArray(parsed) && parsed.length > 0) {
           this.providers = parsed;
         }
       }
-      const savedAppMem = localStorage.getItem('antigravity_app_memories');
+      const savedAppMem = localStorage.getItem('refx_app_memories');
       if (savedAppMem) {
         this.appMemories = JSON.parse(savedAppMem);
       }
-      const savedTaskMem = localStorage.getItem('antigravity_task_memories');
+      const savedTaskMem = localStorage.getItem('refx_task_memories');
       if (savedTaskMem) {
         this.taskMemories = JSON.parse(savedTaskMem);
       }
-      const savedMemConfig = localStorage.getItem('antigravity_memory_config');
+      const savedMemConfig = localStorage.getItem('refx_memory_config');
       if (savedMemConfig) {
         this.memoryConfig = { ...this.memoryConfig, ...JSON.parse(savedMemConfig) };
       }
@@ -262,7 +262,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     getMemoryConfig: async (): Promise<MemoryConfig> => ({ ...this.memoryConfig }),
     updateMemoryConfig: async (config: Partial<MemoryConfig>): Promise<MemoryConfig> => {
       this.memoryConfig = { ...this.memoryConfig, ...config };
-      this.saveToStorage('antigravity_memory_config', this.memoryConfig);
+      this.saveToStorage('refx_memory_config', this.memoryConfig);
       return { ...this.memoryConfig };
     },
     getTaskMemories: async (_taskId: string): Promise<TaskMemoryEntry[]> => [...this.taskMemories],
@@ -274,12 +274,12 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
         updatedAt: Date.now(),
       };
       this.taskMemories.unshift(newEntry);
-      this.saveToStorage('antigravity_task_memories', this.taskMemories);
+      this.saveToStorage('refx_task_memories', this.taskMemories);
       return newEntry;
     },
     deleteTaskMemory: async (id: string): Promise<boolean> => {
       this.taskMemories = this.taskMemories.filter((m) => m.id !== id);
-      this.saveToStorage('antigravity_task_memories', this.taskMemories);
+      this.saveToStorage('refx_task_memories', this.taskMemories);
       return true;
     },
     getAppMemories: async (): Promise<AppMemoryEntry[]> => [...this.appMemories],
@@ -291,17 +291,17 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
         updatedAt: Date.now(),
       };
       this.appMemories.unshift(newEntry);
-      this.saveToStorage('antigravity_app_memories', this.appMemories);
+      this.saveToStorage('refx_app_memories', this.appMemories);
       return newEntry;
     },
     deleteAppMemory: async (id: string): Promise<boolean> => {
       this.appMemories = this.appMemories.filter((m) => m.id !== id);
-      this.saveToStorage('antigravity_app_memories', this.appMemories);
+      this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
     },
     clearAppMemories: async (): Promise<boolean> => {
       this.appMemories = [];
-      this.saveToStorage('antigravity_app_memories', this.appMemories);
+      this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
     },
   };
@@ -319,12 +319,12 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       } else {
         this.providers.push(providerWithoutKey);
       }
-      this.saveToStorage('antigravity_providers', this.providers);
+      this.saveToStorage('refx_providers', this.providers);
       return providerWithoutKey;
     },
     deleteProvider: async (id: string): Promise<boolean> => {
       this.providers = this.providers.filter((p) => p.id !== id);
-      this.saveToStorage('antigravity_providers', this.providers);
+      this.saveToStorage('refx_providers', this.providers);
       return true;
     },
     verifyConnection: async (providerId: string): Promise<ProviderVerificationResult> => {

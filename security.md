@@ -42,7 +42,7 @@
 ## 2. Credential Storage Architecture
 
 ### Before P2 (Vulnerable)
-API keys were stored in plaintext in `localStorage` under `antigravity_providers`, accessible to any script in the renderer process. A hardcoded AES-256-CBC key (`refx-ai-desktop-v1-encryption-key`) was used for reversible encryption in the main process, but the key was embedded in source code.
+API keys were stored in plaintext in `localStorage` under `refx_providers`, accessible to any script in the renderer process. A hardcoded AES-256-CBC key (`refx-ai-desktop-v1-encryption-key`) was used for reversible encryption in the main process, but the key was embedded in source code.
 
 ### After P2 (Secure)
 | Property | Implementation |

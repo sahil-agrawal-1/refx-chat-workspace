@@ -121,7 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Conversations (Clean start with no fake conversations)
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
-      const saved = localStorage.getItem('antigravity_conversations');
+      const saved = localStorage.getItem('refx_conversations');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -130,7 +130,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(() => {
     try {
-      const saved = localStorage.getItem('antigravity_conversations');
+      const saved = localStorage.getItem('refx_conversations');
       const parsed = saved ? JSON.parse(saved) : [];
       return parsed.length > 0 ? parsed[0].id : null;
     } catch {
@@ -150,7 +150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Workspaces (No hardcoded fake projects)
   const [selectedWorkspace, setSelectedWorkspace] = useState<ProjectWorkspace | null>(() => {
     try {
-      const saved = localStorage.getItem('antigravity_active_workspace');
+      const saved = localStorage.getItem('refx_active_workspace');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -159,7 +159,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [recentWorkspaces, setRecentWorkspaces] = useState<ProjectWorkspace[]>(() => {
     try {
-      const saved = localStorage.getItem('antigravity_recent_workspaces');
+      const saved = localStorage.getItem('refx_recent_workspaces');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -201,7 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Save conversations to storage
   useEffect(() => {
     try {
-      localStorage.setItem('antigravity_conversations', JSON.stringify(conversations));
+      localStorage.setItem('refx_conversations', JSON.stringify(conversations));
     } catch {
       // Ignored
     }
@@ -519,8 +519,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedWorkspace(ws);
       setRecentWorkspaces((prev) => [ws, ...prev.filter((p) => p.path !== folderPath)].slice(0, 5));
       try {
-        localStorage.setItem('antigravity_active_workspace', JSON.stringify(ws));
-        localStorage.setItem('antigravity_recent_workspaces', JSON.stringify([ws, ...recentWorkspaces]));
+        localStorage.setItem('refx_active_workspace', JSON.stringify(ws));
+        localStorage.setItem('refx_recent_workspaces', JSON.stringify([ws, ...recentWorkspaces]));
       } catch {
         // Ignored
       }
@@ -535,7 +535,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setWorkspace = (ws: ProjectWorkspace | null) => {
     setSelectedWorkspace(ws);
     try {
-      localStorage.setItem('antigravity_active_workspace', JSON.stringify(ws));
+      localStorage.setItem('refx_active_workspace', JSON.stringify(ws));
     } catch {
       // Ignored
     }
