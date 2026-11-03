@@ -124,7 +124,15 @@ API key storage was completely rearchitected:
 | **XSS prevention in exports** | `escapeHtml()` sanitizes all user content; `isSafeUrl()` rejects `javascript:`/`data:`/`file:` |
 | **Credentials never logged** | API keys never appear in console output or error URLs |
 
+### Credential Persistence Fixes
+
+- **Credential saved before metadata** — `saveProviderConfig()` now persists the encrypted API key to `provider-credentials.json` via Electron `safeStorage` BEFORE writing provider metadata to localStorage. If credential encryption or disk write fails, metadata is not saved, preventing a restart from leaving a provider configured with no key.
+- **Write errors propagate** — `saveCredentialStore()` throws if the credential file cannot be written (permissions, disk full, etc.). Errors are surfaced to the user via a warning notification instead of being silently swallowed.
+- **Save-order enforced** — credential IPC call completes successfully before `desktopBridge.provider.saveProvider()` writes metadata. If credential save fails, the function returns early without saving metadata.
+- **API key cross-provider leak fixed** — switching providers in the ProviderModal no longer carries over the previous provider's API key (`prev?.apiKey` fallback removed). Each provider uses only its own stored key.
+
 ### Tests (22/22 passing)
+
 - HTML escaping (`&`, `<`, `>`, quotes, `/`, script tags, event handlers, SVG XSS)
 - URL scheme validation (https/http accepted; javascript/data/file rejected)
 - Credential encryption/decryption round-trip
@@ -152,6 +160,12 @@ Real API verification and model discovery implemented for all 8 providers:
 `not-configured`, `connecting`, `connected`, `auth-failed`, `insufficient-permissions`, `rate-limited`, `provider-unavailable`, `model-unavailable`, `model-discovery-unsupported`, `auth-verified-model-untested`
 
 A successful authentication check does **not** imply every model supports inference — model discovery is separate from model capability testing.
+
+### Model Validation & Error Messages
+
+- **Model validation before API call** — `sendMessage()` validates that the selected model exists in the provider's discovered model list for cloud providers (Gemini, OpenAI, Anthropic, OpenRouter, OpenAI-compatible, Custom Local) before making an API call. Local providers (Ollama, LM Studio) may allow manually entered models.
+- **Specific 404 handling** — Gemini API returns a model-specific 404 message naming the missing model and directing the user to verify the provider and select from the discovered list.
+- **Specific 503 handling** — OpenRouter returns a "temporarily unavailable" message with retry guidance when the provider returns HTTP 503.
 
 ### Tests (18/18 passing)
 All providers tested with valid credentials, invalid credentials, missing credentials, unavailable endpoints, rate limits, model discovery, manual model selection, provider switching, and secure credential retrieval.
@@ -207,7 +221,7 @@ See `security.md` for full security documentation including:
 | Memory persistence | Stored in `localStorage`, not SQLite | No migration path from `localStorage` to backend |
 | Filesystem IPC | `readFile`/`writeFile`/`watchDirectory` not implemented in Electron main | File changes staged in UI but not written to disk |
 | Terminal PTY | UI-only with simulated output | No real shell process |
-| Cloud provider inference | Verification implemented; chat inference not yet wired | `sendMessage` routes verification, but streaming inference for cloud providers pending |
+| Cloud provider inference | Implemented — `sendMessage` routes to provider-specific streaming handlers (Ollama, Gemini, OpenAI, Anthropic, OpenRouter, OpenAI-compatible, Custom Local) with model validation and specific error messages for 404/503 responses | Model name validation prevents doomed API calls to invalid models |
 
 ---
 
@@ -221,4 +235,4 @@ See `security.md` for full security documentation including:
 | 11/3/2026 | P1: Chat-state repair (conversation creation, stale history, generation state, error handling, stop generation) | Cline (AI coding agent) |
 | 11/3/2026 | P2: Security hardening (safeStorage DPAPI, XSS prevention, credential migration, audit pipeline) | Cline (AI coding agent) |
 | 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Cline (AI coding agent) |
-| 11/3/2026 | Documentation update (README, report.md, security.md) | Cline (AI coding agent) |
+| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |

@@ -332,25 +332,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Never persist the raw API key to localStorage. Strip it before saving
     // the provider metadata, then send the key to the main process for
     // encrypted storage via Electron safeStorage (Windows DPAPI).
+    //
+    // ORDER MATTERS: Save the credential to secure storage FIRST. Only if
+    // that succeeds do we save provider metadata (without key) to localStorage.
+    // This prevents a restart from leaving a provider configured with no key.
     const { apiKey, ...providerWithoutKey } = provider;
-    const updated = await desktopBridge.provider.saveProvider(providerWithoutKey);
-    // Preserve the API key in the in-memory provider state (but it is NOT
-    // persisted to localStorage — it goes to Electron safeStorage via IPC).
-    setProviders((prev) => prev.map((p) => (p.id === updated.id ? { ...updated, apiKey: provider.apiKey } : p)));
 
-    // Persist the credential securely in the main process. If encryption is
-    // unavailable, fail securely — do not fall back to plaintext.
+    // Persist the credential securely in the main process first.
+    // If encryption is unavailable or the write fails, fail securely —
+    // do not fall back to plaintext, and do not save provider metadata.
     if (apiKey) {
-      const saved = await window.desktop?.saveCredential?.(provider.id, apiKey);
+      let saved = false;
+      try {
+        const result = await window.desktop?.saveCredential?.(provider.id, apiKey);
+        saved = result === true;
+      } catch {
+        saved = false;
+      }
       if (!saved) {
         setNotification({
           title: 'Credential Storage Failed',
-          message: 'Encryption is unavailable. API key was not saved.',
+          message: 'Encryption is unavailable or the credential file could not be written. API key was not saved.',
           type: 'warning',
         });
         return;
       }
     }
+
+    // Save provider metadata (without API key) to localStorage.
+    const updated = await desktopBridge.provider.saveProvider(providerWithoutKey);
+    // Preserve the API key in the in-memory provider state (but it is NOT
+    // persisted to localStorage — it goes to Electron safeStorage via IPC).
+    setProviders((prev) => prev.map((p) => (p.id === updated.id ? { ...updated, apiKey: provider.apiKey } : p)));
 
     setNotification({
       title: 'Configuration Saved',
@@ -717,6 +730,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           role: "system",
           content:
             "No model provider connected. To run prompts, open **AI Models & Providers** and configure and verify a provider (Ollama, LM Studio, Google Gemini, Anthropic, OpenAI, OpenRouter, or a custom endpoint).",
+          timestamp: Date.now(),
+        };
+
+        setConversations((prev) =>
+          prev.map((c) => (c.id === targetConvId ? { ...c, messages: [...c.messages, sysNotice] } : c))
+        );
+        setIsGenerating(false);
+        activeRequestIdRef.current = null;
+        streamUnsubscribeRef.current?.();
+        streamUnsubscribeRef.current = null;
+        return;
+      }
+
+      // Validate that the selected model is available for cloud providers
+      // (local providers like Ollama/LM Studio may allow manually entered models)
+      const cloudProviderTypes = [
+        'gemini',
+        'openai',
+        'anthropic',
+        'openrouter',
+        'openai_compatible',
+        'custom_local',
+      ] as const;
+      const isCloudProvider =
+        selectedProvider && cloudProviderTypes.includes(selectedProvider.type as (typeof cloudProviderTypes)[number]);
+      const isModelDiscovered = isCloudProvider
+        ? selectedProvider.discoveredModels.includes(selectedModel)
+        : true;
+
+      if (!isModelDiscovered && isCloudProvider) {
+        const sysNotice: ChatMessage = {
+          id: "msg-sys-" + Date.now(),
+          role: "system",
+          content:
+            `**${providerLabel} Error:** The selected model "${selectedModel}" is not available for this provider. Open **AI Models & Providers**, verify the connection to refresh the model list, then select a valid model.`,
           timestamp: Date.now(),
         };
 

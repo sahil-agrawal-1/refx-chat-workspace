@@ -77,14 +77,11 @@ function loadCredentialStore(): Map<string, string> {
 
 /**
  * Save the encrypted credential store to disk.
+ * Throws if the file cannot be written — callers must handle this.
  */
 function saveCredentialStore(store: Map<string, string>): void {
-  try {
-    const entries = Array.from(store.entries()).map(([id, encrypted]) => ({ id, encrypted }));
-    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(entries, null, 2), { encoding: 'utf8' });
-  } catch (err) {
-    console.error('[Security] Failed to persist credential store:', err);
-  }
+  const entries = Array.from(store.entries()).map(([id, encrypted]) => ({ id, encrypted }));
+  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(entries, null, 2), { encoding: 'utf8' });
 }
 
 /**
@@ -488,7 +485,7 @@ function registerIpcHandlers(): void {
       }
       const store = loadCredentialStore();
       store.set(providerId, encrypted);
-      saveCredentialStore(store);
+      saveCredentialStore(store); // throws if write fails — propagates to renderer
       credentialCache.set(providerId, apiKey);
       return true;
     }
@@ -500,7 +497,7 @@ function registerIpcHandlers(): void {
     async (_event, { providerId }: { providerId: string }): Promise<boolean> => {
       const store = loadCredentialStore();
       const had = store.delete(providerId);
-      saveCredentialStore(store);
+      saveCredentialStore(store); // throws if write fails
       credentialCache.delete(providerId);
       return had;
     }
@@ -531,7 +528,7 @@ function registerIpcHandlers(): void {
       }
       const store = loadCredentialStore();
       store.set(providerId, encrypted);
-      saveCredentialStore(store);
+      saveCredentialStore(store); // throws if write fails
       credentialCache.set(providerId, apiKey);
       return { success: true };
     }
@@ -1304,6 +1301,7 @@ async function startProviderChatGemini(
         let message = `Gemini API error ${res.status}: ${res.statusText}`;
         if (res.status === 401 || res.status === 403) message = 'Invalid Gemini API key.';
         else if (res.status === 429) message = 'Gemini rate limit exceeded.';
+        else if (res.status === 404) message = `Gemini model "${request.model}" not found (HTTP 404). Please verify the provider and select a valid model from the discovered list.`;
         if (!sender.isDestroyed()) {
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
             requestId: request.requestId,
@@ -1668,10 +1666,15 @@ async function startProviderChatOpenRouter(
         }
       } else {
         if (!sender.isDestroyed()) {
+          let message = err.message || 'OpenRouter stream failed.';
+          // Detect 503 Service Unavailable from OpenRouter and give actionable guidance
+          if (err.status === 503 || err.message?.includes('503')) {
+            message = 'OpenRouter is temporarily unavailable (HTTP 503). Please wait a moment and try again.';
+          }
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
             requestId: request.requestId,
             type: 'error',
-            error: err.message || 'OpenRouter stream failed.',
+            error: message,
           });
         }
       }

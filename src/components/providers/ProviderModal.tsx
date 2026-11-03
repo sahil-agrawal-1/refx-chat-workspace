@@ -29,7 +29,10 @@ export const ProviderModal: React.FC = () => {
 
   React.useEffect(() => {
     if (currentProvider) {
-      setFormConfig((prev) => ({ ...currentProvider, apiKey: currentProvider.apiKey || prev?.apiKey || '' }));
+      // Only use the provider's own stored API key. Never carry over prev.apiKey
+      // from a previously selected provider — that would leak credentials across
+      // providers (e.g., OpenRouter's key showing up in OpenAI Compatible).
+      setFormConfig((prev) => ({ ...currentProvider, apiKey: currentProvider.apiKey || '' }));
       setVerifyResult((vr) => vr);
     }
   }, [selectedProviderId, currentProvider]);

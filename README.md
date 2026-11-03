@@ -101,7 +101,8 @@ API key storage has been completely rearchitected:
 
 - **Electron `safeStorage` (Windows DPAPI)** replaces the hardcoded AES-256-CBC encryption key — credentials are encrypted at rest in `app userData/provider-credentials.json`.
 - **API keys never cross IPC to the renderer** — `saveCredential` is send-only; `getCredentialForProvider()` is main-process-internal only.
-- **API keys stripped before localStorage persistence** — provider metadata is saved without the key; the key is sent separately to the main process.
+- **Credential saved before metadata** — the encrypted API key is persisted to `provider-credentials.json` via Electron `safeStorage` BEFORE provider metadata is written to localStorage. If credential encryption or disk write fails, provider metadata is not saved, preventing a restart from leaving a provider configured with no key.
+- **Write errors propagate** — `saveCredentialStore` throws if the credential file cannot be written; errors are surfaced to the user instead of being silently swallowed.
 - **Migration path** — existing plaintext keys in localStorage are detected, encrypted via `safeStorage`, confirmed stored, then removed from localStorage. Never silently discarded.
 - **Fail securely** — if `safeStorage.isEncryptionAvailable()` returns false, credentials are not saved; no plaintext fallback.
 - **XSS prevention in chat exports** — `escapeHtml()` sanitizes all user-controlled content (title, model, role, message content); `isSafeUrl()` validates URLs (`javascript:`, `data:`, `file:` rejected).
@@ -138,6 +139,12 @@ A successful authentication check does **not** imply every model supports infere
 ### Provider Verification Tests (`src/stores/provider-verification.test.ts`)
 
 18 tests cover all providers with valid credentials, invalid credentials, missing credentials, unavailable endpoints, rate limits, model discovery, manual model selection, provider switching, and secure credential retrieval.
+
+### Model Validation & Error Messages
+
+- **Model validation before API call** — `sendMessage()` validates that the selected model exists in the provider's discovered model list for cloud providers (Gemini, OpenAI, Anthropic, OpenRouter, OpenAI-compatible, Custom Local) before making an API call. Local providers (Ollama, LM Studio) may allow manually entered models.
+- **Specific 404 handling** — Gemini API returns a model-specific 404 message naming the missing model and directing the user to verify the provider and select from the discovered list.
+- **Specific 503 handling** — OpenRouter returns a "temporarily unavailable" message with retry guidance when the provider returns HTTP 503.
 
 ## Desktop Bridge Contract (`IDesktopBridge`)
 
@@ -215,3 +222,18 @@ pnpm electron:build
 ## License
 
 MIT
+
+---
+
+## Change Log
+
+| Date | Change | Author |
+|------|--------|--------|
+| 11/2/2026 | Initial technical audit report created | Cline (AI coding agent) |
+| 11/2/2026 | Stage 3A: Ollama + Local Model Integration | Cline (AI coding agent) |
+| 11/2/2026 | Stage 3B: Multi-Provider Chat Inference | Cline (AI coding agent) |
+| 11/3/2026 | P1: Chat-state repair (conversation creation, stale history, generation state, error handling, stop generation) | Cline (AI coding agent) |
+| 11/3/2026 | P2: Security hardening (safeStorage DPAPI, XSS prevention, credential migration, audit pipeline) | Cline (AI coding agent) |
+| 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Cline (AI coding agent) |
+| 11/3/2026 | Documentation update (README, report.md, security.md) | Cline (AI coding agent) |
+| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |

@@ -56,12 +56,18 @@ API keys were stored in plaintext in `localStorage` under `refx_providers`, acce
 | **Fail-secure** | If `safeStorage.isEncryptionAvailable()` returns false, credentials are rejected; no plaintext fallback |
 
 ### Credential Lifecycle
+
 1. User enters API key in ProviderModal (renderer)
-2. `saveProviderConfig()` strips `apiKey` from provider metadata before `localStorage` save
-3. Key sent via `desktop.saveCredential(providerId, apiKey)` IPC (send-only)
-4. Main process encrypts via `safeStorage.encryptString()` and persists to `provider-credentials.json`
-5. On verification/chat: main process calls `getCredentialForProvider(providerId)` to decrypt internally
-6. Decrypted key never leaves the main process
+2. `saveProviderConfig()` strips `apiKey` from provider metadata
+3. **Credential saved FIRST** — key sent via `desktop.saveCredential(providerId, apiKey)` IPC; main process encrypts via `safeStorage.encryptString()` and persists to `provider-credentials.json`
+4. **Only on success** — provider metadata (without API key) is saved to localStorage via `desktopBridge.provider.saveProvider()`
+5. If credential encryption or disk write fails, metadata is not saved; user sees a warning notification
+6. On verification/chat: main process calls `getCredentialForProvider(providerId)` to decrypt internally
+7. Decrypted key never leaves the main process
+
+### Save-Order Guarantee
+
+Credential persistence happens before provider metadata is written to localStorage. This prevents a restart from leaving a provider configured with no API key. If `safeStorage.isEncryptionAvailable()` returns false or `saveCredentialStore` cannot write the file, the credential save fails securely with no plaintext fallback, and provider metadata is not persisted.
 
 ---
 
@@ -121,9 +127,12 @@ All user-controlled content is HTML-escaped before rendering:
 - **No fake AI responses** — errors are reported honestly as system messages
 
 ### Example Error Messages
+
 - `**Ollama Error:** Connection refused` — Ollama daemon unreachable
 - `**Google Gemini Error:** Invalid Gemini API key.` — authentication failure
+- `**Google Gemini Error:** Gemini model "gemini-2.5-flash" not found (HTTP 404). Please verify the provider and select a valid model from the discovered list.` — model not found
 - `**Provider Error:** Provider verification timed out.` — timeout
+- `**OpenRouter Error:** OpenRouter is temporarily unavailable (HTTP 503). Please wait a moment and try again.` — provider service unavailable
 - `**Error during message send:** ...` — unexpected exception
 
 ---
@@ -175,10 +184,14 @@ If **any** check fails, the commit is **rejected** with a `REJECTED` message.
 4. Old encrypted credential is overwritten in `provider-credentials.json`
 
 ### Encryption Unavailable
-If `safeStorage.isEncryptionAvailable()` returns false:
+
+If `safeStorage.isEncryptionAvailable()` returns false or the credential file cannot be written to disk:
+
 - Credential save fails with a warning notification
+- Provider metadata is not saved (save-order: credential first, metadata second)
 - No plaintext fallback is ever used
 - User is instructed to use the Electron desktop app on a supported platform
+- Write errors propagate from `saveCredentialStore` instead of being silently swallowed
 
 ---
 
