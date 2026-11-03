@@ -3,6 +3,33 @@ import { Download, FileText, Code, Globe, Check, Copy } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useAppStore } from '@/stores/app-store';
 
+/**
+ * Escape HTML special characters to prevent XSS in rendered output.
+ * @exported for testing
+ */
+export function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+/**
+ * Validate that a string is a safe http(s) URL or empty.
+ * @exported for testing
+ */
+export function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export const ExportChatModal: React.FC = () => {
   const { activeModal, closeModal, currentConversation } = useAppStore();
   const [format, setFormat] = useState<'markdown' | 'json' | 'html'>('markdown');
@@ -11,6 +38,14 @@ export const ExportChatModal: React.FC = () => {
   if (activeModal !== 'export' || !currentConversation) return null;
 
   const hasMessages = currentConversation.messages.length > 0;
+
+  // Sanitized conversation title for use in HTML/JSON/Markdown output.
+  const safeTitle = escapeHtml(currentConversation.title);
+  const safeFileName = currentConversation.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'export';
 
   const generateExportContent = (): string => {
     if (!hasMessages) return 'No messages to export.';
@@ -34,7 +69,7 @@ export const ExportChatModal: React.FC = () => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${currentConversation.title}</title>
+  <title>${safeTitle}</title>
   <style>
     body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #141416; color: #ececee; max-width: 760px; margin: 40px auto; padding: 20px; line-height: 1.6; }
     .msg { margin-bottom: 20px; padding: 14px; border-radius: 8px; }
@@ -44,14 +79,14 @@ export const ExportChatModal: React.FC = () => {
   </style>
 </head>
 <body>
-  <h2>${currentConversation.title}</h2>
-  <p><small>Model: ${currentConversation.model} &bull; Date: ${new Date(currentConversation.createdAt).toLocaleString()}</small></p>
+  <h2>${safeTitle}</h2>
+  <p><small>Model: ${escapeHtml(currentConversation.model)} &bull; Date: ${new Date(currentConversation.createdAt).toLocaleString()}</small></p>
   ${currentConversation.messages
     .map(
       (m) => `
-    <div class="msg ${m.role}">
-      <div class="author">${m.role}</div>
-      <div>${m.content.replace(/\n/g, '<br>')}</div>
+    <div class="msg ${escapeHtml(m.role)}">
+      <div class="author">${escapeHtml(m.role)}</div>
+      <div>${escapeHtml(m.content).replace(/\n/g, '<br>')}</div>
     </div>`
     )
     .join('')}
@@ -59,7 +94,7 @@ export const ExportChatModal: React.FC = () => {
 </html>`;
     }
 
-    let md = `# ${currentConversation.title}\n\n`;
+    let md = `# ${safeTitle}\n\n`;
     md += `*Exported from Antigravity on ${new Date().toLocaleString()}*\n\n`;
 
     currentConversation.messages.forEach((m) => {
@@ -79,9 +114,7 @@ export const ExportChatModal: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentConversation.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.${
-      format === 'json' ? 'json' : format === 'html' ? 'html' : 'md'
-    }`;
+    a.download = `${safeFileName}.${format === 'json' ? 'json' : format === 'html' ? 'html' : 'md'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

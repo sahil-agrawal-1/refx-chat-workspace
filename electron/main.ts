@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createHmac, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import type {
   DesktopAppInfo,
   OllamaCheckResult,
@@ -15,6 +15,7 @@ import type {
   ProviderType,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -44,34 +45,99 @@ const MODEL_CHANNELS = {
 // Security: strictly restrict Ollama requests to local loopback interface
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 
-// Encryption key for API key storage (derived from app-specific secret)
-// In production, this should be tied to a user passphrase or OS credential vault.
-const API_KEY_ENCRYPTION_KEY = 'refx-ai-desktop-v1-encryption-key';
+// Secure credential storage using Electron safeStorage (Windows DPAPI).
+// Encrypted credentials are persisted to a JSON file in the app userData
+// directory. Decrypted credentials never leave the main process.
+const CREDENTIALS_FILE = path.join(app.getPath('userData'), 'provider-credentials.json');
+
+// In-memory cache of decrypted credentials keyed by providerId.
+// Populated on demand from the encrypted store; cleared on process exit.
+const credentialCache = new Map<string, string>();
 
 /**
- * Encrypt a sensitive string using AES-256-CBC with a derived key.
- * Returns base64-encoded ciphertext with prepended IV.
+ * Load the encrypted credential store from disk.
+ * Returns an empty map if the file does not exist or cannot be read.
  */
-function encryptApiKey(plaintext: string): string {
-  const iv = randomBytes(16);
-  const key = createHmac('sha256', API_KEY_ENCRYPTION_KEY).digest();
-  const cipher = createCipheriv('aes-256-cbc', key, iv);
-  const encrypted = cipher.update(plaintext, 'utf8', 'base64') + cipher.final('base64');
-  return iv.toString('base64') + ':' + encrypted;
+function loadCredentialStore(): Map<string, string> {
+  try {
+    if (!fs.existsSync(CREDENTIALS_FILE)) {
+      return new Map();
+    }
+    const raw = fs.readFileSync(CREDENTIALS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return new Map(parsed.map((entry: { id: string; encrypted: string }) => [entry.id, entry.encrypted]));
+    }
+    return new Map();
+  } catch {
+    return new Map();
+  }
 }
 
 /**
- * Decrypt a base64-encoded ciphertext with prepended IV.
+ * Save the encrypted credential store to disk.
  */
-function decryptApiKey(ciphertext: string): string {
-  const parts = ciphertext.split(':');
-  if (parts.length !== 2) return ciphertext; // Not encrypted, return as-is
-  const iv = Buffer.from(parts[0], 'base64');
-  const encrypted = parts[1];
-  const key = createHmac('sha256', API_KEY_ENCRYPTION_KEY).digest();
-  const decipher = createDecipheriv('aes-256-cbc', key, iv);
-  const decrypted = decipher.update(encrypted, 'base64', 'utf8') + decipher.final('utf8');
-  return decrypted;
+function saveCredentialStore(store: Map<string, string>): void {
+  try {
+    const entries = Array.from(store.entries()).map(([id, encrypted]) => ({ id, encrypted }));
+    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(entries, null, 2), { encoding: 'utf8' });
+  } catch (err) {
+    console.error('[Security] Failed to persist credential store:', err);
+  }
+}
+
+/**
+ * Encrypt a plaintext credential using Electron safeStorage (DPAPI on Windows).
+ * Returns base64-encoded ciphertext, or null if encryption is unavailable.
+ */
+function encryptCredential(plaintext: string): string | null {
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.error('[Security] safeStorage encryption is not available on this platform.');
+    return null;
+  }
+  const encryptedBuffer = safeStorage.encryptString(plaintext);
+  return encryptedBuffer.toString('base64');
+}
+
+/**
+ * Decrypt a credential previously encrypted with encryptCredential.
+ * Returns the plaintext, or null if decryption fails.
+ */
+function decryptCredential(encryptedBase64: string): string | null {
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.error('[Security] safeStorage decryption is not available on this platform.');
+    return null;
+  }
+  try {
+    const encryptedBuffer = Buffer.from(encryptedBase64, 'base64');
+    return safeStorage.decryptString(encryptedBuffer);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Retrieve a decrypted credential for a provider from the secure store.
+ * Returns null if not found or if encryption is unavailable.
+ * This is used ONLY by the main process internally; never exposed to the renderer.
+ */
+function getCredentialForProvider(providerId: string): string | null {
+  // Check cache first
+  if (credentialCache.has(providerId)) {
+    return credentialCache.get(providerId)!;
+  }
+
+  const store = loadCredentialStore();
+  const encrypted = store.get(providerId);
+  if (!encrypted) {
+    return null;
+  }
+
+  const plaintext = decryptCredential(encrypted);
+  if (plaintext) {
+    credentialCache.set(providerId, plaintext);
+  }
+  return plaintext;
 }
 
 // Store for active stream abort controllers (all providers)
@@ -406,6 +472,69 @@ function registerIpcHandlers(): void {
       return false;
     }
   );
+
+  // Native method: saveCredential (secure, renderer -> main only)
+  ipcMain.handle(
+    CREDENTIAL_IPC_CHANNELS.SAVE_CREDENTIAL,
+    async (_event, { providerId, apiKey }: { providerId: string; apiKey: string }): Promise<boolean> => {
+      if (!safeStorage.isEncryptionAvailable()) {
+        console.error('[Security] Cannot save credential: encryption unavailable.');
+        return false;
+      }
+      const encrypted = encryptCredential(apiKey);
+      if (!encrypted) {
+        return false;
+      }
+      const store = loadCredentialStore();
+      store.set(providerId, encrypted);
+      saveCredentialStore(store);
+      credentialCache.set(providerId, apiKey);
+      return true;
+    }
+  );
+
+  // Native method: deleteCredential (renderer -> main only)
+  ipcMain.handle(
+    CREDENTIAL_IPC_CHANNELS.DELETE_CREDENTIAL,
+    async (_event, { providerId }: { providerId: string }): Promise<boolean> => {
+      const store = loadCredentialStore();
+      const had = store.delete(providerId);
+      saveCredentialStore(store);
+      credentialCache.delete(providerId);
+      return had;
+    }
+  );
+
+  // Native method: hasCredential (renderer -> main only)
+  ipcMain.handle(
+    CREDENTIAL_IPC_CHANNELS.HAS_CREDENTIAL,
+    async (_event, { providerId }: { providerId: string }): Promise<boolean> => {
+      if (credentialCache.has(providerId)) {
+        return true;
+      }
+      const store = loadCredentialStore();
+      return store.has(providerId);
+    }
+  );
+
+  // Native method: migrateCredential (renderer -> main, one-time migration from plaintext)
+  ipcMain.handle(
+    CREDENTIAL_IPC_CHANNELS.MIGRATE_CREDENTIAL,
+    async (_event, { providerId, apiKey }: { providerId: string; apiKey: string }): Promise<{ success: boolean; error?: string }> => {
+      if (!safeStorage.isEncryptionAvailable()) {
+        return { success: false, error: 'Encryption is not available on this platform.' };
+      }
+      const encrypted = encryptCredential(apiKey);
+      if (!encrypted) {
+        return { success: false, error: 'Failed to encrypt credential.' };
+      }
+      const store = loadCredentialStore();
+      store.set(providerId, encrypted);
+      saveCredentialStore(store);
+      credentialCache.set(providerId, apiKey);
+      return { success: true };
+    }
+  );
 }
 
 /**
@@ -432,9 +561,9 @@ async function verifyProviderConnection(
       }
 
       case 'gemini': {
-        const apiKey = config.apiKey ? decryptApiKey(config.apiKey) : undefined;
+        const apiKey = getCredentialForProvider(config.id);
         if (!apiKey) {
-          return { success: false, models: [], message: 'Gemini API key is required.' };
+          return { success: false, models: [], message: 'API key not found. Please save your credentials.' };
         }
         return verifyGeminiConnection(apiKey);
       }
@@ -685,7 +814,7 @@ async function startProviderChatOpenAICompatible(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = request.apiKey ? decryptApiKey(request.apiKey) : undefined;
+  const apiKey = getCredentialForProvider(request.providerType);
   const baseUrl = request.baseUrl || (request.providerType === 'openai' ? 'https://api.openai.com/v1' : '');
 
   const abortController = new AbortController();
@@ -768,17 +897,17 @@ async function startProviderChatGemini(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = request.apiKey ? decryptApiKey(request.apiKey) : undefined;
+  const apiKey = getCredentialForProvider(request.providerType);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
       sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
         requestId: request.requestId,
         type: 'error',
-        error: 'Gemini API key is required.',
+        error: 'API key not found. Please save your credentials.',
       });
     }
-    return { requestId: request.requestId, success: false, error: 'Gemini API key is required.' };
+    return { requestId: request.requestId, success: false, error: 'API key not found.' };
   }
 
   const abortController = new AbortController();
@@ -930,17 +1059,17 @@ async function startProviderChatAnthropic(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = request.apiKey ? decryptApiKey(request.apiKey) : undefined;
+  const apiKey = getCredentialForProvider(request.providerType);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
       sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
         requestId: request.requestId,
         type: 'error',
-        error: 'Anthropic API key is required.',
+        error: 'API key not found. Please save your credentials.',
       });
     }
-    return { requestId: request.requestId, success: false, error: 'Anthropic API key is required.' };
+    return { requestId: request.requestId, success: false, error: 'API key not found.' };
   }
 
   const abortController = new AbortController();
@@ -1106,17 +1235,17 @@ async function startProviderChatOpenRouter(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
-  const apiKey = request.apiKey ? decryptApiKey(request.apiKey) : undefined;
+  const apiKey = getCredentialForProvider(request.providerType);
   if (!apiKey) {
     const sender = event.sender;
     if (!sender.isDestroyed()) {
       sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
         requestId: request.requestId,
         type: 'error',
-        error: 'OpenRouter API key is required.',
+        error: 'API key not found. Please save your credentials.',
       });
     }
-    return { requestId: request.requestId, success: false, error: 'OpenRouter API key is required.' };
+    return { requestId: request.requestId, success: false, error: 'API key not found.' };
   }
 
   const abortController = new AbortController();

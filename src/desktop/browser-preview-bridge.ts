@@ -308,14 +308,18 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
   public provider: IProviderBridge = {
     getProviders: async (): Promise<ProviderConfig[]> => [...this.providers],
     saveProvider: async (provider: ProviderConfig): Promise<ProviderConfig> => {
+      // Never persist raw API keys to localStorage. Strip the key before
+      // saving provider metadata. Credentials are handled via secure IPC
+      // in Electron main process (safeStorage / DPAPI).
+      const { apiKey, ...providerWithoutKey } = provider;
       const index = this.providers.findIndex((p) => p.id === provider.id);
       if (index >= 0) {
-        this.providers[index] = provider;
+        this.providers[index] = providerWithoutKey;
       } else {
-        this.providers.push(provider);
+        this.providers.push(providerWithoutKey);
       }
       this.saveToStorage('antigravity_providers', this.providers);
-      return provider;
+      return providerWithoutKey;
     },
     deleteProvider: async (id: string): Promise<boolean> => {
       this.providers = this.providers.filter((p) => p.id !== id);
@@ -338,11 +342,13 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       }
 
       // If cloud provider, check API key
+      // Note: Browser preview does not have secure credential storage.
+      // API keys are handled via Electron safeStorage in the main process.
       if (!provider.isLocal && !provider.apiKey && provider.type !== 'openai_compatible') {
         return {
           success: false,
           models: [],
-          message: `API Key is required to connect to ${provider.name}.`,
+          message: `Secure credential storage is not available in browser preview. Use the Electron desktop app to configure API keys for ${provider.name}.`,
         };
       }
 
@@ -406,19 +412,13 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
         // Fallback
       }
 
-      // If cloud provider with non-empty key
-      if (!provider.isLocal && provider.apiKey && provider.apiKey.trim().length > 8) {
-        return {
-          success: true,
-          models: [provider.selectedModel || 'default-model'],
-          message: `Credentials configured for ${provider.name}. Ready for inference.`,
-        };
-      }
-
+      // Cloud providers cannot be verified in browser preview without
+      // secure credential storage. Credentials are managed via Electron
+      // safeStorage in the desktop app.
       return {
         success: false,
         models: [],
-        message: `Connection could not be established. Verify the endpoint and API credentials.`,
+        message: `Secure credential storage is not available in browser preview. Use the Electron desktop app to connect to ${provider.name}.`,
       };
     },
   };

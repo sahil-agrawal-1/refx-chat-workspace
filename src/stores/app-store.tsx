@@ -261,6 +261,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedProviderId(connected.id);
       }
 
+      // Migrate any existing plaintext API keys from localStorage to secure
+      // Electron safeStorage. Migration is explicit: only after the main
+      // process confirms encrypted storage do we remove plaintext from
+      // localStorage. Never silently discard credentials.
+      if (typeof window !== 'undefined' && window.desktop?.migrateCredential) {
+        for (const prov of activeProvs) {
+          if (prov.apiKey) {
+            const result = await window.desktop.migrateCredential(prov.id, prov.apiKey);
+            if (result.success) {
+              // Remove plaintext key from localStorage provider config
+              await desktopBridge.provider.saveProvider({ ...prov, apiKey: undefined });
+              setProviders((prev) =>
+                prev.map((p) => (p.id === prov.id ? { ...p, apiKey: undefined } : p))
+              );
+            }
+            // If migration fails, we intentionally keep the plaintext key
+            // in localStorage rather than silently discarding it.
+          }
+        }
+      }
+
       // Load memories
       const tMem = await desktopBridge.memory.getTaskMemories('default-task');
       setTaskMemories(tMem);
@@ -342,8 +363,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveProviderConfig = async (provider: ProviderConfig) => {
-    const updated = await desktopBridge.provider.saveProvider(provider);
+    // Never persist the raw API key to localStorage. Strip it before saving
+    // the provider metadata, then send the key to the main process for
+    // encrypted storage via Electron safeStorage (Windows DPAPI).
+    const { apiKey, ...providerWithoutKey } = provider;
+    const updated = await desktopBridge.provider.saveProvider(providerWithoutKey);
     setProviders((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
+    // Persist the credential securely in the main process. If encryption is
+    // unavailable, fail securely — do not fall back to plaintext.
+    if (apiKey) {
+      const saved = await window.desktop?.saveCredential?.(provider.id, apiKey);
+      if (!saved) {
+        setNotification({
+          title: 'Credential Storage Failed',
+          message: 'Encryption is unavailable. API key was not saved.',
+          type: 'warning',
+        });
+        return;
+      }
+    }
+
     setNotification({
       title: 'Configuration Saved',
       message: `${provider.name} settings updated.`,
@@ -376,7 +416,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return res;
       }
-      const res = await window.desktop.verifyProvider(provider);
+      // Never send the API key through IPC — main process retrieves it
+      // internally from safeStorage. Strip apiKey before sending.
+      const { apiKey, ...configWithoutKey } = provider;
+      const res = await window.desktop.verifyProvider(configWithoutKey);
       if (res.success && res.models.length > 0) {
         setProviders((prev) =>
           prev.map((p) =>
@@ -396,7 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return res;
     }
-    // Fallback to browser preview bridge
+    // Fallback to browser preview bridge — no secure credential storage available
     const res = await desktopBridge.provider.verifyConnection(providerId);
     if (res.success && res.models.length > 0) {
       setProviders((prev) =>
@@ -815,7 +858,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           model: selectedModel,
           messages: historyMessages,
           temperature: 0.7,
-          apiKey: selectedProvider?.apiKey ?? undefined,
           baseUrl: selectedProvider?.baseUrl ?? undefined,
         });
 

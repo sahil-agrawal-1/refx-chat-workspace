@@ -269,6 +269,18 @@ export const MODEL_IPC_CHANNELS = {
   PROVIDER_STREAM: 'desktop:providerStream',
 } as const;
 
+/**
+ * Allowlisted IPC channel constants for secure credential management.
+ * Credentials are encrypted at rest via Electron safeStorage (Windows DPAPI)
+ * and are never returned to the renderer process.
+ */
+export const CREDENTIAL_IPC_CHANNELS = {
+  SAVE_CREDENTIAL: 'desktop:saveCredential',
+  DELETE_CREDENTIAL: 'desktop:deleteCredential',
+  HAS_CREDENTIAL: 'desktop:hasCredential',
+  MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
+} as const;
+
 export interface IDesktopAPI {
   getAppInfo(): Promise<DesktopAppInfo>;
   selectWorkspace(defaultPath?: string): Promise<string | null>;
@@ -286,6 +298,11 @@ export interface IDesktopAPI {
   startProviderChat(request: ModelInferenceRequest): Promise<ModelInferenceResult>;
   cancelProviderChat(requestId: string): Promise<boolean>;
   onProviderStream(callback: (event: ModelStreamEvent) => void): () => void;
+  // Secure credential management (credentials never returned to renderer)
+  saveCredential(providerId: string, apiKey: string): Promise<boolean>;
+  deleteCredential(providerId: string): Promise<boolean>;
+  hasCredential(providerId: string): Promise<boolean>;
+  migrateCredential(providerId: string, apiKey: string): Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

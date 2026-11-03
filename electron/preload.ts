@@ -33,6 +33,13 @@ const MODEL_CHANNELS = {
   PROVIDER_STREAM: 'desktop:providerStream',
 } as const;
 
+const CREDENTIAL_CHANNELS = {
+  SAVE_CREDENTIAL: 'desktop:saveCredential',
+  DELETE_CREDENTIAL: 'desktop:deleteCredential',
+  HAS_CREDENTIAL: 'desktop:hasCredential',
+  MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
+} as const;
+
 /**
  * Native Desktop API implementation for Electron Renderer
  * Exposed via contextBridge. Never exposes ipcRenderer directly to the window object.
@@ -78,6 +85,19 @@ const desktopAPI: IDesktopAPI = {
   },
   cancelProviderChat: (requestId: string): Promise<boolean> => {
     return ipcRenderer.invoke(MODEL_CHANNELS.CANCEL_PROVIDER_CHAT, requestId);
+  },
+  // Secure credential management (credentials never returned to renderer)
+  saveCredential: (providerId: string, apiKey: string): Promise<boolean> => {
+    return ipcRenderer.invoke(CREDENTIAL_CHANNELS.SAVE_CREDENTIAL, { providerId, apiKey });
+  },
+  deleteCredential: (providerId: string): Promise<boolean> => {
+    return ipcRenderer.invoke(CREDENTIAL_CHANNELS.DELETE_CREDENTIAL, { providerId });
+  },
+  hasCredential: (providerId: string): Promise<boolean> => {
+    return ipcRenderer.invoke(CREDENTIAL_CHANNELS.HAS_CREDENTIAL, { providerId });
+  },
+  migrateCredential: (providerId: string, apiKey: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke(CREDENTIAL_CHANNELS.MIGRATE_CREDENTIAL, { providerId, apiKey });
   },
   onProviderStream: (callback: (event: ModelStreamEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: ModelStreamEvent) => {
