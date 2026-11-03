@@ -16,7 +16,8 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import * as db from './database';
 
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -533,6 +534,100 @@ function registerIpcHandlers(): void {
       return { success: true };
     }
   );
+
+  // Database IPC handlers
+  ipcMain.handle(DATABASE_IPC_CHANNELS.INITIALIZE, async () => {
+    return db.initDatabase();
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_CONVERSATIONS, async () => {
+    return db.getConversations();
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_CONVERSATION, async (_event, id: string) => {
+    if (typeof id !== 'string' || !id) return null;
+    return db.getConversation(id);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.CREATE_CONVERSATION, async (_event, data: any) => {
+    if (!data || typeof data.id !== 'string') return null;
+    return db.createConversation(data);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.UPDATE_CONVERSATION, async (_event, id: string, changes: any) => {
+    if (typeof id !== 'string' || !id) return null;
+    return db.updateConversation(id, changes || {});
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.DELETE_CONVERSATION, async (_event, id: string) => {
+    if (typeof id !== 'string' || !id) return false;
+    return db.deleteConversation(id);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.SEARCH_CONVERSATIONS, async (_event, query: string) => {
+    if (typeof query !== 'string') return [];
+    return db.searchConversations(query);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_MESSAGES, async (_event, conversationId: string) => {
+    if (typeof conversationId !== 'string' || !conversationId) return [];
+    return db.getMessages(conversationId);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.SAVE_MESSAGE, async (_event, message: any) => {
+    if (!message || typeof message.id !== 'string' || typeof message.conversationId !== 'string') return null;
+    return db.saveMessage(message);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.UPDATE_MESSAGE, async (_event, id: string, changes: any) => {
+    if (typeof id !== 'string' || !id) return null;
+    return db.updateMessage(id, changes || {});
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.DELETE_MESSAGE, async (_event, id: string) => {
+    if (typeof id !== 'string' || !id) return false;
+    return db.deleteMessage(id);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_SETTINGS, async () => {
+    return db.getAppSettings();
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.SAVE_SETTING, async (_event, key: string, value: unknown) => {
+    if (typeof key !== 'string' || !key) return false;
+    return db.saveAppSetting(key, value);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.EXPORT_BACKUP, async () => {
+    return db.exportDatabaseBackup();
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.RESTORE_BACKUP, async (_event, filePath: string) => {
+    if (typeof filePath !== 'string' || !filePath) return { success: false, error: 'Invalid path' };
+    return db.restoreDatabaseBackup(filePath);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.VALIDATE_BACKUP, async (_event, filePath: string) => {
+    if (typeof filePath !== 'string' || !filePath) return { valid: false, error: 'Invalid path' };
+    return db.validateDatabaseFile(filePath);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.MIGRATE_LEGACY, async (_event, payload: any) => {
+    if (!payload || !Array.isArray(payload.conversations)) return { success: false, imported: 0, error: 'Invalid payload' };
+    return db.migrateLegacyData(payload.conversations, payload.settings);
+  });
+
+  ipcMain.handle(DATABASE_IPC_CHANNELS.INTEGRITY_CHECK, async () => {
+    try {
+      const database = db.getDatabase();
+      if (!database) return { ok: false, error: 'Database not available' };
+      const result = database.pragma('integrity_check') as Array<{ integrity_check: string }>;
+      const ok = Array.isArray(result) && result.length > 0 && result[0].integrity_check === 'ok';
+      return { ok, error: ok ? undefined : 'Integrity check failed' };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || String(err) };
+    }
+  });
 }
 
 /**
@@ -1765,6 +1860,7 @@ if (!hasLock) {
   });
 
   app.whenReady().then(() => {
+    db.initDatabase();
     registerIpcHandlers();
     createWindow();
 
@@ -1780,4 +1876,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  db.closeDatabase();
 });

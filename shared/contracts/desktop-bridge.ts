@@ -188,12 +188,34 @@ export interface IProviderBridge {
   verifyConnection(providerId: string): Promise<ProviderVerificationResult>;
 }
 
+export interface IDatabaseBridge {
+  initializeDatabase(): Promise<{ success: boolean; path?: string; error?: string }>;
+  getConversations(): Promise<any[]>;
+  getConversation(id: string): Promise<any | null>;
+  createConversation(data: any): Promise<any>;
+  updateConversation(id: string, changes: any): Promise<any | null>;
+  deleteConversation(id: string): Promise<boolean>;
+  searchConversations(query: string): Promise<any[]>;
+  getMessages(conversationId: string): Promise<any[]>;
+  saveMessage(message: any): Promise<any>;
+  updateMessage(id: string, changes: any): Promise<any | null>;
+  deleteMessage(id: string): Promise<boolean>;
+  getAppSettings(): Promise<Record<string, unknown>>;
+  saveAppSetting(key: string, value: unknown): Promise<boolean>;
+  exportDatabaseBackup(): Promise<{ success: boolean; path?: string; error?: string }>;
+  restoreDatabaseBackup(filePath: string): Promise<{ success: boolean; error?: string }>;
+  validateDatabaseFile(filePath: string): Promise<{ valid: boolean; error?: string }>;
+  migrateLegacyData(payload: { conversations: any[]; settings?: Record<string, unknown> }): Promise<{ success: boolean; imported: number; error?: string }>;
+  integrityCheck(): Promise<{ ok: boolean; error?: string }>;
+}
+
 export interface IDesktopBridge {
   system: SystemInfo;
   fs: IFileSystemBridge;
   terminal: ITerminalBridge;
   memory: IMemoryBridge;
   provider: IProviderBridge;
+  database: IDatabaseBridge;
   notify(title: string, message: string): void;
 }
 
@@ -304,6 +326,27 @@ export const CREDENTIAL_IPC_CHANNELS = {
   MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
 } as const;
 
+export const DATABASE_IPC_CHANNELS = {
+  INITIALIZE: 'desktop:dbInitialize',
+  GET_CONVERSATIONS: 'desktop:dbGetConversations',
+  GET_CONVERSATION: 'desktop:dbGetConversation',
+  CREATE_CONVERSATION: 'desktop:dbCreateConversation',
+  UPDATE_CONVERSATION: 'desktop:dbUpdateConversation',
+  DELETE_CONVERSATION: 'desktop:dbDeleteConversation',
+  SEARCH_CONVERSATIONS: 'desktop:dbSearchConversations',
+  GET_MESSAGES: 'desktop:dbGetMessages',
+  SAVE_MESSAGE: 'desktop:dbSaveMessage',
+  UPDATE_MESSAGE: 'desktop:dbUpdateMessage',
+  DELETE_MESSAGE: 'desktop:dbDeleteMessage',
+  GET_SETTINGS: 'desktop:dbGetSettings',
+  SAVE_SETTING: 'desktop:dbSaveSetting',
+  EXPORT_BACKUP: 'desktop:dbExportBackup',
+  RESTORE_BACKUP: 'desktop:dbRestoreBackup',
+  VALIDATE_BACKUP: 'desktop:dbValidateBackup',
+  MIGRATE_LEGACY: 'desktop:dbMigrateLegacy',
+  INTEGRITY_CHECK: 'desktop:dbIntegrityCheck',
+} as const;
+
 export interface IDesktopAPI {
   getAppInfo(): Promise<DesktopAppInfo>;
   selectWorkspace(defaultPath?: string): Promise<string | null>;
@@ -326,6 +369,8 @@ export interface IDesktopAPI {
   deleteCredential(providerId: string): Promise<boolean>;
   hasCredential(providerId: string): Promise<boolean>;
   migrateCredential(providerId: string, apiKey: string): Promise<{ success: boolean; error?: string }>;
+  // Local SQLite database bridge (Electron main process)
+  database: IDatabaseBridge;
 }
 
 declare global {

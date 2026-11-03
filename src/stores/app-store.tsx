@@ -93,6 +93,10 @@ interface AppContextValue {
   resolvePermission: (granted: boolean) => void;
   requestPermission: (request: Omit<PermissionRequest, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
 
+  // Settings
+  settings: Record<string, unknown>;
+  updateSetting: (key: string, value: unknown) => void;
+
   // Bridge info & Status
   isElectron: boolean;
   systemPlatform: string;
@@ -139,8 +143,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [settings, setSettings] = useState<Record<string, unknown>>({});
   const activeRequestIdRef = useRef<string | null>(null);
   const streamUnsubscribeRef = useRef<(() => void) | null>(null);
+  const lastPersistRef = useRef<number>(0);
+  const activeAssistantMsgIdRef = useRef<string | null>(null);
 
   // Providers & Models
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
@@ -198,15 +205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return typeof window !== 'undefined' && Boolean(window.desktop);
   });
 
-  // Save conversations to storage
-  useEffect(() => {
-    try {
-      localStorage.setItem('refx_conversations', JSON.stringify(conversations));
-    } catch {
-      // Ignored
-    }
-  }, [conversations]);
-
+  // Conversations are persisted via the database bridge; no localStorage sync.
   // Load provider & bridge configuration
   useEffect(() => {
     async function initBridgeData() {
@@ -216,6 +215,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }).catch(() => {});
       }
 
+      // Initialize local SQLite / preview database
+      try {
+        await desktopBridge.database.initializeDatabase();
+      } catch {
+        // ignore
+      }
+
+      // One-time legacy localStorage migration
+      try {
+        const legacyRaw = localStorage.getItem('refx_conversations');
+        if (legacyRaw) {
+          const legacyConvs = JSON.parse(legacyRaw);
+          if (Array.isArray(legacyConvs) && legacyConvs.length > 0) {
+            const legacySettings: Record<string, unknown> = {};
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('refx_') && k !== 'refx_conversations') {
+                try {
+                  legacySettings[k] = JSON.parse(localStorage.getItem(k) || 'null');
+                } catch {
+                  // skip
+                }
+              }
+            }
+            const res = await desktopBridge.database.migrateLegacyData({
+              conversations: legacyConvs,
+              settings: legacySettings,
+            });
+            if (res && res.success) {
+              localStorage.removeItem('refx_conversations');
+            }
+          }
+        }
+      } catch {
+        // ignore migration errors; legacy data preserved
+      }
+
       const provs = await desktopBridge.provider.getProviders();
       let activeProvs = provs;
 
@@ -223,6 +259,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Providers remain in their configured state until the user explicitly
       // verifies and connects them. No provider is mandatory.
       setProviders(provs);
+
+      // Load conversations from persistent storage
+      try {
+        const persistedConvs = await desktopBridge.database.getConversations();
+        const mapped = await Promise.all(
+          (Array.isArray(persistedConvs) ? persistedConvs : []).map(async (c: any) => {
+            const msgs = await desktopBridge.database.getMessages(c.id);
+            return {
+              id: c.id,
+              title: c.title || 'New Conversation',
+              createdAt: c.createdAt || Date.now(),
+              updatedAt: c.updatedAt || Date.now(),
+              projectId: undefined,
+              model: c.modelId || selectedModel || 'No model connected',
+              providerId: c.providerId || '',
+              messages: (Array.isArray(msgs) ? msgs : []).map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.createdAt || Date.now(),
+                model: m.metadata?.model,
+                providerId: m.metadata?.providerId,
+                attachments: m.metadata?.attachments,
+                activities: m.metadata?.activities,
+                fileChanges: m.metadata?.fileChanges,
+                hasMemorySaved: m.metadata?.hasMemorySaved,
+              })),
+              saveMemoryDefault: c.metadata?.saveMemoryDefault ?? false,
+            };
+          })
+        );
+        setConversations(mapped);
+        const loadedSettings = await desktopBridge.database.getAppSettings();
+        setSettings(loadedSettings || {});
+        if (typeof loadedSettings?.selectedModel === 'string') setSelectedModelInternal(loadedSettings.selectedModel);
+        if (typeof loadedSettings?.selectedProviderId === 'string') setSelectedProviderId(loadedSettings.selectedProviderId);
+        const currentId = loadedSettings?.currentConversationId;
+        if (typeof currentId === 'string' && mapped.some((c) => c.id === currentId)) {
+          setCurrentConversationId(currentId);
+        } else if (mapped.length > 0) {
+          setCurrentConversationId(mapped[0].id);
+        }
+      } catch {
+        // ignore
+      }
 
       // Do not auto-select any provider. The user chooses which provider
       // to use via the Model Providers modal. No provider is mandatory.
@@ -280,6 +361,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initBridgeData();
   }, [selectedWorkspace]);
 
+  const updateSetting = useCallback((key: string, value: unknown) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    desktopBridge.database.saveAppSetting(key, value).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (currentConversationId) {
+      desktopBridge.database.saveAppSetting('currentConversationId', currentConversationId).catch(() => {});
+    }
+  }, [currentConversationId]);
+
+  useEffect(() => {
+    desktopBridge.database.saveAppSetting('selectedModel', selectedModel).catch(() => {});
+  }, [selectedModel]);
+
+  useEffect(() => {
+    desktopBridge.database.saveAppSetting('selectedProviderId', selectedProviderId).catch(() => {});
+  }, [selectedProviderId]);
+
   const currentConversation =
     conversations.find((c) => c.id === currentConversationId) || (conversations.length > 0 ? conversations[0] : null);
 
@@ -305,10 +405,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setConversations((prev) => [newConv, ...prev]);
     setCurrentConversationId(newConv.id);
-  }, [selectedModel, selectedProviderId, saveMemoryActive]);
+    // Persist
+    desktopBridge.database
+      .createConversation({
+        id: newConv.id,
+        title: newConv.title,
+        providerId: newConv.providerId,
+        modelId: newConv.model,
+        workspacePath: selectedWorkspace?.path || null,
+        createdAt: newConv.createdAt,
+        updatedAt: newConv.updatedAt,
+        metadata: { saveMemoryDefault: newConv.saveMemoryDefault },
+      })
+      .catch(() => {});
+  }, [selectedModel, selectedProviderId, saveMemoryActive, selectedWorkspace]);
 
   const selectConversation = (id: string) => {
     setCurrentConversationId(id);
+    // Load messages if not already present
+    const conv = conversations.find((c) => c.id === id);
+    if (conv && conv.messages.length === 0) {
+      desktopBridge.database.getMessages(id).then((msgs) => {
+        if (!Array.isArray(msgs)) return;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  messages: msgs.map((m: any) => ({
+                    id: m.id,
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.createdAt || Date.now(),
+                    model: m.metadata?.model,
+                    providerId: m.metadata?.providerId,
+                    attachments: m.metadata?.attachments,
+                    activities: m.metadata?.activities,
+                    fileChanges: m.metadata?.fileChanges,
+                    hasMemorySaved: m.metadata?.hasMemorySaved,
+                  })),
+                }
+              : c
+          )
+        );
+      }).catch(() => {});
+    }
   };
 
   const deleteConversation = (id: string) => {
@@ -319,6 +460,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return filtered;
     });
+    desktopBridge.database.deleteConversation(id).catch(() => {});
   };
 
   const setSelectedModel = (model: string, providerId?: string) => {
@@ -686,16 +828,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentConversationId(newConv.id);
       targetConvId = newConv.id;
       targetConv = newConv;
+      desktopBridge.database
+        .createConversation({
+          id: newConv.id,
+          title: newConv.title,
+          providerId: newConv.providerId,
+          modelId: newConv.model,
+          workspacePath: selectedWorkspace?.path || null,
+          createdAt: newConv.createdAt,
+          updatedAt: newConv.updatedAt,
+          metadata: { saveMemoryDefault: newConv.saveMemoryDefault },
+        })
+        .catch(() => {});
     }
 
     const providerLabel = selectedProvider?.name || selectedProvider?.type || "Provider";
 
     // Declared outside try so the catch block can remove an empty placeholder on failure.
-    const assistantMsgId = "msg-ai-" + Date.now();
+    const assistantMsgId = "msg-ai-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+    activeAssistantMsgIdRef.current = assistantMsgId;
 
     try {
       const userMsg: ChatMessage = {
-        id: "msg-" + Date.now(),
+        id: "msg-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
         role: "user",
         content: text,
         timestamp: Date.now(),
@@ -719,6 +874,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return c;
         })
       );
+
+      // Persist user message immediately
+      desktopBridge.database
+        .saveMessage({
+          id: userMsg.id,
+          conversationId: targetConvId,
+          role: 'user',
+          content: text,
+          messageType: 'user',
+          createdAt: userMsg.timestamp,
+          updatedAt: userMsg.timestamp,
+          metadata: { attachments },
+        })
+        .catch(() => {});
+      // Persist title change
+      const newTitle = targetConv && targetConv.messages.length === 0 ? text.slice(0, 36) + (text.length > 36 ? "..." : "") : targetConv?.title;
+      desktopBridge.database
+        .updateConversation(targetConvId as string, { title: (newTitle || 'New Conversation') as string, updatedAt: Date.now() })
+        .catch(() => {});
 
       // If no provider is connected, post a genuine system message explaining real state.
       // isGenerating is always reset here — this branch used to leave it stuck at true.
@@ -791,7 +965,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsGenerating(true);
 
       // Create a placeholder assistant message that will be updated incrementally
-      const requestId = "req-" + Date.now();
+      const requestId = "req-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
       activeRequestIdRef.current = requestId;
 
       const placeholderMsg: ChatMessage = {
@@ -810,6 +984,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             : c
         )
       );
+
+      // Persist assistant placeholder (streaming)
+      desktopBridge.database
+        .saveMessage({
+          id: assistantMsgId,
+          conversationId: targetConvId,
+          role: 'assistant',
+          content: '',
+          messageType: 'assistant',
+          createdAt: placeholderMsg.timestamp,
+          updatedAt: placeholderMsg.timestamp,
+          metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: 'streaming' },
+        })
+        .catch(() => {});
 
       // Build the message history from the latest known conversation state plus the
       // current user message. Complete, correctly ordered, no duplicates, no stale state.
@@ -843,6 +1031,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   : c
               )
             );
+            const __now = Date.now();
+            if (__now - lastPersistRef.current > 1500) {
+              lastPersistRef.current = __now;
+              desktopBridge.database
+                .updateMessage(assistantMsgId, { content: event.fullText!, updatedAt: __now, metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "streaming" } })
+                .catch(() => {});
+            }
           } else if (event.type === "done") {
             // Finalize the message
             if (event.fullText) {
@@ -859,7 +1054,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 )
               );
             }
+            desktopBridge.database
+              .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed" } })
+              .catch(() => {});
             setIsGenerating(false);
+            activeAssistantMsgIdRef.current = null;
             activeRequestIdRef.current = null;
             streamUnsubscribeRef.current?.();
             streamUnsubscribeRef.current = null;
@@ -885,6 +1084,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   : c
               )
             );
+            desktopBridge.database
+              .saveMessage({
+                id: errorMsg.id,
+                conversationId: targetConvId,
+                role: "system",
+                content: errorMsg.content,
+                messageType: "error",
+                createdAt: errorMsg.timestamp,
+                updatedAt: errorMsg.timestamp,
+                metadata: {},
+              })
+              .catch(() => {});
             setIsGenerating(false);
             activeRequestIdRef.current = null;
             streamUnsubscribeRef.current?.();
@@ -931,6 +1142,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 : c
             )
           );
+          desktopBridge.database
+            .saveMessage({
+              id: errorMsg.id,
+              conversationId: targetConvId,
+              role: "system",
+              content: errorMsg.content,
+              messageType: "error",
+              createdAt: errorMsg.timestamp,
+              updatedAt: errorMsg.timestamp,
+              metadata: {},
+            })
+            .catch(() => {});
         }
       } else {
         // Browser fallback: no Electron bridge available
@@ -977,6 +1200,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             : c
         )
       );
+      desktopBridge.database
+        .saveMessage({
+          id: errorMsg.id,
+          conversationId: targetConvId,
+          role: "system",
+          content: errorMsg.content,
+          messageType: "error",
+          createdAt: errorMsg.timestamp,
+          updatedAt: errorMsg.timestamp,
+          metadata: {},
+        })
+        .catch(() => {});
     } // Close catch block
   };
   const stopGeneration = useCallback(() => {
@@ -988,6 +1223,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (streamUnsubscribeRef.current) {
       streamUnsubscribeRef.current();
       streamUnsubscribeRef.current = null;
+    }
+    if (activeAssistantMsgIdRef.current) {
+      desktopBridge.database
+        .updateMessage(activeAssistantMsgIdRef.current, { metadata: { generationStatus: 'interrupted' }, updatedAt: Date.now() })
+        .catch(() => {});
+      activeAssistantMsgIdRef.current = null;
     }
     activeRequestIdRef.current = null;
     setIsGenerating(false);
@@ -1058,6 +1299,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         systemPlatform: desktopBridge.system.platform,
         notification,
         dismissNotification,
+        settings,
+        updateSetting,
       }}
     >
       {children}

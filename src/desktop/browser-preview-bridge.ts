@@ -5,6 +5,7 @@ import type {
   ITerminalBridge,
   IMemoryBridge,
   IProviderBridge,
+  IDatabaseBridge,
   FileItem,
   TerminalSessionInfo,
   TaskMemoryEntry,
@@ -426,6 +427,198 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       };
     },
   };
+
+  private previewDatabase: IDatabaseBridge = {
+    initializeDatabase: async () => ({ success: true, path: 'browser-preview-localStorage' }),
+    getConversations: async () => {
+      try {
+        const raw = localStorage.getItem('refx_db_conversations');
+        if (raw) return JSON.parse(raw);
+        // One-time migration from legacy full-conversation storage
+        const legacy = localStorage.getItem('refx_conversations');
+        if (legacy) {
+          const convs = JSON.parse(legacy);
+          if (Array.isArray(convs)) {
+            const migrated = convs.map((c: any) => ({
+              id: c.id,
+              title: c.title || 'New Conversation',
+              providerId: c.providerId || '',
+              modelId: c.model || '',
+              workspacePath: null,
+              createdAt: c.createdAt || Date.now(),
+              updatedAt: c.updatedAt || Date.now(),
+              metadata: { saveMemoryDefault: c.saveMemoryDefault ?? false },
+            }));
+            localStorage.setItem('refx_db_conversations', JSON.stringify(migrated));
+            const msgs: any[] = [];
+            convs.forEach((c: any) => {
+              (c.messages || []).forEach((m: any, idx: number) => {
+                msgs.push({
+                  id: m.id,
+                  conversationId: c.id,
+                  role: m.role,
+                  content: m.content,
+                  messageType: m.role === 'user' ? 'user' : m.role === 'system' ? 'system' : 'assistant',
+                  createdAt: m.timestamp || Date.now() + idx,
+                  updatedAt: m.timestamp || Date.now() + idx,
+                  metadata: {
+                    model: m.model,
+                    providerId: m.providerId,
+                    attachments: m.attachments,
+                    activities: m.activities,
+                    fileChanges: m.fileChanges,
+                    hasMemorySaved: m.hasMemorySaved,
+                  },
+                });
+              });
+            });
+            localStorage.setItem('refx_db_messages', JSON.stringify(msgs));
+            return migrated;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    },
+    getConversation: async (id: string) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_conversations') || '[]');
+        return (Array.isArray(list) ? list : []).find((c: any) => c.id === id) || null;
+      } catch {
+        return null;
+      }
+    },
+    createConversation: async (data: any) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_conversations') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const idx = arr.findIndex((c: any) => c.id === data?.id);
+        if (idx >= 0) arr[idx] = { ...arr[idx], ...data };
+        else arr.unshift(data);
+        localStorage.setItem('refx_db_conversations', JSON.stringify(arr));
+      } catch {
+        // ignore
+      }
+      return data;
+    },
+    updateConversation: async (id: string, changes: any) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_conversations') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const idx = arr.findIndex((c: any) => c.id === id);
+        if (idx >= 0) {
+          arr[idx] = { ...arr[idx], ...changes };
+          localStorage.setItem('refx_db_conversations', JSON.stringify(arr));
+          return arr[idx];
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    deleteConversation: async (id: string) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_conversations') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const filtered = arr.filter((c: any) => c.id !== id);
+        localStorage.setItem('refx_db_conversations', JSON.stringify(filtered));
+        // delete messages
+        const msgs = JSON.parse(localStorage.getItem('refx_db_messages') || '[]');
+        const remaining = (Array.isArray(msgs) ? msgs : []).filter((m: any) => m.conversationId !== id);
+        localStorage.setItem('refx_db_messages', JSON.stringify(remaining));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    searchConversations: async (query: string) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_conversations') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const q = String(query || '').toLowerCase();
+        return arr.filter((c: any) => String(c.title || '').toLowerCase().includes(q));
+      } catch {
+        return [];
+      }
+    },
+    getMessages: async (conversationId: string) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_messages') || '[]');
+        return (Array.isArray(list) ? list : []).filter((m: any) => m.conversationId === conversationId).sort((a: any, b: any) => a.createdAt - b.createdAt);
+      } catch {
+        return [];
+      }
+    },
+    saveMessage: async (message: any) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_messages') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const idx = arr.findIndex((m: any) => m.id === message?.id);
+        if (idx >= 0) arr[idx] = { ...arr[idx], ...message };
+        else arr.push(message);
+        localStorage.setItem('refx_db_messages', JSON.stringify(arr));
+      } catch {
+        // ignore
+      }
+      return message;
+    },
+    updateMessage: async (id: string, changes: any) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_messages') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const idx = arr.findIndex((m: any) => m.id === id);
+        if (idx >= 0) {
+          arr[idx] = { ...arr[idx], ...changes };
+          localStorage.setItem('refx_db_messages', JSON.stringify(arr));
+          return arr[idx];
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    deleteMessage: async (id: string) => {
+      try {
+        const list = JSON.parse(localStorage.getItem('refx_db_messages') || '[]');
+        const arr = Array.isArray(list) ? list : [];
+        const filtered = arr.filter((m: any) => m.id !== id);
+        localStorage.setItem('refx_db_messages', JSON.stringify(filtered));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    getAppSettings: async () => {
+      try {
+        return JSON.parse(localStorage.getItem('refx_db_settings') || '{}');
+      } catch {
+        return {};
+      }
+    },
+    saveAppSetting: async (key: string, value: unknown) => {
+      try {
+        const settings = JSON.parse(localStorage.getItem('refx_db_settings') || '{}');
+        settings[key] = value;
+        localStorage.setItem('refx_db_settings', JSON.stringify(settings));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    exportDatabaseBackup: async () => ({ success: true, path: 'browser-preview-no-backup' }),
+    restoreDatabaseBackup: async () => ({ success: false, error: 'Not supported in browser preview' }),
+    validateDatabaseFile: async () => ({ valid: false, error: 'Not supported in browser preview' }),
+    migrateLegacyData: async () => ({ success: true, imported: 0 }),
+    integrityCheck: async () => ({ ok: true }),
+  };
+
+  public get database(): IDatabaseBridge {
+    if (typeof window !== 'undefined' && (window as any).desktop?.database) {
+      return (window as any).desktop.database as IDatabaseBridge;
+    }
+    return this.previewDatabase;
+  }
 
   public notify(_title: string, _message: string): void {
     // No-op in browser preview without explicit user gesture

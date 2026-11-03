@@ -16,12 +16,19 @@ export const SettingsModal: React.FC = () => {
     closeModal,
     openModal,
     isElectron,
+    settings,
+    updateSetting,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'general' | 'workspace' | 'terminal' | 'security' | 'about'>('general');
-  const [defaultShell, setDefaultShell] = useState('powershell.exe');
-  const [fontSize, setFontSize] = useState('14');
-  const [securityPolicy, setSecurityPolicy] = useState<'always' | 'high_risk' | 'never'>('high_risk');
+  const defaultShell = (settings.defaultShell as string) || 'powershell.exe';
+  const fontSize = (settings.fontSize as string) || '14';
+  const securityPolicy = (settings.securityPolicy as 'always' | 'high_risk' | 'never') || 'high_risk';
+  const ignoredPatterns = (settings.ignoredPatterns as string) || 'node_modules, target, .git, dist, build, .env';
+
+  const setDefaultShell = (v: string) => updateSetting('defaultShell', v);
+  const setFontSize = (v: string) => updateSetting('fontSize', v);
+  const setSecurityPolicy = (v: 'always' | 'high_risk' | 'never') => updateSetting('securityPolicy', v);
 
   if (activeModal !== 'settings') return null;
 
@@ -127,7 +134,8 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <label className="block text-[#a1a1aa] font-medium mb-1">Ignored Patterns</label>
                 <textarea
-                  defaultValue="node_modules, target, .git, dist, build, .env"
+                  value={ignoredPatterns}
+                  onChange={(e) => updateSetting('ignoredPatterns', e.target.value)}
                   rows={2}
                   className="w-full bg-[#131315] border border-[#242428] rounded-md px-3 py-1.5 text-white font-mono text-xs resize-none"
                 />

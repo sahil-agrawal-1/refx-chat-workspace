@@ -204,11 +204,9 @@ export const ChatMessageList: React.FC = () => {
             )}
 
             {/* Text content */}
-            {msg.content && (
-              <div className="bg-[#18181b] border border-[#242428] rounded-xl p-3.5 leading-relaxed whitespace-pre-wrap select-text">
-                {msg.content}
-              </div>
-            )}
+            <div className="bg-[#18181b] border border-[#242428] rounded-xl p-3.5 leading-relaxed whitespace-pre-wrap select-text">
+              {msg.content ? msg.content : (isGenerating ? '' : 'No response generated.')}
+            </div>
           </div>
         );
       })}

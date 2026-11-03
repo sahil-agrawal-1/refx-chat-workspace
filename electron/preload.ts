@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   DesktopAppInfo,
   IDesktopAPI,
+  IDatabaseBridge,
   OllamaCheckResult,
   OllamaModelsResult,
   OllamaChatMessage,
@@ -12,6 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -40,6 +42,8 @@ const CREDENTIAL_CHANNELS = {
   HAS_CREDENTIAL: 'desktop:hasCredential',
   MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
 } as const;
+
+const DB_CHANNELS = DATABASE_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -109,6 +113,26 @@ const desktopAPI: IDesktopAPI = {
       ipcRenderer.removeListener(MODEL_CHANNELS.PROVIDER_STREAM, listener);
     };
   },
+  database: {
+    initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),
+    getConversations: () => ipcRenderer.invoke(DB_CHANNELS.GET_CONVERSATIONS),
+    getConversation: (id: string) => ipcRenderer.invoke(DB_CHANNELS.GET_CONVERSATION, id),
+    createConversation: (data: any) => ipcRenderer.invoke(DB_CHANNELS.CREATE_CONVERSATION, data),
+    updateConversation: (id: string, changes: any) => ipcRenderer.invoke(DB_CHANNELS.UPDATE_CONVERSATION, id, changes),
+    deleteConversation: (id: string) => ipcRenderer.invoke(DB_CHANNELS.DELETE_CONVERSATION, id),
+    searchConversations: (query: string) => ipcRenderer.invoke(DB_CHANNELS.SEARCH_CONVERSATIONS, query),
+    getMessages: (conversationId: string) => ipcRenderer.invoke(DB_CHANNELS.GET_MESSAGES, conversationId),
+    saveMessage: (message: any) => ipcRenderer.invoke(DB_CHANNELS.SAVE_MESSAGE, message),
+    updateMessage: (id: string, changes: any) => ipcRenderer.invoke(DB_CHANNELS.UPDATE_MESSAGE, id, changes),
+    deleteMessage: (id: string) => ipcRenderer.invoke(DB_CHANNELS.DELETE_MESSAGE, id),
+    getAppSettings: () => ipcRenderer.invoke(DB_CHANNELS.GET_SETTINGS),
+    saveAppSetting: (key: string, value: unknown) => ipcRenderer.invoke(DB_CHANNELS.SAVE_SETTING, key, value),
+    exportDatabaseBackup: () => ipcRenderer.invoke(DB_CHANNELS.EXPORT_BACKUP),
+    restoreDatabaseBackup: (filePath: string) => ipcRenderer.invoke(DB_CHANNELS.RESTORE_BACKUP, filePath),
+    validateDatabaseFile: (filePath: string) => ipcRenderer.invoke(DB_CHANNELS.VALIDATE_BACKUP, filePath),
+    migrateLegacyData: (payload: any) => ipcRenderer.invoke(DB_CHANNELS.MIGRATE_LEGACY, payload),
+    integrityCheck: () => ipcRenderer.invoke(DB_CHANNELS.INTEGRITY_CHECK),
+  } as IDatabaseBridge,
 };
 
 // Expose safe, allowlisted API to renderer window as window.desktop
