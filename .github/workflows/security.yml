@@ -20,12 +20,10 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+          package-manager: 'pnpm'
 
       - name: Install pnpm
-        run: npm install -g pnpm@latest
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: corepack enable && pnpm install
 
       - name: Lint (TypeScript type check)
         run: pnpm run lint
