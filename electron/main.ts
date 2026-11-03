@@ -701,6 +701,9 @@ function registerIpcHandlers(): void {
   // Filesystem IPC handlers (P5-A read-only)
   ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_WORKSPACE_INFO, async (_event, workspacePath: string) => {
     try {
+      if (!authorizedWorkspaceRoot && workspacePath && fs.existsSync(workspacePath) && fs.statSync(workspacePath).isDirectory()) {
+        authorizedWorkspaceRoot = fs.realpathSync(workspacePath);
+      }
       const root = ensureWorkspaceRoot();
       const infoPath = workspacePath ? resolveWithinWorkspace(workspacePath) : root;
       const stat = fs.statSync(infoPath);
@@ -717,6 +720,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_DIRECTORY, async (_event, dirPath: string) => {
     try {
+      if (!authorizedWorkspaceRoot && dirPath && fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+        authorizedWorkspaceRoot = fs.realpathSync(dirPath);
+      }
       const resolved = resolveWithinWorkspace(dirPath);
       const stat = fs.statSync(resolved);
       if (!stat.isDirectory()) throw new Error('Not a directory.');
@@ -1110,6 +1116,7 @@ async function startProviderChatStream(
     case 'openai_compatible':
     case 'lm_studio':
     case 'custom_local':
+    case 'openrouter':
       return startProviderChatWithTools(event, request);
     case 'gemini':
       return startProviderChatGemini(event, request);
