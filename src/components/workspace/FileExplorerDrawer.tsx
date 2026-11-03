@@ -21,6 +21,7 @@ export const FileExplorerDrawer: React.FC = () => {
     selectFile,
     openWorkspaceDialog,
     pendingChanges,
+    loadDirectory,
   } = useAppStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -28,10 +29,27 @@ export const FileExplorerDrawer: React.FC = () => {
   if (activeDrawer !== 'file-explorer') return null;
 
   const toggleFolder = (path: string) => {
-    setExpandedFolders((prev) => ({
-      ...prev,
-      [path]: !prev[path],
-    }));
+    setExpandedFolders((prev) => {
+      const next = !prev[path];
+      if (next) {
+        const item = findItem(fileTree, path);
+        if (item && item.isDirectory && (!item.children || item.children.length === 0)) {
+          loadDirectory(path).catch(() => {});
+        }
+      }
+      return { ...prev, [path]: next };
+    });
+  };
+
+  const findItem = (items: FileItem[], target: string): FileItem | null => {
+    for (const item of items) {
+      if (item.path === target) return item;
+      if (item.children) {
+        const found = findItem(item.children, target);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   const isFileModified = (path: string) => {

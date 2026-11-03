@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -44,6 +44,7 @@ const CREDENTIAL_CHANNELS = {
 } as const;
 
 const DB_CHANNELS = DATABASE_IPC_CHANNELS;
+const FS_CHANNELS = FILESYSTEM_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -112,6 +113,18 @@ const desktopAPI: IDesktopAPI = {
     return () => {
       ipcRenderer.removeListener(MODEL_CHANNELS.PROVIDER_STREAM, listener);
     };
+  },
+  fs: {
+    selectFolderDialog: (defaultPath?: string) => ipcRenderer.invoke(IPC_CHANNELS.SELECT_WORKSPACE, defaultPath),
+    selectFileDialog: async (_defaultPath?: string) => null,
+    getWorkspaceInfo: (workspacePath: string) => ipcRenderer.invoke(FS_CHANNELS.GET_WORKSPACE_INFO, workspacePath),
+    readDirectory: (dirPath: string) => ipcRenderer.invoke(FS_CHANNELS.READ_DIRECTORY, dirPath),
+    readFile: (filePath: string) => ipcRenderer.invoke(FS_CHANNELS.READ_FILE, filePath),
+    searchFiles: (workspacePath: string, query: string) => ipcRenderer.invoke(FS_CHANNELS.SEARCH_FILES, workspacePath, query),
+    searchText: (workspacePath: string, query: string) => ipcRenderer.invoke(FS_CHANNELS.SEARCH_TEXT, workspacePath, query),
+    getFileMetadata: (filePath: string) => ipcRenderer.invoke(FS_CHANNELS.GET_FILE_METADATA, filePath),
+    writeFile: async () => false,
+    watchDirectory: () => () => {},
   },
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),

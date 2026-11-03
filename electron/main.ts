@@ -16,7 +16,7 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 import * as db from './database';
 
 import OpenAI from 'openai';
@@ -51,6 +51,9 @@ const OLLAMA_HOST = 'http://127.0.0.1:11434';
 // Encrypted credentials are persisted to a JSON file in the app userData
 // directory. Decrypted credentials never leave the main process.
 const CREDENTIALS_FILE = path.join(app.getPath('userData'), 'provider-credentials.json');
+
+// Authorized workspace root for filesystem containment (resolved realpath).
+let authorizedWorkspaceRoot: string | null = null;
 
 // In-memory cache of decrypted credentials keyed by providerId.
 // Populated on demand from the encrypted store; cleared on process exit.
@@ -151,6 +154,66 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV);
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
 
+const MAX_FILE_SIZE_BYTES = 1024 * 1024; // 1 MB
+const EXCLUDED_NAMES = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  '.nuxt',
+  'coverage',
+  '.cache',
+  '.turbo',
+  'out',
+  'release',
+]);
+const EXCLUDED_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx', '.crt', '.cer']);
+
+function isExcludedRelative(relativePath: string): boolean {
+  if (!relativePath || relativePath === '.') return false;
+  const segments = relativePath.split(path.sep);
+  for (const seg of segments) {
+    const lower = seg.toLowerCase();
+    if (EXCLUDED_NAMES.has(lower)) return true;
+    if (lower.startsWith('.env')) return true;
+    const ext = path.extname(lower);
+    if (EXCLUDED_EXTENSIONS.has(ext)) return true;
+  }
+  return false;
+}
+
+function ensureWorkspaceRoot(): string {
+  if (!authorizedWorkspaceRoot) {
+    throw new Error('No workspace selected.');
+  }
+  return authorizedWorkspaceRoot;
+}
+
+function resolveWithinWorkspace(inputPath: string, allowMissing = false): string {
+  const root = ensureWorkspaceRoot();
+  const resolved = path.resolve(inputPath);
+  let real = resolved;
+  if (fs.existsSync(resolved)) {
+    real = fs.realpathSync(resolved);
+  } else if (!allowMissing) {
+    throw new Error('Path does not exist.');
+  }
+  if (real !== root && !real.startsWith(root + path.sep)) {
+    throw new Error('Path is outside the selected workspace.');
+  }
+  const relative = path.relative(root, real);
+  if (isExcludedRelative(relative)) {
+    throw new Error('Path is excluded by workspace security policy.');
+  }
+  return real;
+}
+
+function isWithinRoot(candidate: string): boolean {
+  const root = ensureWorkspaceRoot();
+  return candidate === root || candidate.startsWith(root + path.sep);
+}
+
 function registerIpcHandlers(): void {
   // Native method: getAppInfo
   ipcMain.handle(IPC_CHANNELS.GET_APP_INFO, async (): Promise<DesktopAppInfo> => {
@@ -181,7 +244,13 @@ function registerIpcHandlers(): void {
         return null;
       }
 
-      return result.filePaths[0];
+      const selected = result.filePaths[0];
+      try {
+        authorizedWorkspaceRoot = fs.realpathSync(selected);
+      } catch {
+        authorizedWorkspaceRoot = path.resolve(selected);
+      }
+      return selected;
     }
   );
 
@@ -626,6 +695,178 @@ function registerIpcHandlers(): void {
       return { ok, error: ok ? undefined : 'Integrity check failed' };
     } catch (err: any) {
       return { ok: false, error: err?.message || String(err) };
+    }
+  });
+
+  // Filesystem IPC handlers (P5-A read-only)
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_WORKSPACE_INFO, async (_event, workspacePath: string) => {
+    try {
+      const root = ensureWorkspaceRoot();
+      const infoPath = workspacePath ? resolveWithinWorkspace(workspacePath) : root;
+      const stat = fs.statSync(infoPath);
+      return {
+        path: infoPath,
+        name: path.basename(infoPath),
+        exists: true,
+        isDirectory: stat.isDirectory(),
+      };
+    } catch (err: any) {
+      return { path: workspacePath, name: path.basename(workspacePath || ''), exists: false, isDirectory: false, error: err?.message };
+    }
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_DIRECTORY, async (_event, dirPath: string) => {
+    try {
+      const resolved = resolveWithinWorkspace(dirPath);
+      const stat = fs.statSync(resolved);
+      if (!stat.isDirectory()) throw new Error('Not a directory.');
+      const entries = fs.readdirSync(resolved, { withFileTypes: true });
+      const items: any[] = [];
+      for (const entry of entries) {
+        const fullPath = path.join(resolved, entry.name);
+        const rel = path.relative(ensureWorkspaceRoot(), fullPath);
+        if (isExcludedRelative(rel)) continue;
+        // Symlink/junction escape protection
+        if (entry.isSymbolicLink()) {
+          try {
+            const real = fs.realpathSync(fullPath);
+            if (!isWithinRoot(real)) continue;
+          } catch {
+            continue;
+          }
+        }
+        try {
+          const st = fs.statSync(fullPath);
+          items.push({
+            name: entry.name,
+            path: fullPath,
+            isDirectory: st.isDirectory(),
+            size: st.size,
+            lastModified: st.mtimeMs,
+          });
+        } catch {
+          // inaccessible entry; skip
+        }
+      }
+      items.sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      return items;
+    } catch (err: any) {
+      throw new Error(err?.message || 'Failed to read directory.');
+    }
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_FILE, async (_event, filePath: string) => {
+    const resolved = resolveWithinWorkspace(filePath);
+    const stat = fs.statSync(resolved);
+    if (stat.isDirectory()) throw new Error('Cannot read a directory as a file.');
+    if (stat.size > MAX_FILE_SIZE_BYTES) throw new Error('File is too large to read (limit 1 MB).');
+    const buf = fs.readFileSync(resolved);
+    if (buf.includes(0)) throw new Error('Binary files are not supported.');
+    return buf.toString('utf8');
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.SEARCH_FILES, async (_event, workspacePath: string, query: string) => {
+    const root = resolveWithinWorkspace(workspacePath || ensureWorkspaceRoot());
+    const results: any[] = [];
+    const q = String(query || '').toLowerCase();
+    if (!q) return results;
+    const walk = (dir: string, depth: number) => {
+      if (depth > 8 || results.length >= 100) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const rel = path.relative(root, fullPath);
+        if (isExcludedRelative(rel)) continue;
+        if (entry.isSymbolicLink()) {
+          try {
+            if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
+          } catch {
+            continue;
+          }
+        }
+        if (entry.isDirectory()) {
+          walk(fullPath, depth + 1);
+        } else if (entry.name.toLowerCase().includes(q)) {
+          results.push({ path: fullPath, name: entry.name });
+          if (results.length >= 100) return;
+        }
+      }
+    };
+    walk(root, 0);
+    return results;
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.SEARCH_TEXT, async (_event, workspacePath: string, query: string) => {
+    const root = resolveWithinWorkspace(workspacePath || ensureWorkspaceRoot());
+    const results: any[] = [];
+    const q = String(query || '').toLowerCase();
+    if (!q) return results;
+    const walk = (dir: string, depth: number) => {
+      if (depth > 8 || results.length >= 200) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const rel = path.relative(root, fullPath);
+        if (isExcludedRelative(rel)) continue;
+        if (entry.isSymbolicLink()) {
+          try {
+            if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
+          } catch {
+            continue;
+          }
+        }
+        if (entry.isDirectory()) {
+          walk(fullPath, depth + 1);
+        } else {
+          try {
+            const st = fs.statSync(fullPath);
+            if (st.size > MAX_FILE_SIZE_BYTES) return;
+            const buf = fs.readFileSync(fullPath);
+            if (buf.includes(0)) return;
+            const content = buf.toString('utf8');
+            const lines = content.split(/\r?\n/);
+            lines.forEach((line, idx) => {
+              if (results.length >= 200) return;
+              if (line.toLowerCase().includes(q)) {
+                results.push({ path: fullPath, line: idx + 1, preview: line.trim().slice(0, 200) });
+              }
+            });
+          } catch {
+            // skip unreadable files
+          }
+        }
+      }
+    };
+    walk(root, 0);
+    return results;
+  });
+
+  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_FILE_METADATA, async (_event, filePath: string) => {
+    try {
+      const resolved = resolveWithinWorkspace(filePath);
+      const stat = fs.statSync(resolved);
+      return {
+        path: resolved,
+        name: path.basename(resolved),
+        size: stat.size,
+        lastModified: stat.mtimeMs,
+        isDirectory: stat.isDirectory(),
+      };
+    } catch {
+      return null;
     }
   });
 }

@@ -153,12 +153,42 @@ export interface ProviderConfig {
   lastVerifiedAt?: number;
 }
 
+export interface WorkspaceInfo {
+  path: string;
+  name: string;
+  exists: boolean;
+  isDirectory: boolean;
+}
+
+export interface FileMetadata {
+  path: string;
+  name: string;
+  size: number;
+  lastModified: number;
+  isDirectory: boolean;
+}
+
+export interface FileSearchResult {
+  path: string;
+  name: string;
+}
+
+export interface TextSearchResult {
+  path: string;
+  line: number;
+  preview: string;
+}
+
 export interface IFileSystemBridge {
-  readDirectory(dirPath: string): Promise<FileItem[]>;
-  readFile(filePath: string): Promise<string>;
-  writeFile(filePath: string, content: string): Promise<boolean>;
   selectFolderDialog(defaultPath?: string): Promise<string | null>;
   selectFileDialog(defaultPath?: string): Promise<string | null>;
+  getWorkspaceInfo(workspacePath: string): Promise<WorkspaceInfo>;
+  readDirectory(dirPath: string): Promise<FileItem[]>;
+  readFile(filePath: string): Promise<string>;
+  searchFiles(workspacePath: string, query: string): Promise<FileSearchResult[]>;
+  searchText(workspacePath: string, query: string): Promise<TextSearchResult[]>;
+  getFileMetadata(filePath: string): Promise<FileMetadata | null>;
+  writeFile(filePath: string, content: string): Promise<boolean>;
   watchDirectory(dirPath: string, callback: (event: 'add' | 'change' | 'unlink', path: string) => void): () => void;
 }
 
@@ -319,6 +349,16 @@ export const MODEL_IPC_CHANNELS = {
  * Credentials are encrypted at rest via Electron safeStorage (Windows DPAPI)
  * and are never returned to the renderer process.
  */
+export const FILESYSTEM_IPC_CHANNELS = {
+  SELECT_WORKSPACE: 'desktop:fsSelectWorkspace',
+  GET_WORKSPACE_INFO: 'desktop:fsGetWorkspaceInfo',
+  READ_DIRECTORY: 'desktop:fsReadDirectory',
+  READ_FILE: 'desktop:fsReadFile',
+  SEARCH_FILES: 'desktop:fsSearchFiles',
+  SEARCH_TEXT: 'desktop:fsSearchText',
+  GET_FILE_METADATA: 'desktop:fsGetFileMetadata',
+} as const;
+
 export const CREDENTIAL_IPC_CHANNELS = {
   SAVE_CREDENTIAL: 'desktop:saveCredential',
   DELETE_CREDENTIAL: 'desktop:deleteCredential',
@@ -364,6 +404,9 @@ export interface IDesktopAPI {
   startProviderChat(request: ModelInferenceRequest): Promise<ModelInferenceResult>;
   cancelProviderChat(requestId: string): Promise<boolean>;
   onProviderStream(callback: (event: ModelStreamEvent) => void): () => void;
+  // Secure filesystem bridge (typed, allowlisted)
+  fs: IFileSystemBridge;
+
   // Secure credential management (credentials never returned to renderer)
   saveCredential(providerId: string, apiKey: string): Promise<boolean>;
   deleteCredential(providerId: string): Promise<boolean>;

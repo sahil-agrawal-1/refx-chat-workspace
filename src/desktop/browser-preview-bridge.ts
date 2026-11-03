@@ -186,27 +186,66 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
   }
 
   public fs: IFileSystemBridge = {
-    readDirectory: async (_dirPath: string): Promise<FileItem[]> => {
-      return [...this.activeWorkspaceFiles];
-    },
-    readFile: async (filePath: string): Promise<string> => {
-      if (this.fileSystem.has(filePath)) {
-        return this.fileSystem.get(filePath)!;
-      }
-      return '';
-    },
-    writeFile: async (filePath: string, content: string): Promise<boolean> => {
-      this.fileSystem.set(filePath, content);
-      return true;
-    },
     selectFolderDialog: async (defaultPath?: string): Promise<string | null> => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.selectFolderDialog) {
+        return window.desktop.fs.selectFolderDialog(defaultPath);
+      }
       if (typeof window !== 'undefined' && window.desktop?.selectWorkspace) {
         return window.desktop.selectWorkspace(defaultPath);
       }
       return null;
     },
     selectFileDialog: async (_defaultPath?: string): Promise<string | null> => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.selectFileDialog) {
+        return window.desktop.fs.selectFileDialog(_defaultPath);
+      }
       return null;
+    },
+    getWorkspaceInfo: async (workspacePath: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.getWorkspaceInfo) {
+        return window.desktop.fs.getWorkspaceInfo(workspacePath);
+      }
+      return { path: workspacePath, name: workspacePath.split(/[\\\\/]/).pop() || 'Workspace', exists: false, isDirectory: false };
+    },
+    readDirectory: async (dirPath: string): Promise<FileItem[]> => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.readDirectory) {
+        return window.desktop.fs.readDirectory(dirPath);
+      }
+      return [...this.activeWorkspaceFiles];
+    },
+    readFile: async (filePath: string): Promise<string> => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.readFile) {
+        return window.desktop.fs.readFile(filePath);
+      }
+      if (this.fileSystem.has(filePath)) {
+        return this.fileSystem.get(filePath)!;
+      }
+      return '';
+    },
+    searchFiles: async (workspacePath: string, query: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.searchFiles) {
+        return window.desktop.fs.searchFiles(workspacePath, query);
+      }
+      return [];
+    },
+    searchText: async (workspacePath: string, query: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.searchText) {
+        return window.desktop.fs.searchText(workspacePath, query);
+      }
+      return [];
+    },
+    getFileMetadata: async (filePath: string) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.getFileMetadata) {
+        return window.desktop.fs.getFileMetadata(filePath);
+      }
+      return null;
+    },
+    writeFile: async (filePath: string, content: string): Promise<boolean> => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.writeFile) {
+        return window.desktop.fs.writeFile(filePath, content);
+      }
+      this.fileSystem.set(filePath, content);
+      return true;
     },
     watchDirectory: (_dirPath, _callback) => {
       return () => {};

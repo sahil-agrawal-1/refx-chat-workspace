@@ -53,7 +53,12 @@ interface AppContextValue {
   recentWorkspaces: ProjectWorkspace[];
   fileTree: FileItem[];
   selectedFile: string | null;
+  selectedFileContent: string | null;
+  isReadingFile: boolean;
   selectFile: (path: string | null) => void;
+  readFile: (path: string) => Promise<void>;
+  loadDirectory: (dirPath: string) => Promise<void>;
+  refreshWorkspace: () => Promise<void>;
   openWorkspaceDialog: () => Promise<void>;
   setWorkspace: (ws: ProjectWorkspace | null) => void;
 
@@ -175,6 +180,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [fileTree, setFileTree] = useState<FileItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
+  const [isReadingFile, setIsReadingFile] = useState<boolean>(false);
 
   // Pending File Modifications (Empty by default)
   const [pendingChanges, setPendingChanges] = useState<FileChange[]>([]);
@@ -359,6 +366,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     initBridgeData();
+  }, [selectedWorkspace]);
+
+  // Restore file tree when workspace is available
+  useEffect(() => {
+    if (selectedWorkspace) {
+      refreshWorkspace().catch(() => {});
+      desktopBridge.database.saveAppSetting('selectedWorkspacePath', selectedWorkspace.path).catch(() => {});
+    } else {
+      setFileTree([]);
+    }
   }, [selectedWorkspace]);
 
   const updateSetting = useCallback((key: string, value: unknown) => {
@@ -640,6 +657,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       setSelectedWorkspace(ws);
       setRecentWorkspaces((prev) => [ws, ...prev.filter((p) => p.path !== folderPath)].slice(0, 5));
+      // Load real directory listing
+      try {
+        const entries = await desktopBridge.fs.readDirectory(folderPath);
+        setFileTree(entries);
+      } catch {
+        setFileTree([]);
+      }
       try {
         localStorage.setItem('refx_active_workspace', JSON.stringify(ws));
         localStorage.setItem('refx_recent_workspaces', JSON.stringify([ws, ...recentWorkspaces]));
@@ -665,6 +689,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const selectFile = (path: string | null) => {
     setSelectedFile(path);
+    setSelectedFileContent(null);
+    if (path) {
+      readFile(path).catch(() => {});
+    }
+  };
+
+  const readFile = async (filePath: string) => {
+    setIsReadingFile(true);
+    try {
+      const content = await desktopBridge.fs.readFile(filePath);
+      setSelectedFileContent(content);
+    } catch (err: any) {
+      setSelectedFileContent(`Error reading file: ${err?.message || String(err)}`);
+    } finally {
+      setIsReadingFile(false);
+    }
+  };
+
+  const updateFileTree = (items: FileItem[], dirPath: string, children: FileItem[]): FileItem[] => {
+    return items.map((item) => {
+      if (item.path === dirPath) {
+        return { ...item, children };
+      }
+      if (item.children) {
+        return { ...item, children: updateFileTree(item.children, dirPath, children) };
+      }
+      return item;
+    });
+  };
+
+  const loadDirectory = async (dirPath: string) => {
+    try {
+      const entries = await desktopBridge.fs.readDirectory(dirPath);
+      setFileTree((prev) => {
+        // top-level
+        if (prev.some((i) => i.path === dirPath)) {
+          // shouldn't happen for root; handle nested
+          return updateFileTree(prev, dirPath, entries);
+        }
+        // if dirPath is workspace root, replace top-level
+        if (selectedWorkspace && dirPath === selectedWorkspace.path) {
+          return entries;
+        }
+        // if tree empty, set entries as root? 
+        return prev.length === 0 ? entries : updateFileTree(prev, dirPath, entries);
+      });
+    } catch (err) {
+      // leave tree unchanged
+    }
+  };
+
+  const refreshWorkspace = async () => {
+    if (selectedWorkspace) {
+      try {
+        const entries = await desktopBridge.fs.readDirectory(selectedWorkspace.path);
+        setFileTree(entries);
+      } catch {
+        setFileTree([]);
+      }
+    }
   };
 
   const approveChange = (filePath: string) => {
@@ -1264,7 +1348,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recentWorkspaces,
         fileTree,
         selectedFile,
+        selectedFileContent,
+        isReadingFile,
         selectFile,
+        readFile,
+        loadDirectory,
+        refreshWorkspace,
         openWorkspaceDialog,
         setWorkspace,
         pendingChanges,
