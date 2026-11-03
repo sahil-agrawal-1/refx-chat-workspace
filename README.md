@@ -1,4 +1,4 @@
-# Antigravity AI Desktop — Stage 1 Frontend & Desktop Architecture
+# Refx Chat Workspace Desktop — Stage 1 Frontend & Desktop Architecture
 
 A local-first Windows AI desktop application inspired by Google Antigravity.
 
