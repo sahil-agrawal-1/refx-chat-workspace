@@ -11,6 +11,7 @@ import type {
   AppMemoryEntry,
   MemoryConfig,
   ProviderConfig,
+  ProviderVerificationResult,
 } from 'shared/contracts/desktop-bridge';
 
 export const INITIAL_PROVIDERS: ProviderConfig[] = [
@@ -20,7 +21,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     type: 'ollama',
     baseUrl: 'http://localhost:11434',
     isLocal: true,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -30,7 +31,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     type: 'lm_studio',
     baseUrl: 'http://localhost:1234/v1',
     isLocal: true,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -41,7 +42,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://generativelanguage.googleapis.com',
     apiKey: '',
     isLocal: false,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -52,7 +53,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
     isLocal: false,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -63,7 +64,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://api.anthropic.com/v1',
     apiKey: '',
     isLocal: false,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -74,7 +75,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: 'https://openrouter.ai/api/v1',
     apiKey: '',
     isLocal: false,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -85,7 +86,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: '',
     apiKey: '',
     isLocal: false,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -96,7 +97,7 @@ export const INITIAL_PROVIDERS: ProviderConfig[] = [
     baseUrl: '',
     apiKey: '',
     isLocal: true,
-    status: 'disconnected',
+    status: 'not-configured',
     discoveredModels: [],
     selectedModel: '',
   },
@@ -326,46 +327,39 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.saveToStorage('antigravity_providers', this.providers);
       return true;
     },
-    verifyConnection: async (providerId: string): Promise<{ success: boolean; models: string[]; message?: string }> => {
+    verifyConnection: async (providerId: string): Promise<ProviderVerificationResult> => {
       const provider = this.providers.find((p) => p.id === providerId);
       if (!provider) {
-        return { success: false, models: [], message: 'Provider configuration not found.' };
+        return { success: false, models: [], status: 'provider-unavailable', message: 'Provider configuration not found.' };
       }
 
-      // Check base URL
-      if (!provider.baseUrl) {
+      // Browser preview does not have secure credential storage (Electron safeStorage / DPAPI).
+      // Cloud providers require the Electron desktop app for real verification.
+      if (!provider.isLocal && provider.type !== 'openai_compatible') {
         return {
           success: false,
           models: [],
-          message: 'Endpoint URL is required.',
+          status: 'not-configured',
+          message: `Real provider verification for ${provider.name} requires the Electron desktop app. Browser preview does not support secure credential storage.`,
         };
       }
 
-      // If cloud provider, check API key
-      // Note: Browser preview does not have secure credential storage.
-      // API keys are handled via Electron safeStorage in the main process.
-      if (!provider.isLocal && !provider.apiKey && provider.type !== 'openai_compatible') {
-        return {
-          success: false,
-          models: [],
-          message: `Secure credential storage is not available in browser preview. Use the Electron desktop app to configure API keys for ${provider.name}.`,
-        };
-      }
-
-      // When in Electron, delegate Ollama checking to the secure main process
-      if (typeof window !== 'undefined' && window.desktop?.listOllamaModels && provider.id === 'ollama') {
+      // Ollama: delegate to Electron main process when available
+      if (provider.id === 'ollama' && typeof window !== 'undefined' && window.desktop?.listOllamaModels) {
         try {
           const res = await window.desktop.listOllamaModels();
           if (res.success && res.models.length > 0) {
             return {
               success: true,
               models: res.models,
-              message: `Connected to ${provider.name}. ${res.models.length} model(s) discovered: ${res.models.join(', ')}`,
+              status: 'connected',
+              message: `Connected to ${provider.name}. ${res.models.length} model(s) discovered.`,
             };
           } else {
             return {
               success: false,
               models: [],
+              status: 'model-unavailable',
               message: res.error || `Could not connect to Ollama. Ensure Ollama is running at http://127.0.0.1:11434.`,
             };
           }
@@ -373,52 +367,62 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
           return {
             success: false,
             models: [],
+            status: 'provider-unavailable',
             message: err.message || 'Failed to query Ollama models.',
           };
         }
       }
 
-      // Try genuine network ping if in browser environment
-      try {
-        if (provider.isLocal) {
-          // Attempt a quick health check ping with timeout
+      // LM Studio and other local OpenAI-compatible providers: try network discovery
+      if (provider.isLocal && provider.baseUrl) {
+        try {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 2000);
           try {
-            const res = await fetch(`${provider.baseUrl.replace(/\/v1\/?$/, '')}/api/tags`, {
+            const baseUrl = provider.baseUrl.replace(/\/v1\/?$/, '');
+            const res = await fetch(`${baseUrl}/v1/models`, {
               method: 'GET',
               signal: controller.signal,
             });
             clearTimeout(timeout);
             if (res.ok) {
               const data = await res.json();
-              const models = (data.models || []).map((m: any) => m.name || m.model || String(m));
+              const models = (data.data || []).map((m: any) => m.id || m.name || String(m));
+              if (models.length > 0) {
+                return {
+                  success: true,
+                  models,
+                  status: 'connected',
+                  message: `Connected to ${provider.name}. ${models.length} model(s) discovered.`,
+                };
+              }
               return {
-                success: true,
-                models: models.length > 0 ? models : ['default'],
-                message: `Connected to ${provider.name}. ${models.length} model(s) discovered.`,
+                success: false,
+                models: [],
+                status: 'model-unavailable',
+                message: `${provider.name} is running but no models were discovered.`,
               };
             }
           } catch {
-            // Local server not reachable on localhost
+            // Local server not reachable
             return {
               success: false,
               models: [],
-              message: `Could not reach ${provider.name} at ${provider.baseUrl}. Ensure the server daemon is running locally and CORS is allowed.`,
+              status: 'provider-unavailable',
+              message: `Could not reach ${provider.name} at ${provider.baseUrl}. Ensure the server daemon is running locally.`,
             };
           }
+        } catch {
+          // Fall through to not-supported message
         }
-      } catch {
-        // Fallback
       }
 
-      // Cloud providers cannot be verified in browser preview without
-      // secure credential storage. Credentials are managed via Electron
-      // safeStorage in the desktop app.
+      // Cloud providers and other cases not supported in browser preview
       return {
         success: false,
         models: [],
-        message: `Secure credential storage is not available in browser preview. Use the Electron desktop app to connect to ${provider.name}.`,
+        status: 'not-configured',
+        message: `Real verification for ${provider.name} requires the Electron desktop app. Browser preview cannot verify cloud provider credentials.`,
       };
     },
   };

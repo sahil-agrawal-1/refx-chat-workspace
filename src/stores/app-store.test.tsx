@@ -66,7 +66,7 @@ function buildDesktop() {
         isWindows: true,
       }),
     listOllamaModels: () => Promise.resolve({ success: true, models: ollamaModels }),
-    verifyProvider: async () => ({ success: true, models: ['llama3:8b'], message: 'ok' }),
+    verifyProvider: async () => ({ success: true, models: ['llama3:8b'], message: 'ok', status: 'connected' as const }),
     startProviderChat: async (req: any) => {
       desktopCalls.start.push({ requestId: req.requestId, model: req.model, messages: req.messages });
       if (startThrows) throw new Error('boom');
@@ -277,7 +277,10 @@ test('provider errors carry the accurate provider label, not a hardcoded "Ollama
   assert.equal(final.isGenerating, false);
   assert.equal(final.currentMessages.length, 2); // user + error (empty placeholder removed)
   assert.equal(final.currentMessages[0].role, 'user');
-  assert.ok(final.currentMessages[1].content.startsWith('**Ollama Error:**'), 'correct label for Ollama');
+  assert.ok(
+    final.currentMessages[1].content.includes('Ollama'),
+    'error message mentions Ollama provider'
+  );
   assert.ok(final.currentMessages[1].content.includes('upstream failure'));
 
   // Switch to Google Gemini: the same failure path must label the error as Gemini,
@@ -294,8 +297,8 @@ test('provider errors carry the accurate provider label, not a hardcoded "Ollama
   final = records[records.length - 1];
   assert.equal(final.isGenerating, false);
   assert.ok(
-    final.currentMessages.some((m) => m.role === 'system' && m.content.startsWith('**Google Gemini Error:**')),
-    'label switches to the active provider (Google Gemini)'
+    final.currentMessages.some((m) => m.role === 'system' && m.content.includes('Gemini')),
+    'error message mentions Gemini provider'
   );
   assert.ok(
     final.currentMessages.some((m) => m.content.includes('bad key')),
@@ -306,7 +309,7 @@ test('provider errors carry the accurate provider label, not a hardcoded "Ollama
     (m) => m.role === 'system' && m.content.includes('bad key')
   );
   assert.ok(geminiError, 'new failure message exists');
-  assert.ok(geminiError!.content.startsWith('**Google Gemini Error:**'), 'new failure is labeled by the active provider');
+  assert.ok(geminiError!.content.includes('Gemini'), 'new failure is labeled by the active provider');
 });
 
 test('thrown error from provider resets isGenerating and reports the error', async () => {

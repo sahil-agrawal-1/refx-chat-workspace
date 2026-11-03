@@ -107,6 +107,28 @@ export interface MemoryConfig {
   maxEntries: number;
 }
 
+export type ProviderConnectionStatus =
+  | 'not-configured'
+  | 'connecting'
+  | 'connected'
+  | 'auth-failed'
+  | 'insufficient-permissions'
+  | 'rate-limited'
+  | 'provider-unavailable'
+  | 'model-unavailable'
+  | 'model-discovery-unsupported'
+  | 'auth-verified-model-untested';
+
+export interface ProviderVerificationResult {
+  success: boolean;
+  models: string[];
+  message?: string;
+  status: ProviderConnectionStatus;
+  providerUnavailable?: boolean;
+  rateLimited?: boolean;
+  authFailed?: boolean;
+}
+
 export type ProviderType =
   | 'openai'
   | 'gemini'
@@ -124,7 +146,7 @@ export interface ProviderConfig {
   baseUrl: string;
   apiKey?: string;
   isLocal: boolean;
-  status: 'connected' | 'disconnected' | 'testing' | 'error';
+  status: ProviderConnectionStatus;
   errorMessage?: string;
   discoveredModels: string[];
   selectedModel: string;
@@ -163,7 +185,7 @@ export interface IProviderBridge {
   getProviders(): Promise<ProviderConfig[]>;
   saveProvider(provider: ProviderConfig): Promise<ProviderConfig>;
   deleteProvider(id: string): Promise<boolean>;
-  verifyConnection(providerId: string): Promise<{ success: boolean; models: string[]; message?: string }>;
+  verifyConnection(providerId: string): Promise<ProviderVerificationResult>;
 }
 
 export interface IDesktopBridge {
@@ -294,7 +316,7 @@ export interface IDesktopAPI {
   cancelOllamaChat(requestId: string): Promise<boolean>;
   onOllamaStream(callback: (event: OllamaStreamEvent) => void): () => void;
   // Unified provider inference (multi-provider)
-  verifyProvider(config: ProviderConfig): Promise<{ success: boolean; models: string[]; message?: string }>;
+  verifyProvider(config: ProviderConfig): Promise<ProviderVerificationResult>;
   startProviderChat(request: ModelInferenceRequest): Promise<ModelInferenceResult>;
   cancelProviderChat(requestId: string): Promise<boolean>;
   onProviderStream(callback: (event: ModelStreamEvent) => void): () => void;

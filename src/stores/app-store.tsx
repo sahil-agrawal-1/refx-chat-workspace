@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   ProjectWorkspace,
   ProviderConfig,
+  ProviderVerificationResult,
   FileItem,
   FileChange,
   TaskMemoryEntry,
@@ -396,67 +397,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof window !== 'undefined' && window.desktop?.verifyProvider) {
       const provider = providers.find((p) => p.id === providerId);
       if (!provider) {
-        const res = { success: false, models: [], message: 'Provider not found.' };
-        if (res.success && res.models.length > 0) {
-          setProviders((prev) =>
-            prev.map((p) =>
-              p.id === providerId
-                ? { ...p, status: 'connected', discoveredModels: res.models, selectedModel: p.selectedModel || res.models[0] }
-                : p
-            )
-          );
-          setSelectedModelInternal((prev) => prev || res.models[0]);
-          setSelectedProviderId(providerId);
-        } else {
-          setProviders((prev) =>
-            prev.map((p) =>
-              p.id === providerId ? { ...p, status: 'error', errorMessage: res.message } : p
-            )
-          );
-        }
+        const res: ProviderVerificationResult = {
+          success: false,
+          models: [],
+          status: 'provider-unavailable',
+          message: 'Provider not found.',
+        };
+        setProviders((prev) =>
+          prev.map((p) =>
+            p.id === providerId ? { ...p, status: res.status, errorMessage: res.message } : p
+          )
+        );
         return res;
       }
       // Never send the API key through IPC — main process retrieves it
       // internally from safeStorage. Strip apiKey before sending.
       const { apiKey, ...configWithoutKey } = provider;
-      const res = await window.desktop.verifyProvider(configWithoutKey);
+      setProviders((prev) =>
+        prev.map((p) =>
+          p.id === providerId ? { ...p, status: 'connecting' } : p
+        )
+      );
+      let res: ProviderVerificationResult;
+      try {
+        res = await window.desktop.verifyProvider(configWithoutKey);
+      } catch (err: any) {
+        res = {
+          success: false,
+          models: [],
+          status: 'provider-unavailable',
+          message: err.message || 'Provider verification failed.',
+        };
+      }
+      const now = Date.now();
+      setProviders((prev) =>
+        prev.map((p) =>
+          p.id === providerId
+            ? {
+                ...p,
+                status: res.status,
+                errorMessage: res.success ? undefined : res.message,
+                discoveredModels: res.success ? res.models : p.discoveredModels,
+                lastVerifiedAt: now,
+              }
+            : p
+        )
+      );
       if (res.success && res.models.length > 0) {
-        setProviders((prev) =>
-          prev.map((p) =>
-            p.id === providerId
-              ? { ...p, status: 'connected', discoveredModels: res.models, selectedModel: p.selectedModel || res.models[0] }
-              : p
-          )
-        );
         setSelectedModelInternal((prev) => prev || res.models[0]);
         setSelectedProviderId(providerId);
+        setNotification({
+          title: 'Provider Connected',
+          message: res.message || `Connected to ${provider.name}.`,
+          type: 'success',
+        });
+      } else if (res.status === 'auth-verified-model-untested') {
+        setNotification({
+          title: 'Provider Verified',
+          message: res.message || `${provider.name} verified. Enter a model ID manually.`,
+          type: 'info',
+        });
       } else {
-        setProviders((prev) =>
-          prev.map((p) =>
-            p.id === providerId ? { ...p, status: 'error', errorMessage: res.message } : p
-          )
-        );
+        setNotification({
+          title: 'Connection Failed',
+          message: res.message || `Failed to connect to ${provider.name}.`,
+          type: 'warning',
+        });
       }
       return res;
     }
     // Fallback to browser preview bridge — no secure credential storage available
     const res = await desktopBridge.provider.verifyConnection(providerId);
+    const now = Date.now();
+    setProviders((prev) =>
+      prev.map((p) =>
+        p.id === providerId
+          ? {
+              ...p,
+              status: res.success ? 'connected' : 'not-configured',
+              errorMessage: res.success ? undefined : res.message,
+              discoveredModels: res.success ? res.models : p.discoveredModels,
+              lastVerifiedAt: now,
+            }
+          : p
+      )
+    );
     if (res.success && res.models.length > 0) {
-      setProviders((prev) =>
-        prev.map((p) =>
-          p.id === providerId
-            ? { ...p, status: 'connected', discoveredModels: res.models, selectedModel: p.selectedModel || res.models[0] }
-            : p
-        )
-      );
       setSelectedModelInternal((prev) => prev || res.models[0]);
       setSelectedProviderId(providerId);
-    } else {
-      setProviders((prev) =>
-        prev.map((p) =>
-          p.id === providerId ? { ...p, status: 'error', errorMessage: res.message } : p
-        )
-      );
     }
     return res;
   };

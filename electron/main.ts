@@ -13,6 +13,7 @@ import type {
   ModelStreamEvent,
   ProviderConfig,
   ProviderType,
+  ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
 import { CREDENTIAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
@@ -228,7 +229,7 @@ function registerIpcHandlers(): void {
       const data = (await res.json()) as { models?: Array<{ name?: string; model?: string }> };
       const modelNames = (data.models || [])
         .map((m) => m.name || m.model || '')
-        .filter(Boolean);
+        .filter((m): m is string => Boolean(m));
 
       return {
         success: true,
@@ -542,37 +543,86 @@ function registerIpcHandlers(): void {
  */
 async function verifyProviderConnection(
   config: ProviderConfig
-): Promise<{ success: boolean; models: string[]; message?: string }> {
+): Promise<ProviderVerificationResult> {
+  const abortController = new AbortController();
+  const timeoutMs = 15000;
+
   try {
     switch (config.type) {
       case 'ollama': {
         const res = await fetch(`${config.baseUrl || OLLAMA_HOST}/api/tags`, {
           method: 'GET',
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
         });
         if (!res.ok) {
-          return { success: false, models: [], message: `Ollama returned HTTP ${res.status}: ${res.statusText}` };
+          if (res.status === 401 || res.status === 403) {
+            return { success: false, models: [], status: 'auth-failed', message: 'Ollama authentication failed.' };
+          }
+          return { success: false, models: [], status: 'provider-unavailable', message: `Ollama returned HTTP ${res.status}: ${res.statusText}` };
         }
         const data = (await res.json()) as { models?: Array<{ name?: string; model?: string }> };
-        const models = (data.models || []).map((m) => m.name || m.model || '').filter(Boolean);
+        const models = (data.models || []).map((m) => m.name || m.model || '').filter((m): m is string => Boolean(m));
         return models.length > 0
-          ? { success: true, models, message: `Connected to Ollama. ${models.length} model(s) discovered.` }
-          : { success: false, models: [], message: 'Ollama is running but no models are installed.' };
+          ? { success: true, models, status: 'connected', message: `Connected to Ollama. ${models.length} model(s) discovered.` }
+          : { success: false, models: [], status: 'model-unavailable', message: 'Ollama is running but no models are installed.' };
       }
 
       case 'gemini': {
         const apiKey = getCredentialForProvider(config.id);
         if (!apiKey) {
-          return { success: false, models: [], message: 'API key not found. Please save your credentials.' };
+          return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
         }
-        return verifyGeminiConnection(apiKey);
+        return verifyGeminiConnection(apiKey, abortController, timeoutMs);
+      }
+
+      case 'openai': {
+        const apiKey = getCredentialForProvider(config.id);
+        if (!apiKey) {
+          return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
+        }
+        return verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
+      }
+
+      case 'anthropic': {
+        const apiKey = getCredentialForProvider(config.id);
+        if (!apiKey) {
+          return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
+        }
+        return verifyAnthropicConnection(config, apiKey, abortController, timeoutMs);
+      }
+
+      case 'openrouter': {
+        const apiKey = getCredentialForProvider(config.id);
+        if (!apiKey) {
+          return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
+        }
+        return verifyOpenRouterConnection(config, apiKey, abortController, timeoutMs);
+      }
+
+      case 'lm_studio': {
+        return verifyLMStudioConnection(config, abortController, timeoutMs);
+      }
+
+      case 'openai_compatible': {
+        const apiKey = getCredentialForProvider(config.id);
+        return verifyOpenAICompatibleConnection(config, apiKey, abortController, timeoutMs);
+      }
+
+      case 'custom_local': {
+        const apiKey = getCredentialForProvider(config.id);
+        return verifyCustomLocalConnection(config, apiKey, abortController, timeoutMs);
       }
 
       default:
-        return { success: false, models: [], message: `Provider type ${config.type} verification not yet implemented.` };
+        return { success: false, models: [], status: 'provider-unavailable', message: `Provider type ${config.type} is not supported.` };
     }
   } catch (err: any) {
-    return { success: false, models: [], message: err.message || 'Provider verification failed.' };
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'Provider verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'Provider verification failed.' };
+  } finally {
+    abortController.abort();
   }
 }
 
@@ -580,33 +630,37 @@ async function verifyProviderConnection(
  * Verify Gemini provider connection and list models using REST API.
  */
 async function verifyGeminiConnection(
-  apiKey: string
-): Promise<{ success: boolean; models: string[]; message?: string }> {
+  apiKey: string,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
   try {
-    // List models from Gemini API
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
       headers: { 'x-goog-api-key': apiKey },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
     });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
-        return { success: false, models: [], message: 'Invalid Gemini API key.' };
+        return { success: false, models: [], status: 'auth-failed', message: 'Invalid Gemini API key.' };
       }
       if (res.status === 429) {
-        return { success: false, models: [], message: 'Gemini rate limit exceeded.' };
+        return { success: false, models: [], status: 'rate-limited', message: 'Gemini rate limit exceeded.' };
       }
-      return { success: false, models: [], message: `Gemini API returned HTTP ${res.status}: ${res.statusText}` };
+      return { success: false, models: [], status: 'provider-unavailable', message: `Gemini API returned HTTP ${res.status}: ${res.statusText}` };
     }
     const data = (await res.json()) as { models?: Array<{ name?: string }> };
-    const models = data.models?.map((m) => m.name?.replace('models/', '') || '').filter(Boolean) || [];
+    const models = (data.models?.map((m) => m.name?.replace('models/', '') || '') || []).filter((m): m is string => Boolean(m));
     return models.length > 0
-      ? { success: true, models, message: `Connected to Gemini. ${models.length} model(s) discovered.` }
-      : { success: false, models: [], message: 'Gemini connected but no models discovered.' };
+      ? { success: true, models, status: 'connected', message: `Connected to Gemini. ${models.length} model(s) discovered.` }
+      : { success: false, models: [], status: 'model-unavailable', message: 'Gemini connected but no models discovered.' };
   } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'Gemini verification timed out.' };
+    }
     let message = err.message || 'Gemini verification failed.';
     if (err.status === 401 || err.status === 403) message = 'Invalid Gemini API key.';
     else if (err.status === 429) message = 'Gemini rate limit exceeded.';
-    return { success: false, models: [], message };
+    return { success: false, models: [], status: 'provider-unavailable', message };
   }
 }
 
@@ -801,6 +855,211 @@ async function startProviderChatOllama(
   })();
 
   return { requestId: request.requestId, success: true };
+}
+
+
+async function verifyOpenAICompatibleConnection(
+  config: ProviderConfig,
+  apiKey: string | null,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
+  if (!apiKey) {
+    return { success: false, models: [], status: 'not-configured', message: 'API key not found. Please save your credentials.' };
+  }
+  const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+  const modelsUrl = baseUrl.replace(/\/v1\/?$/, '') + '/v1/models';
+  try {
+    const res = await fetch(modelsUrl, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, models: [], status: 'auth-failed', message: 'Invalid API key.' };
+      }
+      if (res.status === 429) {
+        return { success: false, models: [], status: 'rate-limited', message: 'Rate limit exceeded.' };
+      }
+      return { success: false, models: [], status: 'provider-unavailable', message: `Provider returned HTTP ${res.status}: ${res.statusText}` };
+    }
+    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const models = (data.data || []).map((m) => m.id).filter((m): m is string => Boolean(m));
+    return models.length > 0
+      ? { success: true, models, status: 'connected', message: `Connected. ${models.length} model(s) discovered.` }
+      : { success: false, models: [], status: 'model-unavailable', message: 'Connected but no models discovered.' };
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'Provider verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'Provider verification failed.' };
+  }
+}
+
+async function verifyAnthropicConnection(
+  config: ProviderConfig,
+  apiKey: string,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
+  const baseUrl = config.baseUrl || 'https://api.anthropic.com';
+  try {
+    const res = await fetch(`${baseUrl}/v1/models`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, models: [], status: 'auth-failed', message: 'Invalid Anthropic API key.' };
+      }
+      if (res.status === 429) {
+        return { success: false, models: [], status: 'rate-limited', message: 'Anthropic rate limit exceeded.' };
+      }
+      return { success: false, models: [], status: 'provider-unavailable', message: `Anthropic returned HTTP ${res.status}: ${res.statusText}` };
+    }
+    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const models = (data.data || []).map((m) => m.id).filter((m): m is string => Boolean(m));
+    return models.length > 0
+      ? { success: true, models, status: 'connected', message: `Connected to Anthropic. ${models.length} model(s) discovered.` }
+      : { success: false, models: [], status: 'model-unavailable', message: 'Connected but no models discovered.' };
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'Anthropic verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'Anthropic verification failed.' };
+  }
+}
+
+async function verifyOpenRouterConnection(
+  config: ProviderConfig,
+  apiKey: string,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
+  try {
+    // First verify the key with /api/v1/key
+    const keyRes = await fetch('https://openrouter.ai/api/v1/key', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!keyRes.ok) {
+      if (keyRes.status === 401 || keyRes.status === 403) {
+        return { success: false, models: [], status: 'auth-failed', message: 'Invalid OpenRouter API key.' };
+      }
+      if (keyRes.status === 429) {
+        return { success: false, models: [], status: 'rate-limited', message: 'OpenRouter rate limit exceeded.' };
+      }
+      return { success: false, models: [], status: 'provider-unavailable', message: `OpenRouter key check returned HTTP ${keyRes.status}: ${keyRes.statusText}` };
+    }
+
+    // Then discover models
+    const modelsRes = await fetch('https://openrouter.ai/api/v1/models', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!modelsRes.ok) {
+      if (modelsRes.status === 429) {
+        return { success: false, models: [], status: 'rate-limited', message: 'OpenRouter rate limit exceeded.' };
+      }
+      return { success: false, models: [], status: 'provider-unavailable', message: `OpenRouter models check returned HTTP ${modelsRes.status}: ${modelsRes.statusText}` };
+    }
+    const data = (await modelsRes.json()) as { data?: Array<{ id?: string }> };
+    const models = (data.data || []).map((m) => m.id).filter((m): m is string => Boolean(m));
+    return models.length > 0
+      ? { success: true, models, status: 'connected', message: `Connected to OpenRouter. ${models.length} model(s) discovered.` }
+      : { success: false, models: [], status: 'model-unavailable', message: 'Connected but no models discovered.' };
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'OpenRouter verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'OpenRouter verification failed.' };
+  }
+}
+
+async function verifyLMStudioConnection(
+  config: ProviderConfig,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
+  const baseUrl = config.baseUrl || 'http://localhost:1234/v1';
+  const modelsUrl = baseUrl.replace(/\/v1\/?$/, '') + '/v1/models';
+  try {
+    const res = await fetch(modelsUrl, {
+      method: 'GET',
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!res.ok) {
+      return { success: false, models: [], status: 'provider-unavailable', message: `LM Studio returned HTTP ${res.status}: ${res.statusText}` };
+    }
+    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const models = (data.data || []).map((m) => m.id).filter((m): m is string => Boolean(m));
+    return models.length > 0
+      ? { success: true, models, status: 'connected', message: `Connected to LM Studio. ${models.length} model(s) discovered.` }
+      : { success: false, models: [], status: 'model-unavailable', message: 'LM Studio is running but no models discovered.' };
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'LM Studio verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'LM Studio verification failed.' };
+  }
+}
+
+async function verifyCustomLocalConnection(
+  config: ProviderConfig,
+  apiKey: string | null | undefined,
+  abortController: AbortController,
+  timeoutMs: number
+): Promise<ProviderVerificationResult> {
+  if (!config.baseUrl) {
+    return { success: false, models: [], status: 'not-configured', message: 'Base URL is required for custom local endpoint.' };
+  }
+  if (!apiKey) {
+    // No API key - still try to connect without auth
+  }
+  const baseUrl = config.baseUrl.replace(/\/v1\/?$/, '') + '/v1/models';
+  const headers: Record<string, string> = {};
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+  try {
+    const res = await fetch(baseUrl, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(timeoutMs)]),
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, models: [], status: 'auth-failed', message: 'Authentication failed for custom endpoint.' };
+      }
+      if (res.status === 429) {
+        return { success: false, models: [], status: 'rate-limited', message: 'Custom endpoint rate limit exceeded.' };
+      }
+      return { success: false, models: [], status: 'provider-unavailable', message: `Custom endpoint returned HTTP ${res.status}: ${res.statusText}` };
+    }
+    try {
+      const data = (await res.json()) as { data?: Array<{ id?: string }> };
+      const models = (data.data || []).map((m) => m.id).filter((m): m is string => Boolean(m));
+      if (models.length > 0) {
+        return { success: true, models, status: 'connected', message: `Connected to custom endpoint. ${models.length} model(s) discovered.` };
+      }
+      return { success: false, models: [], status: 'auth-verified-model-untested', message: 'Connected to custom endpoint but no models discovered. You may enter a model ID manually.' };
+    } catch {
+      // Endpoint responded but returned non-JSON; authentication may still be valid
+      return { success: false, models: [], status: 'auth-verified-model-untested', message: 'Connected to custom endpoint but model discovery is not supported. You may enter a model ID manually.' };
+    }
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      return { success: false, models: [], status: 'provider-unavailable', message: 'Custom endpoint verification timed out.' };
+    }
+    return { success: false, models: [], status: 'provider-unavailable', message: err.message || 'Custom endpoint verification failed.' };
+  }
 }
 
 function buildOpenAIMessages(messages: Array<{ role: string; content: string }>): any[] {

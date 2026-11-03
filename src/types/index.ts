@@ -1,6 +1,8 @@
 import type {
   ProviderConfig,
   ProviderType,
+  ProviderConnectionStatus,
+  ProviderVerificationResult,
   FileChange,
   TaskMemoryEntry,
   AppMemoryEntry,
@@ -14,6 +16,8 @@ import type {
 export type {
   ProviderConfig,
   ProviderType,
+  ProviderConnectionStatus,
+  ProviderVerificationResult,
   FileChange,
   TaskMemoryEntry,
   AppMemoryEntry,

@@ -10,6 +10,7 @@ import type {
   ModelInferenceResult,
   ModelStreamEvent,
   ProviderConfig,
+  ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
 
 /**
@@ -77,7 +78,7 @@ const desktopAPI: IDesktopAPI = {
     };
   },
   // Multi-provider inference
-  verifyProvider: (config: ProviderConfig): Promise<{ success: boolean; models: string[]; message?: string }> => {
+  verifyProvider: (config: ProviderConfig): Promise<ProviderVerificationResult> => {
     return ipcRenderer.invoke(MODEL_CHANNELS.VERIFY_PROVIDER, config);
   },
   startProviderChat: (request: ModelInferenceRequest): Promise<ModelInferenceResult> => {
