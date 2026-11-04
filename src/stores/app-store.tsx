@@ -210,11 +210,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeDiffFile, setActiveDiffFile] = useState<FileChange | null>(null);
 
   // Memory System (Empty by default)
-  const [saveMemoryActive, setSaveMemoryActive] = useState<boolean>(false);
+  const [saveMemoryActive, setSaveMemoryActive] = useState<boolean>(true);
   const [taskMemories, setTaskMemories] = useState<TaskMemoryEntry[]>([]);
   const [appMemories, setAppMemories] = useState<AppMemoryEntry[]>([]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
-    autoMemoryEnabled: false,
+    autoMemoryEnabled: true,
     globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
     storageBackend: 'sqlite',
     maxEntries: 1000,
@@ -430,6 +430,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     initBridgeData();
   }, [selectedWorkspace]);
+
+  // Restore saved workspace on mount
+  useEffect(() => {
+    try {
+      const savedWs = localStorage.getItem('refx_active_workspace');
+      if (savedWs) {
+        const ws = JSON.parse(savedWs);
+        if (ws && ws.path) {
+          setSelectedWorkspace(ws);
+          setRecentWorkspaces((prev) => {
+            if (prev.some((p) => p.path === ws.path)) return prev;
+            return [ws, ...prev].slice(0, 5);
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Restore file tree when workspace is available
   useEffect(() => {
@@ -1109,7 +1128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Automatic application memory extraction (P7-B), only when enabled.
       if (memoryConfig.autoMemoryEnabled) {
         const sensitive = /api[_ -]?key|password|token|secret|private key|credential/i.test(text);
-        const isPreference = /\b(i prefer|i always|i never|always use|never use|my preference|remember that i)\b/i.test(text);
+        const isPreference = /\b(i prefer|i always|i never|always use|never use|my preference|remember that i|i like|i use|i code in|i work with|my language|i'm using|i am using|my stack|my framework)\b/i.test(text);
         if (!sensitive && isPreference && text.length > 20) {
           const existing = appMemories.find((m) => m.title.toLowerCase() === text.slice(0, 40).toLowerCase());
           if (!existing) {
@@ -1278,16 +1297,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           appMems = appMems
             .filter((m) => !sensitiveRe.test(`${m.title} ${m.summary} ${m.details}`))
             .map((m) => ({ m, s: score(m) }))
-            .filter((x) => keywords.length === 0 || x.s > 0)
+            .filter((x) => keywords.length === 0 || x.s > 0 || keywords.length <= 2)
             .sort((a, b) => b.s - a.s)
-            .slice(0, 3)
+            .slice(0, 5)
             .map((x) => x.m);
           taskMems = taskMems
             .filter((m) => !sensitiveRe.test(`${m.title} ${m.content}`))
             .map((m) => ({ m, s: score(m) }))
-            .filter((x) => keywords.length === 0 || x.s > 0)
+            .filter((x) => keywords.length === 0 || x.s > 0 || keywords.length <= 2)
             .sort((a, b) => b.s - a.s)
-            .slice(0, 3)
+            .slice(0, 5)
             .map((x) => x.m);
 
           const sections: string[] = [];
