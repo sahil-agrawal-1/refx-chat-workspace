@@ -214,7 +214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [taskMemories, setTaskMemories] = useState<TaskMemoryEntry[]>([]);
   const [appMemories, setAppMemories] = useState<AppMemoryEntry[]>([]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
-    autoMemoryEnabled: false,
+    autoMemoryEnabled: true,
     globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
     storageBackend: 'sqlite',
     maxEntries: 1000,
