@@ -2204,6 +2204,41 @@ async function startProviderChatOpenRouter(
   return { requestId: request.requestId, success: true };
 }
 
+let splashWindow: BrowserWindow | null = null;
+
+function createSplashWindow(): void {
+  splashWindow = new BrowserWindow({
+    width: 460,
+    height: 280,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    transparent: false,
+    backgroundColor: '#141416',
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+
+  const splashPath = path.join(__dirname, '../dist/splash.html');
+  if (fs.existsSync(splashPath)) {
+    splashWindow.loadFile(splashPath);
+  } else {
+    const devSplash = path.join(__dirname, '../public/splash.html');
+    splashWindow.loadFile(devSplash);
+  }
+  splashWindow.once('ready-to-show', () => {
+    splashWindow?.show();
+  });
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+}
+
 function createWindow(): void {
   const preloadPath = path.join(__dirname, 'preload.cjs');
 
@@ -2226,7 +2261,7 @@ function createWindow(): void {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+    // Handled by splash coordinator
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -2285,7 +2320,32 @@ if (!hasLock) {
     db.initDatabase();
     loadPendingChanges();
     registerIpcHandlers();
+    createSplashWindow();
     createWindow();
+
+    const startTime = Date.now();
+    const showMain = () => {
+      const elapsed = Date.now() - startTime;
+      const wait = Math.max(0, 1800 - elapsed);
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.setOpacity(0);
+          setTimeout(() => {
+            splashWindow?.close();
+          }, 250);
+        }
+      }, wait);
+    };
+
+    if (mainWindow) {
+      mainWindow.once('ready-to-show', showMain);
+    } else {
+      showMain();
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
