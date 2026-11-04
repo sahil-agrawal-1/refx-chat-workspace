@@ -1,21 +1,9 @@
 import React from 'react';
-import {
-  PanelLeft,
-  FolderTree,
-  Terminal,
-  Split,
-  Download,
-  HelpCircle,
-  X,
-  AlertCircle,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { ChatMessageList } from '@/components/chat/ChatMessageList';
 import { ChatPromptInput } from '@/components/chat/ChatPromptInput';
-import { Logo } from '@/components/ui/Logo';
+import { Header } from '@/components/layout/Header';
 import { FileExplorerDrawer } from '@/components/workspace/FileExplorerDrawer';
 import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { DiffReviewPanel } from '@/components/diff/DiffReviewPanel';
@@ -25,6 +13,7 @@ import { SettingsModal } from '@/components/settings/SettingsModal';
 import { PermissionModal } from '@/components/dialogs/PermissionModal';
 import { ExportChatModal } from '@/components/dialogs/ExportChatModal';
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
   const {
@@ -32,8 +21,8 @@ export const AppLayout: React.FC = () => {
     toggleSidebar,
     activeDrawer,
     toggleDrawer,
-    bottomPanel,
-    setBottomPanel,
+    bottomPanels,
+    toggleBottomPanel,
     openModal,
     selectedWorkspace,
     pendingChanges,
@@ -45,6 +34,9 @@ export const AppLayout: React.FC = () => {
 
   const pendingChangesCount = pendingChanges.filter((c) => c.status === 'pending').length;
 
+  const hasBottomPanel = bottomPanels.size > 0;
+  const hasBothPanels = bottomPanels.has('terminal') && bottomPanels.has('diff');
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#121214] text-[#e4e4e7] antialiased font-sans">
       {/* Sidebar */}
@@ -52,112 +44,17 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-        {/* Top Header / Windows Title Bar Area */}
-        <header className="h-10 shrink-0 bg-[#161618] border-b border-[#242427] flex items-center justify-between px-3 text-xs select-none z-10">
-          {/* Left: Sidebar toggle if collapsed + Title / Workspace */}
-          <div className="flex items-center gap-2 truncate">
-            {isSidebarCollapsed && (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="p-1 text-[#888891] hover:text-white hover:bg-[#202023] rounded transition-colors cursor-pointer"
-                title="Open Sidebar"
-                aria-label="Open Sidebar"
-              >
-                <PanelLeft size={16} strokeWidth={1.8} />
-              </button>
-            )}
-
-            {isSidebarCollapsed && (
-              <div className="flex items-center">
-                <Logo width={16} height={16} className="w-4 h-4" />
-              </div>
-            )}
-
-            {selectedWorkspace && (
-              <div className="flex items-center gap-1.5 text-[#71717a] text-xs font-mono truncate">
-                <span className="text-[#9c9ca4] truncate">
-                  {selectedWorkspace.name}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Right Toolbar Action Buttons */}
-          <div className="flex items-center gap-1">
-            {/* File Explorer Toggle */}
-            <button
-              type="button"
-              onClick={() => toggleDrawer('file-explorer')}
-              className={`flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer text-xs ${
-                activeDrawer === 'file-explorer'
-                  ? 'bg-[#242428] text-white font-medium border border-[#303036]'
-                  : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
-              }`}
-              title="Toggle Files"
-            >
-              <FolderTree size={14} strokeWidth={1.8} />
-              <span className="hidden sm:inline">Files</span>
-            </button>
-
-            {/* Diffs Review Toggle */}
-            <button
-              type="button"
-              onClick={() => setBottomPanel(bottomPanel === 'diff' ? null : 'diff')}
-              className={`flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer text-xs ${
-                bottomPanel === 'diff'
-                  ? 'bg-[#242428] text-white font-medium border border-[#303036]'
-                  : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
-              }`}
-              title="Toggle Modifications"
-            >
-              <Split size={14} strokeWidth={1.8} />
-              <span className="hidden sm:inline">Diff</span>
-              {pendingChangesCount > 0 && (
-                <span className="px-1 text-[10px] rounded bg-zinc-800 text-zinc-300 font-mono">
-                  {pendingChangesCount}
-                </span>
-              )}
-            </button>
-
-            {/* Integrated Terminal Toggle */}
-            <button
-              type="button"
-              onClick={() => setBottomPanel(bottomPanel === 'terminal' ? null : 'terminal')}
-              className={`flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer text-xs ${
-                bottomPanel === 'terminal'
-                  ? 'bg-[#242428] text-white font-medium border border-[#303036]'
-                  : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
-              }`}
-              title="Toggle Terminal"
-            >
-              <Terminal size={14} strokeWidth={1.8} />
-              <span className="hidden sm:inline">Terminal</span>
-            </button>
-
-            {/* Export Chat */}
-            <button
-              type="button"
-              onClick={() => openModal('export')}
-              className="p-1 text-[#888891] hover:text-white hover:bg-[#1e1e21] rounded transition-colors cursor-pointer"
-              title="Export Conversation"
-              aria-label="Export Conversation"
-            >
-              <Download size={14} strokeWidth={1.8} />
-            </button>
-
-            {/* Setup Guide */}
-            <button
-              type="button"
-              onClick={() => openModal('onboarding')}
-              className="p-1 text-[#888891] hover:text-white hover:bg-[#1e1e21] rounded transition-colors cursor-pointer"
-              title="Setup Guide"
-              aria-label="Setup Guide"
-            >
-              <HelpCircle size={14} strokeWidth={1.8} />
-            </button>
-          </div>
-        </header>
+        {/* Header (extracted component) */}
+        <Header
+          isSidebarCollapsed={isSidebarCollapsed}
+          toggleSidebar={toggleSidebar}
+          selectedWorkspace={selectedWorkspace}
+          toggleDrawer={toggleDrawer}
+          openModal={openModal}
+          activeDrawer={activeDrawer}
+          bottomPanels={bottomPanels}
+          toggleBottomPanel={toggleBottomPanel}
+        />
 
         {/* Notification Toast */}
         {notification && (
@@ -200,9 +97,23 @@ export const AppLayout: React.FC = () => {
           </div>
         )}
 
-        {/* Bottom Panels */}
-        <TerminalPanel />
-        <DiffReviewPanel />
+        {/* Bottom Panels: Terminal + Diff side by side when both open */}
+        {hasBottomPanel && (
+          <div className={`flex w-full border-t border-[#242427] bg-[#131315] ${
+            hasBothPanels ? 'flex-row' : 'flex-col'
+          }`}>
+            {bottomPanels.has('terminal') && (
+              <div className={`flex flex-col min-w-0 ${hasBothPanels ? 'flex-1 border-r border-[#242427]' : 'w-full'}`}>
+                <TerminalPanel />
+              </div>
+            )}
+            {bottomPanels.has('diff') && (
+              <div className={`flex flex-col min-w-0 ${hasBothPanels ? 'flex-1' : 'w-full'}`}>
+                <DiffReviewPanel />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modals */}

@@ -135,7 +135,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
 };
 
 export const ChatMessageList: React.FC = () => {
-  const { currentConversation, isGenerating, setActiveDiffFile, setBottomPanel, sendMessage, addTaskMemory } = useAppStore();
+  const { currentConversation, isGenerating, setActiveDiffFile, toggleBottomPanel, sendMessage, addTaskMemory } = useAppStore();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
 
@@ -300,7 +300,7 @@ export const ChatMessageList: React.FC = () => {
                     onClick={() => {
                       if (msg.fileChanges && msg.fileChanges[0]) {
                         setActiveDiffFile(msg.fileChanges[0]);
-                        setBottomPanel('diff');
+                        toggleBottomPanel('diff');
                       }
                     }}
                     className="flex items-center gap-1 px-2.5 py-1 bg-[#222724] hover:bg-[#28302b] text-[#d4d4dc] border border-[#2e3b32] rounded-md text-xs transition-colors cursor-pointer"

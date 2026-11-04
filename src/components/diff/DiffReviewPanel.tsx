@@ -15,8 +15,8 @@ import { computeLineDiff } from '@/utils/diff';
 
 export const DiffReviewPanel: React.FC = () => {
   const {
-    bottomPanel,
-    setBottomPanel,
+    bottomPanels,
+    toggleBottomPanel,
     pendingChanges,
     activeDiffFile,
     setActiveDiffFile,
@@ -25,10 +25,12 @@ export const DiffReviewPanel: React.FC = () => {
     approveAllChanges,
   } = useAppStore();
 
+  const isDiffOpen = bottomPanels.has('diff');
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<'unified' | 'split'>('unified');
 
-  if (bottomPanel !== 'diff') return null;
+  if (!isDiffOpen) return null;
 
   const currentChange = activeDiffFile || pendingChanges[0] || null;
 
@@ -38,7 +40,7 @@ export const DiffReviewPanel: React.FC = () => {
 
   return (
     <div
-      className={`w-full bg-[#131315] border-t border-[#242427] flex flex-col z-30 transition-all ${
+      className={`w-full bg-[#131315] flex flex-col z-30 transition-all ${
         isExpanded ? 'h-[500px]' : 'h-80'
       }`}
     >
@@ -143,7 +145,7 @@ export const DiffReviewPanel: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setBottomPanel(null)}
+            onClick={() => toggleBottomPanel('diff')}
             className="p-1 text-[#71717a] hover:text-white rounded hover:bg-[#202023]"
             title="Close Diff"
           >

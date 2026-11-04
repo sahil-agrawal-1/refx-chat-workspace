@@ -9,14 +9,13 @@ import {
   Trash2,
   Maximize2,
   Minimize2,
-  PanelLeftClose,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 
 export const TerminalPanel: React.FC = () => {
   const {
-    bottomPanel,
-    setBottomPanel,
+    bottomPanels,
+    toggleBottomPanel,
     terminalSessions,
     activeTerminalId,
     setActiveTerminalId,
@@ -25,6 +24,8 @@ export const TerminalPanel: React.FC = () => {
     clearTerminalLogs,
   } = useAppStore();
 
+  const isTerminalOpen = bottomPanels.has('terminal');
+
   const [isExpanded, setIsExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
@@ -32,15 +33,16 @@ export const TerminalPanel: React.FC = () => {
   const writtenRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
-    if (bottomPanel !== 'terminal') return;
+    if (!isTerminalOpen) return;
     if (!containerRef.current) return;
     if (!termRef.current) {
       const term = new XTerm({
         fontFamily: 'Cascadia Code, Consolas, monospace',
         fontSize: 13,
         lineHeight: 1.4,
-        theme: { background: '#101012', foreground: '#a1a1aa' },
+        theme: { background: '#0d0d0f', foreground: '#a1a1aa', cursor: '#e4e4e7' },
         cursorBlink: true,
+        allowProposedApi: true,
       });
       const fit = new FitAddon();
       term.loadAddon(fit);
@@ -48,10 +50,8 @@ export const TerminalPanel: React.FC = () => {
       fit.fit();
       termRef.current = term;
       fitRef.current = fit;
-
       term.onData((data) => {
         if (activeTerminalId) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).desktop?.terminal?.sendInput?.(activeTerminalId, data);
         }
       });
@@ -62,9 +62,8 @@ export const TerminalPanel: React.FC = () => {
       fitRef.current = null;
       writtenRef.current = {};
     };
-  }, [bottomPanel]);
+  }, [isTerminalOpen]);
 
-  // Sync active terminal output
   useEffect(() => {
     const term = termRef.current;
     if (!term || !activeTerminalId) return;
@@ -76,7 +75,6 @@ export const TerminalPanel: React.FC = () => {
     }
   }, [terminalLogs, activeTerminalId]);
 
-  // Resize handling
   useEffect(() => {
     const handler = () => {
       try {
@@ -87,85 +85,60 @@ export const TerminalPanel: React.FC = () => {
             (window as any).desktop?.terminal?.resize?.(activeTerminalId, term.cols, term.rows);
           }
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, [activeTerminalId]);
 
-  if (bottomPanel !== 'terminal') return null;
-
-  const currentSession = terminalSessions.find((s) => s.id === activeTerminalId) || terminalSessions[0];
+  if (!isTerminalOpen) return null;
 
   return (
-    <div
-      className={`w-full bg-[#131315] border-t border-[#242427] flex flex-col z-30 transition-all ${
-        isExpanded ? 'h-96' : 'h-64'
-      }`}
-    >
-      <div className="flex items-center justify-between px-3 bg-[#161618] border-b border-[#222225] select-none text-xs">
-        <div className="flex items-center gap-1 overflow-x-auto py-1">
+    <div className={`w-full bg-[#101012] flex flex-col transition-all duration-200 ${isExpanded ? 'h-96' : 'h-64'}`}>
+      <div className="flex items-center justify-between px-3 bg-[#161618] border-b border-[#222225] select-none text-xs shrink-0">
+        <div className="flex items-center gap-1 overflow-x-auto py-1.5 flex-1 min-w-0">
           {terminalSessions.length === 0 ? (
-            <span className="text-xs text-[#71717a] py-1 px-2">No active terminal session</span>
+            <span className="text-xs text-[#71717a] py-1 px-2 flex items-center gap-1.5">
+              <TerminalIcon size={12} strokeWidth={1.8} className="text-[#6c6c74]" />
+              No active session
+            </span>
           ) : (
             terminalSessions.map((s) => {
               const isActive = s.id === activeTerminalId;
               return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setActiveTerminalId(s.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors cursor-pointer text-xs ${
-                    isActive
-                      ? 'bg-[#242428] text-white font-medium border border-[#2f2f35]'
-                      : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
-                  }`}
-                >
-                  <TerminalIcon size={14} strokeWidth={1.8} className="text-[#888891]" />
-                  <span>{s.name}</span>
+                <button key={s.id} type="button" onClick={() => setActiveTerminalId(s.id)}
+                  className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all cursor-pointer text-xs shrink-0 ${isActive ? 'bg-[#242428] text-white font-medium border border-[#2f2f35] shadow-sm' : 'text-[#888891] hover:text-white hover:bg-[#1e1e21] border border-transparent'}`}>
+                  <TerminalIcon size={12} strokeWidth={1.8} className={isActive ? 'text-emerald-400' : 'text-[#6c6c74]'} />
+                  <span className="truncate max-w-[120px]">{s.name}</span>
                 </button>
               );
             })
           )}
-          <button
-            type="button"
-            onClick={() => createNewTerminalSession('powershell.exe')}
-            className="p-1.5 text-[#71717a] hover:text-white hover:bg-[#202023] rounded-md transition-colors cursor-pointer"
-            title="New Terminal"
-          >
+          <button type="button" onClick={() => createNewTerminalSession('powershell.exe')}
+            className="p-1.5 text-[#71717a] hover:text-white hover:bg-[#202023] rounded-md transition-colors cursor-pointer shrink-0"
+            title="New Terminal">
             <Plus size={14} strokeWidth={1.8} />
           </button>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={clearTerminalLogs}
+        <div className="flex items-center gap-0.5 shrink-0 ml-2">
+          <button type="button" onClick={clearTerminalLogs}
             className="p-1.5 text-[#71717a] hover:text-white hover:bg-[#202023] rounded-md transition-colors cursor-pointer"
-            title="Clear Output"
-          >
+            title="Clear Output">
             <Trash2 size={14} strokeWidth={1.8} />
           </button>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
+          <button type="button" onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 text-[#71717a] hover:text-white hover:bg-[#202023] rounded-md transition-colors cursor-pointer"
-            title={isExpanded ? 'Minimize' : 'Maximize'}
-          >
+            title={isExpanded ? 'Minimize' : 'Maximize'}>
             {isExpanded ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
           </button>
-          <button
-            type="button"
-            onClick={() => setBottomPanel(null)}
-            className="p-1.5 text-[#71717a] hover:text-white hover:bg-[#202023] rounded-md transition-colors cursor-pointer"
-            title="Close Terminal"
-          >
+          <button type="button" onClick={() => toggleBottomPanel('terminal')}
+            className="p-1.5 text-[#71717a] hover:text-red-400 hover:bg-red-950/20 rounded-md transition-colors cursor-pointer"
+            title="Close Terminal">
             <X size={14} strokeWidth={1.8} />
           </button>
         </div>
       </div>
-      <div ref={containerRef} className="flex-1 overflow-hidden bg-[#101012]" />
+      <div ref={containerRef} className="flex-1 overflow-hidden bg-[#0d0d0f] p-1" />
     </div>
   );
 };

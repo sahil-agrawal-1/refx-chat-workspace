@@ -27,8 +27,9 @@ interface AppContextValue {
   closeModal: () => void;
   activeDrawer: ActiveDrawer;
   toggleDrawer: (drawer: ActiveDrawer) => void;
-  bottomPanel: 'terminal' | 'diff' | 'timeline' | null;
-  setBottomPanel: (panel: 'terminal' | 'diff' | 'timeline' | null) => void;
+  bottomPanels: Set<'terminal' | 'diff'>;
+  toggleBottomPanel: (panel: 'terminal' | 'diff') => void;
+  isBottomPanelOpen: (panel: 'terminal' | 'diff') => boolean;
 
   // Conversations & Chat
   conversations: Conversation[];
@@ -120,7 +121,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>(null);
-  const [bottomPanel, setBottomPanel] = useState<'terminal' | 'diff' | 'timeline' | null>(null);
+  const [bottomPanels, setBottomPanels] = useState<Set<'terminal' | 'diff'>>(new Set());
+
+  const toggleBottomPanel = React.useCallback((panel: 'terminal' | 'diff') => {
+    setBottomPanels((prev) => {
+      const next = new Set(prev);
+      if (next.has(panel)) {
+        next.delete(panel);
+      } else {
+        next.add(panel);
+      }
+      return next;
+    });
+  }, []);
+
+  const isBottomPanelOpen = React.useCallback(
+    (panel: 'terminal' | 'diff') => bottomPanels.has(panel),
+    [bottomPanels]
+  );
 
   // Notification Banner
   const [notification, setNotification] = useState<{
@@ -238,7 +256,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           setTerminalLogs((prev) => ({ ...prev, [session.id]: `PS> ` }));
           sessionId = session.id;
-          setBottomPanel('terminal');
+          toggleBottomPanel('terminal');
         }
         await window.desktop!.terminal.approveAgentCommand(req.id, sessionId);
       } else {
@@ -858,7 +876,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const change = await desktopBridge.fs.proposeFileChange(request);
       if (change) {
         setPendingChanges((prev) => [...prev, change]);
-        setBottomPanel('diff');
+        toggleBottomPanel('diff');
         if (change.filePath) setActiveDiffFile(change);
       }
       return change;
@@ -1472,8 +1490,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closeModal,
         activeDrawer,
         toggleDrawer,
-        bottomPanel,
-        setBottomPanel,
+        bottomPanels,
+        toggleBottomPanel,
+        isBottomPanelOpen,
         conversations,
         currentConversation,
         startNewConversation,
