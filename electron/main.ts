@@ -23,6 +23,7 @@ import * as db from './database';
 
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1243,7 +1244,10 @@ async function verifyGeminiConnection(
     }
 
     const data = (await res.json()) as { models?: Array<{ name?: string }> };
-    const models = (data.models?.map((m) => m.name?.replace('models/', '') || '') || []).filter((m): m is string => Boolean(m));
+    const models = (data.models || [])
+      .filter((m: any) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+      .map((m: any) => m.name?.replace('models/', '') || '')
+      .filter((m): m is string => Boolean(m));
     const successDurationMs = Date.now() - startTime;
     return models.length > 0
       ? {
@@ -1834,138 +1838,113 @@ async function startProviderChatGemini(
     let fullText = '';
 
     try {
-      // Build contents from messages (Gemini API format)
-      const contents = request.messages.map((m) => ({
-        role: m.role === 'system' ? 'user' : m.role,
-        parts: [{ text: m.content }],
-      }));
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${request.model}:streamGenerateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents,
-            generationConfig: {
-              temperature: request.temperature,
-              maxOutputTokens: request.maxTokens,
-            },
-          }),
-          signal: abortController.signal,
-        }
-      );
-
-      if (!res.ok) {
-        let message = `Gemini API error ${res.status}: ${res.statusText}`;
-        if (res.status === 401 || res.status === 403) message = 'Invalid Gemini API key.';
-        else if (res.status === 429) message = 'Gemini rate limit exceeded.';
-        else if (res.status === 404) message = `Gemini model "${request.model}" not found (HTTP 404). Please verify the provider and select a valid model from the discovered list.`;
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'error',
-            error: message,
-          });
-        }
-        return;
+    // Format contents for Gemini SDK: role 'user'/'model', merge adjacent same roles.
+    const systemParts: string[] = [];
+    const formatted: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    for (const m of request.messages) {
+      if (m.role === 'system') {
+        systemParts.push(m.content);
+        continue;
       }
-
-      if (!res.body) {
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'error',
-            error: 'Empty response from Gemini.',
-          });
-        }
-        return;
+      const role: 'user' | 'model' = m.role === 'assistant' ? 'model' : 'user';
+      const last = formatted[formatted.length - 1];
+      if (last && last.role === role) {
+        last.parts.push({ text: m.content });
+      } else {
+        formatted.push({ role, parts: [{ text: m.content }] });
       }
+    }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
+    const ai = new GoogleGenAI({ apiKey });
 
-      while (true) {
+    const runOnce = async () => {
+      const response = await ai.models.generateContentStream({
+        model: request.model,
+        contents: formatted,
+        config: {
+          systemInstruction: systemParts.length ? { parts: [{ text: systemParts.join('\n\n') }] } : undefined,
+          temperature: request.temperature,
+          maxOutputTokens: request.maxTokens,
+        },
+      });
+      for await (const chunk of response) {
         if (abortController.signal.aborted) break;
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        // Parse SSE-style lines (Gemini uses newline-delimited JSON)
-        let newlineIndex;
-        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-          if (!line || line.startsWith(':')) continue; // Skip empty lines and SSE comments
-          try {
-            const chunk = JSON.parse(line);
-            // Gemini streaming response: candidates[0].content.parts[0].text
-            const delta = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (delta) {
-              fullText += delta;
-              if (!sender.isDestroyed()) {
-                sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-                  requestId: request.requestId,
-                  type: 'chunk',
-                  delta,
-                  fullText,
-                });
-              }
-            }
-          } catch {
-            // Ignore incomplete line parse
+        const delta = chunk.text || '';
+        if (delta) {
+          fullText += delta;
+          if (!sender.isDestroyed()) {
+            sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+              requestId: request.requestId,
+              type: 'chunk',
+              delta,
+              fullText,
+            });
           }
         }
       }
+    };
 
-      if (buffer.trim()) {
-        try {
-          const chunk = JSON.parse(buffer.trim());
-          const delta = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (delta) {
-            fullText += delta;
-            if (!sender.isDestroyed()) {
-              sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-                requestId: request.requestId,
-                type: 'chunk',
-                delta,
-                fullText,
-              });
-            }
-          }
-        } catch {}
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= 3; attempt++) {
+      try {
+        await runOnce();
+        lastError = null;
+        break;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.status || err?.code || err?.response?.status;
+        const isRetryable = status === 503 || status === 429 || /503|429|overloaded|unavailable/i.test(err?.message || '');
+        if (!isRetryable || attempt === 3) break;
+        const backoff = 1000 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+        await new Promise((r) => setTimeout(r, backoff));
       }
+    }
 
+    if (lastError) {
+      const status = lastError?.status || lastError?.code || lastError?.response?.status;
+      let message = lastError?.message || 'Gemini stream failed.';
+      if (status === 503) {
+        message = 'Gemini servers are currently experiencing high traffic (503 Service Unavailable). Retried 3 times. Please try again in a few moments or switch to another provider.';
+      } else if (status === 429) {
+        message = 'Gemini rate limit exceeded. Please try again later.';
+      }
+      if (!sender.isDestroyed()) {
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId: request.requestId,
+          type: 'error',
+          error: message,
+        });
+      }
+    } else if (!sender.isDestroyed()) {
+      sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+        requestId: request.requestId,
+        type: 'done',
+        fullText,
+      });
+    }
+  } catch (err: any) {
+    if (abortController.signal.aborted) {
       if (!sender.isDestroyed()) {
         sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
           requestId: request.requestId,
           type: 'done',
           fullText,
+          error: 'Generation stopped',
         });
       }
-    } catch (err: any) {
-      if (abortController.signal.aborted) {
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'done',
-            fullText,
-            error: 'Generation stopped',
-          });
-        }
-      } else {
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'error',
-            error: err.message || 'Gemini stream failed.',
-          });
-        }
+    } else {
+      if (!sender.isDestroyed()) {
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId: request.requestId,
+          type: 'error',
+          error: err?.message || 'Gemini stream failed.',
+        });
       }
-    } finally {
-      activeChatAborts.delete(request.requestId);
-      activeStreamSenders.delete(request.requestId);
     }
+  } finally {
+    activeChatAborts.delete(request.requestId);
+    activeStreamSenders.delete(request.requestId);
+  }
   })();
 
   return { requestId: request.requestId, success: true };
