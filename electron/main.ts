@@ -2306,9 +2306,14 @@ async function executeWorkspaceTool(name: string, args: any): Promise<string> {
       case 'list_directory': {
         const dir = resolveWithinWorkspace(args?.path || ensureWorkspaceRoot());
         const entries = fs.readdirSync(dir, { withFileTypes: true });
+        const root = ensureWorkspaceRoot();
         const items = entries
-          .filter((e) => !isExcludedRelative(path.relative(ensureWorkspaceRoot(), path.join(dir, e.name))))
-          .map((e) => ({ name: e.name, type: e.isDirectory() ? 'directory' : 'file' }));
+          .filter((e) => !isExcludedRelative(path.relative(root, path.join(dir, e.name))))
+          .map((e) => ({
+            name: e.name,
+            type: e.isDirectory() ? 'directory' : 'file',
+            path: path.relative(root, path.join(dir, e.name)).replace(/\\\\/g, '/'),
+          }));
         return JSON.stringify(items.slice(0, 200));
       }
       case 'read_file': {
