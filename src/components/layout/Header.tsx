@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import type { ActiveModal, ActiveDrawer } from '@/types';
+import { useState } from 'react';
+import type { Conversation } from '@/types';
 import { useAppStore } from '@/stores/app-store';
 
 interface HeaderProps {
@@ -24,6 +26,8 @@ interface HeaderProps {
   bottomPanels: Set<'terminal' | 'diff'>;
   toggleBottomPanel: (panel: 'terminal' | 'diff') => void;
   pendingChangesCount?: number;
+  conversations?: Conversation[];
+  onSelectConversation?: (id: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,7 +40,11 @@ export const Header: React.FC<HeaderProps> = ({
   bottomPanels,
   toggleBottomPanel,
   pendingChangesCount = 0,
+  conversations = [],
+  onSelectConversation,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const { startNewConversation, openWorkspaceDialog } = useAppStore();
   const isTerminalOpen = bottomPanels.has('terminal');
   const isDiffOpen = bottomPanels.has('diff');
@@ -72,15 +80,39 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2">
         {/* Quick action pills matching modern desktop AI */}
         <div className="hidden md:flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => toggleDrawer('history')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-raised border border-border text-foreground transition-all cursor-pointer text-xs shadow-xs"
-            title="Search conversations"
-          >
-            <Search size={13} strokeWidth={2} className="text-foreground-muted" />
-            <span>Search thread</span>
-          </button>
+          <div className="relative">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-raised border border-border text-foreground transition-all text-xs shadow-xs">
+              <Search size={13} strokeWidth={2} className="text-foreground-muted" />
+              <input
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true); }}
+                onFocus={() => setShowSearchResults(true)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
+                placeholder="Search thread"
+                className="bg-transparent outline-none text-foreground placeholder:text-foreground-muted w-24 focus:w-48 transition-all"
+              />
+            </div>
+            {showSearchResults && searchQuery.trim() && (
+              <div className="absolute top-full mt-1 left-0 w-72 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 text-xs max-h-64 overflow-auto">
+                {conversations
+                  .filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .slice(0, 20)
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={() => { onSelectConversation?.(c.id); setSearchQuery(''); setShowSearchResults(false); }}
+                      className="w-full text-left px-3 py-1.5 text-foreground hover:bg-surface cursor-pointer"
+                    >
+                      {c.title}
+                    </button>
+                  ))}
+                {conversations.filter((c) => c.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-2 text-foreground-muted">No matches</div>
+                )}
+              </div>
+            )}
+          </div>
 
           <button
             type="button"

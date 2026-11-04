@@ -26,6 +26,8 @@ export const AppLayout: React.FC = () => {
     openModal,
     selectedWorkspace,
     pendingChanges,
+    conversations,
+    selectConversation,
     selectedFile,
     selectedFileContent,
     notification,
@@ -55,6 +57,8 @@ export const AppLayout: React.FC = () => {
           bottomPanels={bottomPanels}
           toggleBottomPanel={toggleBottomPanel}
           pendingChangesCount={pendingChangesCount}
+          conversations={conversations}
+          onSelectConversation={selectConversation}
         />
 
         {/* Notification Toast */}
