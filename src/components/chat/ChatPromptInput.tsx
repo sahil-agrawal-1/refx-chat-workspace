@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowUp,
   Square,
@@ -14,10 +14,39 @@ import {
   Sparkles,
   Shield,
   Folder,
+  X,
+  FileText,
+  File as FileIcon,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Toggle } from '@/components/common/Toggle';
 import { EffortSlider } from '@/components/chat/EffortSlider';
+
+interface AttachedFile {
+  id: string;
+  file: File;
+  name: string;
+  type: 'image' | 'document';
+  previewUrl?: string;
+  size: number;
+}
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif']);
+const DOC_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'txt', 'md', 'json', 'csv', 'xls', 'xlsx', 'ppt', 'pptx']);
+
+function classifyFile(file: File): 'image' | 'document' {
+  if (file.type.startsWith('image/')) return 'image';
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (IMAGE_EXTENSIONS.has(ext)) return 'image';
+  return 'document';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
 
 export const ChatPromptInput: React.FC = () => {
   const [prompt, setPrompt] = useState('');
@@ -30,6 +59,7 @@ export const ChatPromptInput: React.FC = () => {
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +98,39 @@ export const ChatPromptInput: React.FC = () => {
     setSelectedModel,
     providers,
   } = useAppStore();
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      attachedFiles.forEach((f) => {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const addFiles = useCallback((fileList: FileList | File[]) => {
+    const newFiles: AttachedFile[] = Array.from(fileList).map((file) => {
+      const fileType = classifyFile(file);
+      return {
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        name: file.name,
+        type: fileType,
+        previewUrl: fileType === 'image' ? URL.createObjectURL(file) : undefined,
+        size: file.size,
+      };
+    });
+    setAttachedFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  const removeFile = useCallback((id: string) => {
+    setAttachedFiles((prev) => {
+      const file = prev.find((f) => f.id === id);
+      if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl);
+      return prev.filter((f) => f.id !== id);
+    });
+  }, []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -162,7 +225,8 @@ export const ChatPromptInput: React.FC = () => {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!prompt.trim() || isGenerating) return;
+    if (!prompt.trim() && attachedFiles.length === 0) return;
+    if (isGenerating) return;
 
     if (prompt.trim().startsWith('/')) {
       const handled = await runCommand(prompt.trim());
@@ -174,11 +238,25 @@ export const ChatPromptInput: React.FC = () => {
       text = `[Web Search Active]\n${text}`;
     }
 
+    // Convert attached files to MessageAttachment[]
+    const messageAttachments = attachedFiles.map((f) => ({
+      id: f.id,
+      name: f.name,
+      type: f.type === 'image' ? 'image' as const : 'file' as const,
+      size: f.size,
+    }));
+
+    // Cleanup preview URLs
+    attachedFiles.forEach((f) => {
+      if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+    });
+
     setPrompt('');
+    setAttachedFiles([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    await sendMessage(text);
+    await sendMessage(text, messageAttachments);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -270,7 +348,20 @@ export const ChatPromptInput: React.FC = () => {
         </div>
 
         {/* Main Floating Chat Capsule */}
-        <div className="bg-surface-raised/95 backdrop-blur-xl border border-border focus-within:border-accent rounded-[28px] p-4 sm:p-5 shadow-2xl transition-all">
+        <div
+          className="bg-surface-raised/95 backdrop-blur-xl border border-border focus-within:border-accent rounded-[28px] p-4 sm:p-5 shadow-2xl transition-all"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer.files.length > 0) {
+              addFiles(e.dataTransfer.files);
+            }
+          }}
+        >
           {/* Top subtle hint banner */}
           <div className="flex items-center gap-2 pb-2 text-xs font-normal text-foreground select-none">
             <Sparkles size={14} className="text-indigo-400 shrink-0" />
@@ -302,6 +393,73 @@ export const ChatPromptInput: React.FC = () => {
                   <span className="font-mono text-indigo-400">{c.cmd}</span>
                   <span className="text-foreground-muted text-[11px]">{c.desc}</span>
                 </button>
+              ))}
+            </div>
+          )}
+
+          {/* Attached Files Preview Strip */}
+          {attachedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 pb-2">
+              {attachedFiles.map((af) => (
+                <div
+                  key={af.id}
+                  className="group relative flex-shrink-0"
+                >
+                  {af.type === 'image' && af.previewUrl ? (
+                    /* Image thumbnail */
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border bg-surface shadow-sm">
+                      <img
+                        src={af.previewUrl}
+                        alt={af.name}
+                        className="w-full h-full object-cover"
+                        draggable={false}
+                      />
+                      {/* Hover overlay with X */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => removeFile(af.id)}
+                          className="w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer shadow-md transition-colors"
+                          aria-label={`Remove ${af.name}`}
+                        >
+                          <X size={11} strokeWidth={3} />
+                        </button>
+                      </div>
+                      {/* File size label */}
+                      <span className="absolute bottom-0.5 right-0.5 text-[8px] text-white/80 bg-black/50 px-1 rounded-md font-mono">
+                        {formatFileSize(af.size)}
+                      </span>
+                    </div>
+                  ) : (
+                    /* Document / PDF card */
+                    <div className="relative flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-surface shadow-sm max-w-[160px]">
+                      <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center shrink-0">
+                        {af.name.toLowerCase().endsWith('.pdf') ? (
+                          <FileText size={16} className="text-red-400" />
+                        ) : af.name.match(/\.(doc|docx)$/i) ? (
+                          <FileText size={16} className="text-blue-400" />
+                        ) : af.name.match(/\.(xls|xlsx|csv)$/i) ? (
+                          <FileText size={16} className="text-emerald-400" />
+                        ) : (
+                          <FileIcon size={16} className="text-foreground-muted" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-medium text-foreground truncate">{af.name}</div>
+                        <div className="text-[9px] text-foreground-muted font-mono">{formatFileSize(af.size)}</div>
+                      </div>
+                      {/* Hover X button */}
+                      <button
+                        type="button"
+                        onClick={() => removeFile(af.id)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={`Remove ${af.name}`}
+                      >
+                        <X size={10} strokeWidth={3} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -349,7 +507,7 @@ export const ChatPromptInput: React.FC = () => {
                           input.onchange = (ev) => {
                             const files = Array.from((ev.target as HTMLInputElement).files || []);
                             if (files.length) {
-                              setPrompt((prev) => (prev ? prev + '\n' : '') + files.map((f) => `@file ${f.name}`).join('\n'));
+                              addFiles(files);
                             }
                             setShowAttachMenu(false);
                           };
@@ -503,11 +661,11 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => (isGenerating ? stopGeneration() : handleSubmit())}
-                disabled={!isGenerating && !prompt.trim()}
+                disabled={!isGenerating && !prompt.trim() && attachedFiles.length === 0}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
                   isGenerating
                     ? 'bg-red-500 hover:bg-red-600 text-white active:scale-95'
-                    : prompt.trim()
+                    : prompt.trim() || attachedFiles.length > 0
                     ? 'bg-foreground text-surface hover:opacity-90 active:scale-95 font-bold'
                     : 'bg-surface border border-border text-foreground-muted cursor-not-allowed opacity-40'
                 }`}
