@@ -17,6 +17,7 @@ export const ProviderModal: React.FC = () => {
   const { activeModal, closeModal, providers, saveProviderConfig, verifyProviderConnection } = useAppStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string>(providers[0]?.id || '');
   const [showApiKey, setShowApiKey] = useState(false);
+const [hasStoredKey, setHasStoredKey] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{
     success: boolean;
@@ -36,6 +37,24 @@ export const ProviderModal: React.FC = () => {
       setVerifyResult((vr) => vr);
     }
   }, [selectedProviderId, currentProvider]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      if (typeof window !== 'undefined' && window.desktop?.hasCredential && formConfig?.id) {
+        try {
+          const has = await window.desktop.hasCredential(formConfig.id);
+          if (!cancelled) setHasStoredKey(has);
+        } catch {
+          if (!cancelled) setHasStoredKey(false);
+        }
+      } else {
+        if (!cancelled) setHasStoredKey(false);
+      }
+    }
+    check();
+    return () => { cancelled = true; };
+  }, [formConfig?.id]);
 
   if (activeModal !== 'providers' || !formConfig) return null;
 
@@ -61,7 +80,7 @@ export const ProviderModal: React.FC = () => {
         handleFieldChange('status', 'connected');
         handleFieldChange('discoveredModels', res.models);
       } else {
-        handleFieldChange('status', 'error');
+        handleFieldChange('status', res.status);
         handleFieldChange('errorMessage', res.message);
       }
     } catch (err: any) {
@@ -187,6 +206,9 @@ export const ProviderModal: React.FC = () => {
                     {showApiKey ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
                   </button>
                 </div>
+                {hasStoredKey && (
+                  <p className="text-[11px] text-emerald-400 mt-1">Key configured (stored securely).</p>
+                )}
               </div>
             )}
 

@@ -1981,121 +1981,33 @@ async function startProviderChatAnthropic(
       const systemMsg = request.messages.find((m) => m.role === 'system');
       const userMsgs = request.messages.filter((m) => m.role !== 'system');
 
-      const baseUrl = request.baseUrl || 'https://api.anthropic.com';
-
-      const res = await fetch(`${baseUrl}/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: request.model,
-          max_tokens: request.maxTokens || 1024,
-          system: systemMsg?.content,
-          messages: userMsgs.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-          stream: true,
-        }),
-        signal: abortController.signal,
+      const stream = client.messages.stream({
+        model: request.model,
+        max_tokens: request.maxTokens || 1024,
+        system: systemMsg?.content,
+        messages: userMsgs.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        temperature: request.temperature,
       });
 
-      if (!res.ok) {
-        let message = `Anthropic API error ${res.status}: ${res.statusText}`;
-        if (res.status === 401 || res.status === 403) message = 'Invalid Anthropic API key.';
-        else if (res.status === 429) message = 'Anthropic rate limit exceeded.';
+      stream.on('text', (text) => {
+        if (abortController.signal.aborted) return;
+        fullText += text;
         if (!sender.isDestroyed()) {
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
             requestId: request.requestId,
-            type: 'error',
-            error: message,
+            type: 'chunk',
+            delta: text,
+            fullText,
           });
         }
-        return;
-      }
+      });
 
-      if (!res.body) {
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'error',
-            error: 'Empty response from Anthropic.',
-          });
-        }
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
-
-      while (true) {
-        if (abortController.signal.aborted) break;
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newlineIndex;
-        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-          if (!line || line.startsWith(':')) continue;
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            try {
-              const chunk = JSON.parse(data);
-              if (chunk.type === 'content_block_delta' && chunk.delta && 'text' in chunk.delta) {
-                const delta = chunk.delta.text;
-                if (delta) {
-                  fullText += delta;
-                  if (!sender.isDestroyed()) {
-                    sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-                      requestId: request.requestId,
-                      type: 'chunk',
-                      delta,
-                      fullText,
-                    });
-                  }
-                }
-              }
-            } catch {
-              // Ignore incomplete SSE data parse
-            }
-          }
-        }
-      }
-
-      if (buffer.trim()) {
-        const line = buffer.trim();
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data !== '[DONE]') {
-            try {
-              const chunk = JSON.parse(data);
-              if (chunk.type === 'content_block_delta' && chunk.delta && 'text' in chunk.delta) {
-                const delta = chunk.delta.text;
-                if (delta) {
-                  fullText += delta;
-                  if (!sender.isDestroyed()) {
-                    sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-                      requestId: request.requestId,
-                      type: 'chunk',
-                      delta,
-                      fullText,
-                    });
-                  }
-                }
-              }
-            } catch {}
-          }
-        }
-      }
-
+      const finalMessage = await stream.finalMessage();
       if (!sender.isDestroyed()) {
         sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
           requestId: request.requestId,
           type: 'done',
-          fullText,
+          fullText: finalMessage?.content?.map((c: any) => c.text || '').join('') || fullText,
         });
       }
     } catch (err: any) {
@@ -2113,7 +2025,7 @@ async function startProviderChatAnthropic(
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
             requestId: request.requestId,
             type: 'error',
-            error: err.message || 'Anthropic stream failed.',
+            error: err?.message || 'Anthropic stream failed.',
           });
         }
       }
