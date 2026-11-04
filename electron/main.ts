@@ -1913,7 +1913,8 @@ async function startProviderChatGemini(
             activities: [{ id: activityId, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: `${name === 'read_file' ? 'Reading' : name === 'list_directory' ? 'Listing' : 'Running'} ${args?.path || args?.query || ''}`.trim(), detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'running' }],
           });
         }
-        const result = await executeWorkspaceTool(name || '', args);
+        const cleanName = (name || '').replace(/^default_api:/, '');
+        const result = await executeWorkspaceTool(cleanName, args);
         formatted.push({
           role: 'function',
           parts: [{ functionResponse: { name, response: { result } } }],
