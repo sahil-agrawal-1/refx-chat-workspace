@@ -234,23 +234,7 @@ export const SettingsModal: React.FC = () => {
                     Extend your AI assistant with prompt instructions and custom tool skills.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const created = await desktopBridge.skills.saveSkill({
-                      name: 'Custom Skill',
-                      description: 'Custom workflow instructions',
-                      instructions: '# Skill Guidelines\n',
-                      enabled: true,
-                      applyByDefault: false,
-                    });
-                    setSkills((prev) => [created, ...prev]);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black hover:bg-zinc-200 rounded-xl font-semibold cursor-pointer text-xs shadow-xs"
-                >
-                  <Plus size={13} strokeWidth={2.5} />
-                  <span>New Skill</span>
-                </button>
+                /* New Skill button removed */
               </div>
 
               <div
