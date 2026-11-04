@@ -65,14 +65,14 @@ export const AppLayout: React.FC = () => {
               {notification.type === 'warning' && <AlertCircle size={14} strokeWidth={1.8} className="text-amber-400 shrink-0" />}
               {notification.type === 'info' && <Info size={14} strokeWidth={1.8} className="text-foreground-muted shrink-0" />}
               <div>
-                <span className="font-medium text-white">{notification.title}: </span>
+                <span className="font-medium text-foreground">{notification.title}: </span>
                 <span className="text-foreground-muted">{notification.message}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={dismissNotification}
-              className="p-1 text-foreground-muted hover:text-white rounded cursor-pointer"
+              className="p-1 text-foreground-muted hover:text-foreground rounded cursor-pointer"
             >
               <X size={14} strokeWidth={1.8} />
             </button>

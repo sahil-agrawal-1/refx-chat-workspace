@@ -23,7 +23,7 @@ export const PermissionModal: React.FC = () => {
         <div className="flex items-start gap-2.5 p-3 bg-surface-raised border border-border rounded-lg text-foreground">
           <ShieldAlert size={18} strokeWidth={1.8} className="text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="font-medium text-white">{pendingPermission.title}</h4>
+            <h4 className="font-medium text-foreground">{pendingPermission.title}</h4>
             <p className="text-foreground-muted text-[11px] leading-relaxed">{pendingPermission.description}</p>
           </div>
         </div>
@@ -47,7 +47,7 @@ export const PermissionModal: React.FC = () => {
             type="checkbox"
             checked={rememberSession}
             onChange={(e) => setRememberSession(e.target.checked)}
-            className="rounded border-border bg-surface text-white focus:ring-0"
+            className="rounded border-border bg-surface text-foreground focus:ring-0"
           />
           <span className="text-[11px]">Remember for current session</span>
         </label>

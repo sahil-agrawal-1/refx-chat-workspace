@@ -169,7 +169,7 @@ export const ChatPromptInput: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowProjectPicker(!showProjectPicker)}
-          className="flex items-center gap-1.5 text-xs text-[#8a8a92] hover:text-white px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs text-[#8a8a92] hover:text-foreground px-1.5 py-0.5 rounded transition-colors cursor-pointer"
         >
           <span>{selectedWorkspace ? selectedWorkspace.name : 'No workspace selected'}</span>
           <ChevronDown size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -187,7 +187,7 @@ export const ChatPromptInput: React.FC = () => {
                 setShowProjectPicker(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors cursor-pointer ${
-                !selectedWorkspace ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface'
+                !selectedWorkspace ? 'bg-surface text-foreground font-medium' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
               }`}
             >
               <span>No workspace</span>
@@ -202,7 +202,7 @@ export const ChatPromptInput: React.FC = () => {
                   setShowProjectPicker(false);
                 }}
                 className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors cursor-pointer ${
-                  selectedWorkspace?.id === ws.id ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface'
+                  selectedWorkspace?.id === ws.id ? 'bg-surface text-foreground font-medium' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                 }`}
               >
                 <div className="truncate pr-2">
@@ -219,7 +219,7 @@ export const ChatPromptInput: React.FC = () => {
                   setShowProjectPicker(false);
                   openWorkspaceDialog();
                 }}
-                className="w-full text-center py-1.5 text-xs text-foreground-muted hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer"
+                className="w-full text-center py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
               >
                 Open workspace folder...
               </button>
@@ -237,9 +237,9 @@ export const ChatPromptInput: React.FC = () => {
                 key={c.cmd}
                 type="button"
                 onClick={() => { setPrompt(c.cmd + ' '); setShowCommandMenu(false); }}
-                className="w-full text-left px-3 py-1.5 text-foreground-muted hover:text-white hover:bg-surface cursor-pointer"
+                className="w-full text-left px-3 py-1.5 text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
               >
-                <span className="font-mono text-white">{c.cmd}</span> <span className="text-foreground-muted">{c.desc}</span>
+                <span className="font-mono text-foreground">{c.cmd}</span> <span className="text-foreground-muted">{c.desc}</span>
               </button>
             ))}
           </div>
@@ -260,7 +260,7 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAttachMenu(!showAttachMenu)}
-                className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer"
+                className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
                 aria-label="Add attachments or context"
                 title="Add context"
               >
@@ -278,7 +278,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@file ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-surface cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
                   >
                     <FileCode size={14} strokeWidth={1.8} className="text-foreground-muted" />
                     <span>Workspace File</span>
@@ -289,7 +289,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@terminal ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-surface cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
                   >
                     <Terminal size={14} strokeWidth={1.8} className="text-foreground-muted" />
                     <span>Terminal Output</span>
@@ -300,7 +300,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@memory ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-surface cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-foreground hover:bg-surface cursor-pointer"
                   >
                     <Paperclip size={14} strokeWidth={1.8} className="text-foreground-muted" />
                     <span>Task Memory</span>
@@ -315,7 +315,7 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowEffortMenu(!showEffortMenu)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-white hover:bg-surface transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
                 title="Reasoning effort"
               >
                 <span>Effort: {effort}</span>
@@ -328,7 +328,7 @@ export const ChatPromptInput: React.FC = () => {
                       key={opt}
                       type="button"
                       onClick={() => { setEffort(opt); setShowEffortMenu(false); }}
-                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${effort === opt ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface'}`}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${effort === opt ? 'bg-surface text-foreground font-medium' : 'text-foreground-muted hover:text-foreground hover:bg-surface'}`}
                     >
                       {opt}
                     </button>
@@ -342,7 +342,7 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowApprovalMenu(!showApprovalMenu)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-white hover:bg-surface transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
                 title="Approval mode"
               >
                 <span>Approval: {approvalMode}</span>
@@ -359,7 +359,7 @@ export const ChatPromptInput: React.FC = () => {
                       key={opt.id}
                       type="button"
                       onClick={() => { setApprovalMode(opt.id as any); setShowApprovalMenu(false); }}
-                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${approvalMode === opt.id ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface'}`}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${approvalMode === opt.id ? 'bg-surface text-foreground font-medium' : 'text-foreground-muted hover:text-foreground hover:bg-surface'}`}
                     >
                       <div>{opt.label}</div>
                       <div className="text-[10px] text-foreground-muted">{opt.desc}</div>
@@ -382,7 +382,7 @@ export const ChatPromptInput: React.FC = () => {
               className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                 isListening
                   ? 'text-red-400 bg-red-950/40'
-                  : 'text-foreground-muted hover:text-white hover:bg-surface'
+                  : 'text-foreground-muted hover:text-foreground hover:bg-surface'
               }`}
               aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
               title={isListening ? 'Listening...' : 'Voice input'}
@@ -396,7 +396,7 @@ export const ChatPromptInput: React.FC = () => {
               disabled={!isGenerating && !prompt.trim()}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                 isGenerating
-                  ? 'bg-surface text-white hover:bg-[#2c2c31]'
+                  ? 'bg-surface text-foreground hover:bg-[#2c2c31]'
                   : prompt.trim()
                   ? 'bg-white text-black hover:bg-zinc-200'
                   : 'bg-surface text-foreground-muted cursor-not-allowed'
@@ -414,8 +414,8 @@ export const ChatPromptInput: React.FC = () => {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
         <div className="w-96 max-h-[70vh] overflow-auto bg-surface-raised border border-border rounded-xl shadow-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-white font-medium">Select Model</span>
-            <button type="button" onClick={() => setShowModelPicker(false)} className="text-foreground-muted hover:text-white">X</button>
+            <span className="text-sm text-foreground font-medium">Select Model</span>
+            <button type="button" onClick={() => setShowModelPicker(false)} className="text-foreground-muted hover:text-foreground">X</button>
           </div>
           <div className="space-y-1">
             {providers.filter((p) => p.status === 'connected').map((p) => (
@@ -426,7 +426,7 @@ export const ChatPromptInput: React.FC = () => {
                     key={m}
                     type="button"
                     onClick={() => { setSelectedModel(m, p.id); setShowModelPicker(false); setPrompt(''); }}
-                    className="w-full text-left px-2 py-1.5 text-xs text-foreground-muted hover:text-white hover:bg-surface rounded"
+                    className="w-full text-left px-2 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded"
                   >
                     {m}
                   </button>

@@ -68,7 +68,7 @@ export const FileExplorerDrawer: React.FC = () => {
             <div
               onClick={() => toggleFolder(item.path)}
               style={{ paddingLeft: `${depth * 12 + 8}px` }}
-              className="flex items-center gap-1.5 py-1 pr-2 rounded hover:bg-surface text-xs text-foreground-muted hover:text-white cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 py-1 pr-2 rounded hover:bg-surface text-xs text-foreground-muted hover:text-foreground cursor-pointer transition-colors"
             >
               {isExpanded ? (
                 <ChevronDown size={14} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
@@ -97,8 +97,8 @@ export const FileExplorerDrawer: React.FC = () => {
           style={{ paddingLeft: `${depth * 12 + 20}px` }}
           className={`flex items-center justify-between py-1 pr-2.5 rounded text-xs cursor-pointer transition-colors ${
             isSelected
-              ? 'bg-surface text-white font-medium'
-              : 'text-foreground-muted hover:text-white hover:bg-surface'
+              ? 'bg-surface text-foreground font-medium'
+              : 'text-foreground-muted hover:text-foreground hover:bg-surface'
           }`}
         >
           <div className="flex items-center gap-1.5 truncate">
@@ -120,7 +120,7 @@ export const FileExplorerDrawer: React.FC = () => {
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border">
         <div className="flex items-center gap-2 truncate">
           <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-          <span className="font-medium text-white truncate">
+          <span className="font-medium text-foreground truncate">
             {selectedWorkspace ? selectedWorkspace.name : 'Workspace'}
           </span>
         </div>
@@ -129,7 +129,7 @@ export const FileExplorerDrawer: React.FC = () => {
           <button
             type="button"
             onClick={openWorkspaceDialog}
-            className="p-1 text-foreground-muted hover:text-white rounded hover:bg-surface"
+            className="p-1 text-foreground-muted hover:text-foreground rounded hover:bg-surface"
             title="Open Folder"
           >
             <FolderPlus size={16} strokeWidth={1.8} />
@@ -137,7 +137,7 @@ export const FileExplorerDrawer: React.FC = () => {
           <button
             type="button"
             onClick={() => toggleDrawer(null)}
-            className="p-1 text-foreground-muted hover:text-white rounded hover:bg-surface"
+            className="p-1 text-foreground-muted hover:text-foreground rounded hover:bg-surface"
             title="Close Explorer"
           >
             <X size={16} strokeWidth={1.8} />
@@ -160,7 +160,7 @@ export const FileExplorerDrawer: React.FC = () => {
               <Folder size={16} strokeWidth={1.8} />
             </div>
             <div className="space-y-1">
-              <h4 className="text-white font-medium text-xs">No workspace selected</h4>
+              <h4 className="text-foreground font-medium text-xs">No workspace selected</h4>
               <p className="text-[11px] text-foreground-muted leading-relaxed">
                 Select a folder to let the AI work with your project files.
               </p>
@@ -168,7 +168,7 @@ export const FileExplorerDrawer: React.FC = () => {
             <button
               type="button"
               onClick={openWorkspaceDialog}
-              className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-white rounded text-xs transition-colors cursor-pointer border border-[#313136]"
+              className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer border border-[#313136]"
             >
               Select Folder
             </button>

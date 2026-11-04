@@ -119,8 +119,8 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 onClick={() => setSelectedProviderId(p.id)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
                   isSelected
-                    ? 'bg-surface text-white font-medium border border-border'
-                    : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+                    ? 'bg-surface text-foreground font-medium border border-border'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate pr-1">
@@ -142,7 +142,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
           <div className="flex items-center justify-between pb-2.5 border-b border-border">
             <div className="flex items-center gap-2">
               <Cpu size={16} strokeWidth={1.8} className="text-foreground-muted" />
-              <h3 className="text-sm font-medium text-white">{formConfig.name}</h3>
+              <h3 className="text-sm font-medium text-foreground">{formConfig.name}</h3>
               <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-surface text-foreground-muted border border-border">
                 {formConfig.isLocal ? 'Local Runtime' : 'API Service'}
               </span>
@@ -173,7 +173,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.baseUrl}
                 onChange={(e) => handleFieldChange('baseUrl', e.target.value)}
                 placeholder="e.g. http://localhost:11434 or https://api.openai.com/v1"
-                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
               />
               <p className="text-[11px] text-foreground-muted mt-1">
                 {formConfig.isLocal
@@ -195,12 +195,12 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                     value={formConfig.apiKey || ''}
                     onChange={(e) => handleFieldChange('apiKey', e.target.value)}
                     placeholder="Enter API key"
-                    className="w-full bg-surface border border-[#27272b] rounded-lg pl-3 pr-10 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                    className="w-full bg-surface border border-[#27272b] rounded-lg pl-3 pr-10 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2.5 top-2 text-foreground-muted hover:text-white transition-colors cursor-pointer"
+                    className="absolute right-2.5 top-2 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
                     aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
                   >
                     {showApiKey ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
@@ -222,7 +222,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.selectedModel}
                 onChange={(e) => handleFieldChange('selectedModel', e.target.value)}
                 placeholder="e.g. gemini-2.5-pro, claude-3-7-sonnet, gpt-4o, qwen2.5-coder, or a custom model ID"
-                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
               />
             </div>
 
@@ -249,7 +249,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                         className={`px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer transition-colors ${
                           formConfig.selectedModel === m
                             ? 'bg-zinc-200 text-black font-medium'
-                            : 'bg-surface text-foreground-muted hover:text-white'
+                            : 'bg-surface text-foreground-muted hover:text-foreground'
                         }`}
                       >
                         {m}
@@ -289,7 +289,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 type="button"
                 onClick={handleVerify}
                 disabled={verifying}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-white border border-border rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground border border-border rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
               >
                 <RefreshCw size={12} strokeWidth={1.8} className={verifying ? 'animate-spin' : ''} />
                 <span>{verifying ? 'Testing...' : 'Verify Connection'}</span>

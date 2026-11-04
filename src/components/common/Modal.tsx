@@ -38,12 +38,12 @@ export const Modal: React.FC<ModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2f]">
           <div>
-            <h2 className="text-base font-medium text-white">{title}</h2>
+            <h2 className="text-base font-medium text-foreground">{title}</h2>
             {subtitle && <p className="text-xs text-[#8f8f96] mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#9a9aa2] hover:text-white hover:bg-[#28282d] rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-[#9a9aa2] hover:text-foreground hover:bg-[#28282d] rounded-lg transition-colors cursor-pointer"
             aria-label="Close dialog"
           >
             <X className="w-4 h-4" />

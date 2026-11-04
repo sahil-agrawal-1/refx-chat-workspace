@@ -107,7 +107,7 @@ export const TerminalPanel: React.FC = () => {
               const isActive = s.id === activeTerminalId;
               return (
                 <button key={s.id} type="button" onClick={() => setActiveTerminalId(s.id)}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all cursor-pointer text-xs shrink-0 ${isActive ? 'bg-surface text-white font-medium border border-border shadow-sm' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21] border border-transparent'}`}>
+                  className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all cursor-pointer text-xs shrink-0 ${isActive ? 'bg-surface text-foreground font-medium border border-border shadow-sm' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] border border-transparent'}`}>
                   <TerminalIcon size={12} strokeWidth={1.8} className={isActive ? 'text-emerald-400' : 'text-foreground-muted'} />
                   <span className="truncate max-w-[120px]">{s.name}</span>
                 </button>
@@ -115,19 +115,19 @@ export const TerminalPanel: React.FC = () => {
             })
           )}
           <button type="button" onClick={() => createNewTerminalSession('powershell.exe')}
-            className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer shrink-0"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer shrink-0"
             title="New Terminal">
             <Plus size={14} strokeWidth={1.8} />
           </button>
         </div>
         <div className="flex items-center gap-0.5 shrink-0 ml-2">
           <button type="button" onClick={clearTerminalLogs}
-            className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
             title="Clear Output">
             <Trash2 size={14} strokeWidth={1.8} />
           </button>
           <button type="button" onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
             title={isExpanded ? 'Minimize' : 'Maximize'}>
             {isExpanded ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
           </button>

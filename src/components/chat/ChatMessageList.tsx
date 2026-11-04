@@ -37,7 +37,7 @@ const renderInline = (text: string): React.ReactNode[] => {
         </code>
       );
     } else if (match[2] !== undefined) {
-      parts.push(<strong key={match.index} className="font-semibold text-white">{match[2]}</strong>);
+      parts.push(<strong key={match.index} className="font-semibold text-foreground">{match[2]}</strong>);
     } else if (match[3] !== undefined) {
       parts.push(<em key={match.index} className="italic text-foreground">{match[3]}</em>);
     } else if (match[4] !== undefined) {
@@ -68,7 +68,7 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-foreground-muted hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-1 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
         >
           {copied ? <Check size={12} strokeWidth={2} className="text-emerald-400" /> : <Copy size={12} strokeWidth={1.8} />}
           <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -120,13 +120,13 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
         lines.forEach((line, idx) => {
           if (line.startsWith('### ')) {
             flushList();
-            elements.push(<h3 key={`h3-${idx}`} className="text-sm font-semibold text-white mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
+            elements.push(<h3 key={`h3-${idx}`} className="text-sm font-semibold text-foreground mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
           } else if (line.startsWith('## ')) {
             flushList();
-            elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-white mt-4 mb-1.5 border-b border-border pb-1">{renderInline(line.slice(3))}</h2>);
+            elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-foreground mt-4 mb-1.5 border-b border-border pb-1">{renderInline(line.slice(3))}</h2>);
           } else if (line.startsWith('# ')) {
             flushList();
-            elements.push(<h1 key={`h1-${idx}`} className="text-lg font-bold text-white mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
+            elements.push(<h1 key={`h1-${idx}`} className="text-lg font-bold text-foreground mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
           } else if (/^[-*] /.test(line)) {
             listItems.push(line.slice(2));
           } else if (line.trim() === '') {
@@ -202,7 +202,7 @@ export const ChatMessageList: React.FC = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none">
         <div className="max-w-sm space-y-2.5 opacity-90">
           <Logo width={46} height={48} className="w-8 h-8 mx-auto opacity-70 mb-3" />
-          <h1 className="text-base font-medium text-white tracking-tight">REFX AI Workspace</h1>
+          <h1 className="text-base font-medium text-foreground tracking-tight">REFX AI Workspace</h1>
           <p className="text-xs text-foreground-muted leading-relaxed">
             Local-first AI desktop application for Windows. Select a workspace folder, connect your model provider, and start building.
           </p>
@@ -228,7 +228,7 @@ export const ChatMessageList: React.FC = () => {
         if (isUser) {
           return (
             <div key={msg.id} className="flex justify-end">
-              <div className="max-w-xl bg-surface text-white rounded-xl px-4 py-2.5 text-xs border border-border shadow-xs">
+              <div className="max-w-xl bg-surface text-foreground rounded-xl px-4 py-2.5 text-xs border border-border shadow-xs">
                 <p className="whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-white/10">
@@ -269,7 +269,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleCopy(msg.content, msg.id)}
-                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-foreground rounded transition-colors cursor-pointer"
                   title="Copy response"
                 >
                   {copiedId === msg.id ? <Check size={14} strokeWidth={2} className="text-emerald-400" /> : <Copy size={14} strokeWidth={1.8} />}
@@ -277,7 +277,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleRetry(msg)}
-                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-foreground rounded transition-colors cursor-pointer"
                   title="Retry"
                 >
                   <RotateCcw size={14} strokeWidth={1.8} />
@@ -285,7 +285,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSaveMemory(msg)}
-                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-foreground rounded transition-colors cursor-pointer"
                   title="Save to Memory"
                 >
                   <Save size={14} strokeWidth={1.8} />
@@ -319,7 +319,7 @@ export const ChatMessageList: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Split size={14} strokeWidth={1.8} className="text-amber-400" />
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-foreground">
                       {msg.fileChanges.length} file change{msg.fileChanges.length > 1 ? 's' : ''} proposed
                     </span>
                   </div>

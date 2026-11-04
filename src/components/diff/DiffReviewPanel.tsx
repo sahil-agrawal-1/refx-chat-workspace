@@ -47,7 +47,7 @@ export const DiffReviewPanel: React.FC = () => {
       {/* Top Header */}
       <div className="flex items-center justify-between px-3.5 py-2 bg-surface-raised border-b border-border text-xs select-none">
         <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="flex items-center gap-1.5 font-medium text-white">
+          <span className="flex items-center gap-1.5 font-medium text-foreground">
             <Split size={14} strokeWidth={1.8} className="text-foreground-muted" />
             Modifications
           </span>
@@ -64,8 +64,8 @@ export const DiffReviewPanel: React.FC = () => {
                   onClick={() => setActiveDiffFile(change)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors cursor-pointer text-xs ${
                     isSelected
-                      ? 'bg-surface text-white font-medium border border-border'
-                      : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+                      ? 'bg-surface text-foreground font-medium border border-border'
+                      : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
                   }`}
                 >
                   <FileCode size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -85,7 +85,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewMode('unified')}
-                className={`p-1 rounded ${viewMode === 'unified' ? 'bg-[#2a2a2f] text-white' : 'text-foreground-muted'}`}
+                className={`p-1 rounded ${viewMode === 'unified' ? 'bg-[#2a2a2f] text-foreground' : 'text-foreground-muted'}`}
                 title="Unified view"
               >
                 <AlignLeft size={12} strokeWidth={1.8} />
@@ -93,7 +93,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewMode('split')}
-                className={`p-1 rounded ${viewMode === 'split' ? 'bg-[#2a2a2f] text-white' : 'text-foreground-muted'}`}
+                className={`p-1 rounded ${viewMode === 'split' ? 'bg-[#2a2a2f] text-foreground' : 'text-foreground-muted'}`}
                 title="Split view"
               >
                 <Columns size={12} strokeWidth={1.8} />
@@ -106,7 +106,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { if (currentChange.id) approveChange(currentChange.id); }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
               >
                 <Check size={12} strokeWidth={2} className="text-emerald-400" />
                 <span>Accept</span>
@@ -115,7 +115,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { if (currentChange.id) rejectChange(currentChange.id); }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
               >
                 <X size={12} strokeWidth={2} className="text-red-400" />
                 <span>Reject</span>
@@ -127,7 +127,7 @@ export const DiffReviewPanel: React.FC = () => {
             <button
               type="button"
               onClick={approveAllChanges}
-              className="flex items-center gap-1 px-2.5 py-1 bg-[#222226] hover:bg-surface text-white rounded text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 bg-[#222226] hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer"
             >
               <CheckCheck size={14} strokeWidth={1.8} />
               <span>Accept All</span>
@@ -137,7 +137,7 @@ export const DiffReviewPanel: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 text-foreground-muted hover:text-white rounded hover:bg-surface"
+            className="p-1 text-foreground-muted hover:text-foreground rounded hover:bg-surface"
             title={isExpanded ? 'Minimize' : 'Maximize'}
           >
             {isExpanded ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
@@ -146,7 +146,7 @@ export const DiffReviewPanel: React.FC = () => {
           <button
             type="button"
             onClick={() => toggleBottomPanel('diff')}
-            className="p-1 text-foreground-muted hover:text-white rounded hover:bg-surface"
+            className="p-1 text-foreground-muted hover:text-foreground rounded hover:bg-surface"
             title="Close Diff"
           >
             <X size={14} strokeWidth={1.8} />
@@ -158,7 +158,7 @@ export const DiffReviewPanel: React.FC = () => {
       <div className="flex-1 overflow-y-auto font-mono text-xs custom-scrollbar bg-surface select-text">
         {pendingChanges.length === 0 ? (
           <div className="p-8 text-center space-y-1">
-            <h4 className="text-xs font-medium text-white">No pending modifications</h4>
+            <h4 className="text-xs font-medium text-foreground">No pending modifications</h4>
             <p className="text-[11px] text-foreground-muted">
               File changes made during AI tasks will appear here for review.
             </p>

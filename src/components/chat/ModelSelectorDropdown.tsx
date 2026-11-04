@@ -46,7 +46,7 @@ export const ModelSelectorDropdown: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-foreground-muted hover:text-white bg-[#222226] hover:bg-[#2a2a2f] rounded-lg transition-colors border border-border cursor-pointer"
+        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-foreground-muted hover:text-foreground bg-[#222226] hover:bg-[#2a2a2f] rounded-lg transition-colors border border-border cursor-pointer"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -76,7 +76,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                     setIsOpen(false);
                     openModal('providers');
                   }}
-                  className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-white rounded text-xs transition-colors cursor-pointer"
+                  className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer"
                 >
                   Configure Providers
                 </button>
@@ -111,8 +111,8 @@ export const ModelSelectorDropdown: React.FC = () => {
                                   }}
                                   className={`w-full flex items-center justify-between px-2 py-1 rounded text-left transition-colors cursor-pointer ${
                                     isSelected
-                                      ? 'bg-surface text-white font-medium'
-                                      : 'text-foreground-muted hover:text-white hover:bg-surface'
+                                      ? 'bg-surface text-foreground font-medium'
+                                      : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                                   }`}
                                 >
                                   <span className="truncate">{m}</span>
@@ -174,7 +174,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                         setIsOpen(false);
                         openModal('providers');
                       }}
-                      className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-white rounded text-xs transition-colors cursor-pointer"
+                      className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer"
                     >
                       Configure Providers
                     </button>
@@ -191,7 +191,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                 setIsOpen(false);
                 openModal('providers');
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-1 text-[#91919a] hover:text-white hover:bg-surface rounded-md transition-colors text-center cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-1 text-[#91919a] hover:text-foreground hover:bg-surface rounded-md transition-colors text-center cursor-pointer"
             >
               <Plus size={14} strokeWidth={1.8} />
               <span>Manage Providers...</span>

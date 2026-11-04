@@ -55,7 +55,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('general')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'general' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'general' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -66,7 +66,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('appearance')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'appearance' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'appearance' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -77,7 +77,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('skills')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'skills' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'skills' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -88,7 +88,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('workspace')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'workspace' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'workspace' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Folder size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -99,7 +99,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('terminal')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'terminal' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'terminal' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Terminal size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -110,7 +110,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('security')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'security' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'security' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Shield size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -121,7 +121,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('about')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'about' ? 'bg-surface text-white font-medium border border-border' : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
+              activeTab === 'about' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
             }`}
           >
             <Info size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -135,7 +135,7 @@ export const SettingsModal: React.FC = () => {
             <div className="space-y-3.5">
               <div>
                 <label className="block text-foreground-muted font-medium mb-1">Theme</label>
-                <select value={(settings.theme as string) || 'Dark'} onChange={(e) => updateSetting('theme', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs">
+                <select value={(settings.theme as string) || 'Dark'} onChange={(e) => updateSetting('theme', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs">
                   <option value="Dark">Dark</option>
                   <option value="Light">Light</option>
                   <option value="System">System</option>
@@ -143,7 +143,7 @@ export const SettingsModal: React.FC = () => {
               </div>
               <div>
                 <label className="block text-foreground-muted font-medium mb-1">Accent Color</label>
-                <select value={(settings.accent as string) || 'Neutral'} onChange={(e) => updateSetting('accent', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs">
+                <select value={(settings.accent as string) || 'Neutral'} onChange={(e) => updateSetting('accent', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs">
                   <option value="Neutral">Neutral</option>
                   <option value="Blue">Blue</option>
                   <option value="Violet">Violet</option>
@@ -152,14 +152,14 @@ export const SettingsModal: React.FC = () => {
               </div>
               <div>
                 <label className="block text-foreground-muted font-medium mb-1">Interface Density</label>
-                <select value={(settings.density as string) || 'Comfortable'} onChange={(e) => updateSetting('density', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs">
+                <select value={(settings.density as string) || 'Comfortable'} onChange={(e) => updateSetting('density', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs">
                   <option value="Comfortable">Comfortable</option>
                   <option value="Compact">Compact</option>
                 </select>
               </div>
               <div>
                 <label className="block text-foreground-muted font-medium mb-1">Font Size</label>
-                <select value={(settings.fontSize as string) || '14'} onChange={(e) => updateSetting('fontSize', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs">
+                <select value={(settings.fontSize as string) || '14'} onChange={(e) => updateSetting('fontSize', e.target.value)} className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs">
                   <option value="12">Small</option>
                   <option value="14">Medium</option>
                   <option value="16">Large</option>
@@ -167,7 +167,7 @@ export const SettingsModal: React.FC = () => {
               </div>
               <div>
                 <label className="block text-foreground-muted font-medium mb-1">Reduce Motion</label>
-                <button type="button" onClick={() => updateSetting('reduceMotion', !settings.reduceMotion)} className="px-3 py-1.5 bg-surface border border-border rounded-md text-white text-xs">
+                <button type="button" onClick={() => updateSetting('reduceMotion', !settings.reduceMotion)} className="px-3 py-1.5 bg-surface border border-border rounded-md text-foreground text-xs">
                   {(settings.reduceMotion as boolean) ? 'Enabled' : 'Disabled'}
                 </button>
               </div>
@@ -184,7 +184,7 @@ export const SettingsModal: React.FC = () => {
                     const created = await desktopBridge.skills.saveSkill({ name: 'New Skill', description: '', instructions: '# Instructions\\n', enabled: true, applyByDefault: false });
                     setSkills((prev) => [created, ...prev]);
                   }}
-                  className="px-2.5 py-1 bg-surface hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
+                  className="px-2.5 py-1 bg-surface hover:bg-[#2c2c31] text-foreground rounded text-xs cursor-pointer"
                 >
                   New Skill
                 </button>
@@ -195,7 +195,7 @@ export const SettingsModal: React.FC = () => {
                 skills.map((sk) => (
                   <div key={sk.id} className="p-2.5 bg-surface-raised border border-border rounded-lg space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-xs font-medium">{sk.name}</span>
+                      <span className="text-foreground text-xs font-medium">{sk.name}</span>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -224,7 +224,7 @@ export const SettingsModal: React.FC = () => {
                 <select
                   value={fontSize}
                   onChange={(e) => setFontSize(e.target.value)}
-                  className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs"
+                  className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs"
                 >
                   <option value="12">12px (Compact)</option>
                   <option value="14">14px (Default)</option>
@@ -237,7 +237,7 @@ export const SettingsModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => openModal('providers')}
-                  className="w-full py-1.5 bg-surface hover:bg-[#28282d] text-white rounded-md transition-colors cursor-pointer text-center border border-border"
+                  className="w-full py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-center border border-border"
                 >
                   Manage Model Providers...
                 </button>
@@ -253,7 +253,7 @@ export const SettingsModal: React.FC = () => {
                   value={ignoredPatterns}
                   onChange={(e) => updateSetting('ignoredPatterns', e.target.value)}
                   rows={2}
-                  className="w-full bg-surface border border-border rounded-md px-3 py-1.5 text-white font-mono text-xs resize-none"
+                  className="w-full bg-surface border border-border rounded-md px-3 py-1.5 text-foreground font-mono text-xs resize-none"
                 />
               </div>
             </div>
@@ -266,7 +266,7 @@ export const SettingsModal: React.FC = () => {
                 <select
                   value={defaultShell}
                   onChange={(e) => setDefaultShell(e.target.value)}
-                  className="bg-surface border border-border rounded-md px-3 py-1.5 text-white w-full text-xs"
+                  className="bg-surface border border-border rounded-md px-3 py-1.5 text-foreground w-full text-xs"
                 >
                   <option value="powershell.exe">PowerShell (powershell.exe)</option>
                   <option value="cmd.exe">Windows Command Prompt (cmd.exe)</option>
@@ -275,7 +275,7 @@ export const SettingsModal: React.FC = () => {
               </div>
 
               <div className="p-3 bg-[#151518] border border-border rounded-lg space-y-1">
-                <span className="text-white font-medium">Windows ConPTY Pseudo-Console</span>
+                <span className="text-foreground font-medium">Windows ConPTY Pseudo-Console</span>
                 <p className="text-[11px] text-foreground-muted">
                   ConPTY attachment executes via native process bridge in Electron Stage 2.
                 </p>
@@ -290,7 +290,7 @@ export const SettingsModal: React.FC = () => {
                 <label
                   onClick={() => setSecurityPolicy('high_risk')}
                   className={`block p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    securityPolicy === 'high_risk' ? 'bg-surface border-zinc-500 text-white' : 'bg-surface border-border text-foreground-muted'
+                    securityPolicy === 'high_risk' ? 'bg-surface border-zinc-500 text-foreground' : 'bg-surface border-border text-foreground-muted'
                   }`}
                 >
                   <div className="font-medium">Prompt on High-Risk Commands (Recommended)</div>
@@ -300,7 +300,7 @@ export const SettingsModal: React.FC = () => {
                 <label
                   onClick={() => setSecurityPolicy('always')}
                   className={`block p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    securityPolicy === 'always' ? 'bg-surface border-zinc-500 text-white' : 'bg-surface border-border text-foreground-muted'
+                    securityPolicy === 'always' ? 'bg-surface border-zinc-500 text-foreground' : 'bg-surface border-border text-foreground-muted'
                   }`}
                 >
                   <div className="font-medium">Always Prompt</div>
@@ -315,7 +315,7 @@ export const SettingsModal: React.FC = () => {
               <div className="flex items-center gap-2.5 p-3 bg-[#151518] border border-border rounded-lg">
                 <Logo width={36} height={48} className="w-6 h-6" />
                 <div>
-                  <h4 className="font-medium text-white text-xs">REFX AI Desktop</h4>
+                  <h4 className="font-medium text-foreground text-xs">REFX AI Desktop</h4>
                   <p className="text-[11px] text-foreground-muted">Windows AI Workspace</p>
                 </div>
               </div>

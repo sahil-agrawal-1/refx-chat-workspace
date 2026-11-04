@@ -47,7 +47,7 @@ export const OnboardingModal: React.FC = () => {
               key={s.num}
               className={`flex items-center gap-1.5 ${
                 step === s.num
-                  ? 'text-white font-medium'
+                  ? 'text-foreground font-medium'
                   : step > s.num
                   ? 'text-zinc-300'
                   : 'text-[#606068]'
@@ -58,7 +58,7 @@ export const OnboardingModal: React.FC = () => {
                   step === s.num
                     ? 'bg-white text-black font-bold'
                     : step > s.num
-                    ? 'bg-zinc-700 text-white'
+                    ? 'bg-zinc-700 text-foreground'
                     : 'bg-surface text-[#606068]'
                 }`}
               >
@@ -72,7 +72,7 @@ export const OnboardingModal: React.FC = () => {
         {/* Step 1: Model Choice */}
         {step === 1 && (
           <div className="space-y-2.5">
-            <h3 className="text-xs font-medium text-white">Select Primary Model Provider</h3>
+            <h3 className="text-xs font-medium text-foreground">Select Primary Model Provider</h3>
             <p className="text-foreground-muted text-[11px] leading-relaxed">
               Connect to an offline local runtime (Ollama, LM Studio) or configure a cloud API provider.
             </p>
@@ -90,12 +90,12 @@ export const OnboardingModal: React.FC = () => {
                     }}
                     className={`p-2.5 rounded-lg border cursor-pointer transition-colors ${
                       isSelected
-                        ? 'bg-surface border-zinc-500 text-white'
-                        : 'bg-surface border-border text-foreground-muted hover:text-white'
+                        ? 'bg-surface border-zinc-500 text-foreground'
+                        : 'bg-surface border-border text-foreground-muted hover:text-foreground'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-medium text-xs text-white">{p.name}</span>
+                      <span className="font-medium text-xs text-foreground">{p.name}</span>
                       {isSelected && <Check size={12} strokeWidth={2} className="text-zinc-200" />}
                     </div>
                     <div className="text-[10px] text-foreground-muted font-mono">
@@ -111,7 +111,7 @@ export const OnboardingModal: React.FC = () => {
         {/* Step 2: Workspace Directory */}
         {step === 2 && (
           <div className="space-y-2.5">
-            <h3 className="text-xs font-medium text-white">Workspace Directory</h3>
+            <h3 className="text-xs font-medium text-foreground">Workspace Directory</h3>
             <p className="text-foreground-muted text-[11px] leading-relaxed">
               All file modifications and terminal commands are scoped to this directory.
             </p>
@@ -120,14 +120,14 @@ export const OnboardingModal: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 truncate pr-2">
                   <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-                  <span className="font-mono text-white text-xs truncate">
+                  <span className="font-mono text-foreground text-xs truncate">
                     {selectedWorkspace ? selectedWorkspace.path : 'No folder selected'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={openWorkspaceDialog}
-                  className="px-2.5 py-1 bg-surface hover:bg-[#28282d] text-white rounded text-xs transition-colors cursor-pointer border border-border shrink-0"
+                  className="px-2.5 py-1 bg-surface hover:bg-[#28282d] text-foreground rounded text-xs transition-colors cursor-pointer border border-border shrink-0"
                 >
                   Browse...
                 </button>
@@ -139,7 +139,7 @@ export const OnboardingModal: React.FC = () => {
         {/* Step 3: Memory */}
         {step === 3 && (
           <div className="space-y-2.5">
-            <h3 className="text-xs font-medium text-white">Memory Configuration</h3>
+            <h3 className="text-xs font-medium text-foreground">Memory Configuration</h3>
             <p className="text-foreground-muted text-[11px] leading-relaxed">
               Save key context instructions into local Task Memory by default during conversations.
             </p>
@@ -147,7 +147,7 @@ export const OnboardingModal: React.FC = () => {
             <div className="p-3 bg-surface border border-border rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-medium text-white text-xs">Default Save Memory</span>
+                  <span className="font-medium text-foreground text-xs">Default Save Memory</span>
                   <p className="text-[11px] text-foreground-muted mt-0.5">Captures requirements from prompt submissions.</p>
                 </div>
                 <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
@@ -162,7 +162,7 @@ export const OnboardingModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="flex items-center gap-1 px-2.5 py-1 text-foreground-muted hover:text-white transition-colors cursor-pointer text-xs"
+              className="flex items-center gap-1 px-2.5 py-1 text-foreground-muted hover:text-foreground transition-colors cursor-pointer text-xs"
             >
               <ChevronLeft size={14} strokeWidth={1.8} />
               <span>Back</span>

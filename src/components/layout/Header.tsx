@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1 text-foreground-muted hover:text-white hover:bg-surface rounded transition-colors cursor-pointer"
+            className="p-1 text-foreground-muted hover:text-foreground hover:bg-surface rounded transition-colors cursor-pointer"
             title="Open Sidebar"
             aria-label="Open Sidebar"
           >
@@ -74,8 +74,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleDrawer('file-explorer')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               activeDrawer === 'file-explorer'
-                ? 'bg-surface text-white shadow-sm'
-                : 'text-foreground-muted hover:text-white'
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle File Explorer"
           >
@@ -87,8 +87,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('diff')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               isDiffOpen
-                ? 'bg-surface text-white shadow-sm'
-                : 'text-foreground-muted hover:text-white'
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle Diff Review"
           >
@@ -105,8 +105,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('terminal')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               isTerminalOpen
-                ? 'bg-surface text-white shadow-sm'
-                : 'text-foreground-muted hover:text-white'
+                ? 'bg-surface text-foreground shadow-sm'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle Terminal"
           >
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('export')}
-            className="p-1.5 text-foreground-muted hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
             title="Export Conversation"
             aria-label="Export Conversation"
           >
@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('onboarding')}
-            className="p-1.5 text-foreground-muted hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
             title="Setup Guide"
             aria-label="Setup Guide"
           >

@@ -145,8 +145,8 @@ export const ExportChatModal: React.FC = () => {
               onClick={() => setFormat('markdown')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'markdown'
-                  ? 'bg-surface text-white border-zinc-500 font-medium'
-                  : 'bg-surface text-foreground-muted border-border hover:text-white'
+                  ? 'bg-surface text-foreground border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-foreground'
               }`}
             >
               <FileText size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -158,8 +158,8 @@ export const ExportChatModal: React.FC = () => {
               onClick={() => setFormat('json')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'json'
-                  ? 'bg-surface text-white border-zinc-500 font-medium'
-                  : 'bg-surface text-foreground-muted border-border hover:text-white'
+                  ? 'bg-surface text-foreground border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-foreground'
               }`}
             >
               <Code size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -171,8 +171,8 @@ export const ExportChatModal: React.FC = () => {
               onClick={() => setFormat('html')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'html'
-                  ? 'bg-surface text-white border-zinc-500 font-medium'
-                  : 'bg-surface text-foreground-muted border-border hover:text-white'
+                  ? 'bg-surface text-foreground border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-foreground'
               }`}
             >
               <Globe size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -193,7 +193,7 @@ export const ExportChatModal: React.FC = () => {
             type="button"
             onClick={handleCopy}
             disabled={!hasMessages}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-white rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
           >
             {copied ? <Check size={14} strokeWidth={2} className="text-emerald-400" /> : <Copy size={14} strokeWidth={1.8} />}
             <span>{copied ? 'Copied' : 'Copy'}</span>
