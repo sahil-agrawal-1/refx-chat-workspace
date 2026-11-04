@@ -4,7 +4,15 @@ Local-first Windows AI desktop application for chat with local and cloud model p
 
 ## Project Status
 
-The chat layer (conversation management, message streaming, provider integration, error handling, and generation state) has been repaired and tested (P1). API key storage has been hardened with Electron safeStorage encryption (P2). Real provider verification and model discovery has been implemented for all providers (P3).
+P1–P3: chat-state repair, security hardening, and provider verification are complete and tested.
+
+P4: Local SQLite persistence (better-sqlite3) with migrations, conversation/message storage, settings, legacy localStorage migration, backups, and recovery.
+
+P5-A: Real read-only workspace filesystem integration (secure path validation, nested explorer, search).
+
+P5-B: Real file modification engine (create/edit/rename/move/delete with approval, backups, undo/restore).
+
+P6: Workspace tool integration for AI chat (read and propose file changes via tool loop).
 
 See **Chat-State Repair (P1)**, **Security Hardening (P2)**, and **Provider Verification (P3)** below.
 
@@ -17,6 +25,8 @@ See **Chat-State Repair (P1)**, **Security Hardening (P2)**, and **Provider Veri
 - **Workspace & file explorer**: Select a project workspace folder and browse files.
 - **Terminal panel**: Integrated terminal session (PowerShell/CMD/Bash) with output streaming.
 - **Diff review**: Side-by-side file modification review with Accept/Reject actions.
+- **File modification engine**: Secure create/edit/rename/move/delete with approval, backups, and restore.
+- **AI workspace tools**: Model can list/read/search/propose changes to project files.
 - **Memory system**: Task and application memory with configurable storage backend.
 - **Providers modal**: Configure, verify, and connect AI model providers.
 - **Onboarding wizard**: First-launch setup flow.
@@ -237,3 +247,7 @@ MIT
 | 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Cline (AI coding agent) |
 | 11/3/2026 | Documentation update (README, report.md, security.md) | Cline (AI coding agent) |
 | 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |
+| 11/4/2026 | P4: SQLite database & persistent storage | Cline (AI coding agent) |
+| 11/4/2026 | P5-A: Real workspace filesystem integration (read-only) | Cline (AI coding agent) |
+| 11/4/2026 | P5-B: Real file modification engine (approval, backups, undo) | Cline (AI coding agent) |
+| 11/4/2026 | P6: Workspace tool integration for AI chat | Cline (AI coding agent) |
