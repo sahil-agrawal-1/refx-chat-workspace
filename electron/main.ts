@@ -2016,35 +2016,57 @@ async function startProviderChatAnthropic(
       const client = new Anthropic({ apiKey, baseURL: request.baseUrl || undefined });
 
       const systemMsg = request.messages.find((m) => m.role === 'system');
-      const userMsgs = request.messages.filter((m) => m.role !== 'system');
+      const conversation = request.messages.filter((m) => m.role !== 'system').map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
 
-      const stream = client.messages.stream({
-        model: request.model,
-        max_tokens: request.maxTokens || 1024,
-        system: systemMsg?.content,
-        messages: userMsgs.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-        temperature: request.temperature,
-      });
+      const anthropicTools = WORKSPACE_TOOLS_OPENAI.map((t: any) => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters,
+      }));
 
-      stream.on('text', (text) => {
-        if (abortController.signal.aborted) return;
-        fullText += text;
-        if (!sender.isDestroyed()) {
-          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-            requestId: request.requestId,
-            type: 'chunk',
-            delta: text,
-            fullText,
+      let finalText = '';
+      for (let i = 0; i < 5; i++) {
+        const response = await client.messages.create({
+          model: request.model,
+          max_tokens: request.maxTokens || 1024,
+          system: systemMsg?.content,
+          messages: conversation as any,
+          tools: anthropicTools as any,
+        });
+
+        const toolUses = (response.content || []).filter((b: any) => b.type === 'tool_use');
+        const textBlocks = (response.content || []).filter((b: any) => b.type === 'text');
+        finalText = textBlocks.map((b: any) => b.text || '').join('');
+
+        if (toolUses.length === 0) {
+          break;
+        }
+
+        conversation.push({ role: 'assistant', content: response.content as any });
+        for (const tu of toolUses as any[]) {
+          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {});
+          conversation.push({
+            role: 'user',
+            content: [{ type: 'tool_result', tool_use_id: (tu as any).id, content: result }] as any,
           });
         }
-      });
+      }
 
-      const finalMessage = await stream.finalMessage();
+      fullText = finalText || fullText;
       if (!sender.isDestroyed()) {
         sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
           requestId: request.requestId,
+          type: 'chunk',
+          delta: fullText,
+          fullText,
+        });
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId: request.requestId,
           type: 'done',
-          fullText: finalMessage?.content?.map((c: any) => c.text || '').join('') || fullText,
+          fullText,
         });
       }
     } catch (err: any) {
