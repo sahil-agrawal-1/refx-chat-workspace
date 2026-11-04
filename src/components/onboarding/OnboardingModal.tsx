@@ -50,7 +50,7 @@ export const OnboardingModal: React.FC = () => {
                   ? 'text-foreground font-medium'
                   : step > s.num
                   ? 'text-zinc-300'
-                  : 'text-[#606068]'
+                  : 'text-foreground-muted'
               }`}
             >
               <span
@@ -59,7 +59,7 @@ export const OnboardingModal: React.FC = () => {
                     ? 'bg-white text-black font-bold'
                     : step > s.num
                     ? 'bg-zinc-700 text-foreground'
-                    : 'bg-surface text-[#606068]'
+                    : 'bg-surface text-foreground-muted'
                 }`}
               >
                 {step > s.num ? '✓' : s.num}
@@ -127,7 +127,7 @@ export const OnboardingModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={openWorkspaceDialog}
-                  className="px-2.5 py-1 bg-surface hover:bg-[#28282d] text-foreground rounded text-xs transition-colors cursor-pointer border border-border shrink-0"
+                  className="px-2.5 py-1 bg-surface hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer border border-border shrink-0"
                 >
                   Browse...
                 </button>

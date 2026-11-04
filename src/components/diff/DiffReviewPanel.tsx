@@ -65,7 +65,7 @@ export const DiffReviewPanel: React.FC = () => {
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors cursor-pointer text-xs ${
                     isSelected
                       ? 'bg-surface text-foreground font-medium border border-border'
-                      : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+                      : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                   }`}
                 >
                   <FileCode size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -81,11 +81,11 @@ export const DiffReviewPanel: React.FC = () => {
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5">
           {pendingChanges.length > 0 && (
-            <div className="flex items-center bg-[#1c1c1f] p-0.5 rounded border border-border">
+            <div className="flex items-center bg-surface p-0.5 rounded border border-border">
               <button
                 type="button"
                 onClick={() => setViewMode('unified')}
-                className={`p-1 rounded ${viewMode === 'unified' ? 'bg-[#2a2a2f] text-foreground' : 'text-foreground-muted'}`}
+                className={`p-1 rounded ${viewMode === 'unified' ? 'bg-surface text-foreground' : 'text-foreground-muted'}`}
                 title="Unified view"
               >
                 <AlignLeft size={12} strokeWidth={1.8} />
@@ -93,7 +93,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setViewMode('split')}
-                className={`p-1 rounded ${viewMode === 'split' ? 'bg-[#2a2a2f] text-foreground' : 'text-foreground-muted'}`}
+                className={`p-1 rounded ${viewMode === 'split' ? 'bg-surface text-foreground' : 'text-foreground-muted'}`}
                 title="Split view"
               >
                 <Columns size={12} strokeWidth={1.8} />
@@ -127,7 +127,7 @@ export const DiffReviewPanel: React.FC = () => {
             <button
               type="button"
               onClick={approveAllChanges}
-              className="flex items-center gap-1 px-2.5 py-1 bg-[#222226] hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer"
             >
               <CheckCheck size={14} strokeWidth={1.8} />
               <span>Accept All</span>
@@ -176,19 +176,19 @@ export const DiffReviewPanel: React.FC = () => {
                   key={idx}
                   className={`flex items-start px-3 py-0.5 leading-5 transition-colors ${
                     isAdd
-                      ? 'bg-emerald-950/20 text-[#86efac]'
+                      ? 'bg-emerald-950/20 text-foreground-muted'
                       : isDel
-                      ? 'bg-red-950/20 text-[#fca5a5]'
-                      : 'text-foreground-muted hover:bg-[#161619]'
+                      ? 'bg-red-950/20 text-foreground-muted'
+                      : 'text-foreground-muted hover:bg-surface'
                   }`}
                 >
-                  <div className="w-10 shrink-0 text-right pr-2 text-[#52525a] select-none font-mono">
+                  <div className="w-10 shrink-0 text-right pr-2 text-foreground-muted select-none font-mono">
                     {line.oldLineNumber || ''}
                   </div>
-                  <div className="w-10 shrink-0 text-right pr-3 text-[#52525a] select-none font-mono border-r border-border">
+                  <div className="w-10 shrink-0 text-right pr-3 text-foreground-muted select-none font-mono border-r border-border">
                     {line.newLineNumber || ''}
                   </div>
-                  <div className="w-6 shrink-0 text-center font-bold select-none text-[#6e6e78]">
+                  <div className="w-6 shrink-0 text-center font-bold select-none text-foreground-muted">
                     {isAdd ? '+' : isDel ? '-' : ' '}
                   </div>
                   <div className="flex-1 whitespace-pre-wrap break-all">{line.text || ' '}</div>

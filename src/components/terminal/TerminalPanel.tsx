@@ -107,7 +107,7 @@ export const TerminalPanel: React.FC = () => {
               const isActive = s.id === activeTerminalId;
               return (
                 <button key={s.id} type="button" onClick={() => setActiveTerminalId(s.id)}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all cursor-pointer text-xs shrink-0 ${isActive ? 'bg-surface text-foreground font-medium border border-border shadow-sm' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] border border-transparent'}`}>
+                  className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all cursor-pointer text-xs shrink-0 ${isActive ? 'bg-surface text-foreground font-medium border border-border shadow-sm' : 'text-foreground-muted hover:text-foreground hover:bg-surface border border-transparent'}`}>
                   <TerminalIcon size={12} strokeWidth={1.8} className={isActive ? 'text-emerald-400' : 'text-foreground-muted'} />
                   <span className="truncate max-w-[120px]">{s.name}</span>
                 </button>
@@ -138,7 +138,7 @@ export const TerminalPanel: React.FC = () => {
           </button>
         </div>
       </div>
-      <div ref={containerRef} className="flex-1 overflow-hidden bg-[#0d0d0f] p-1" />
+      <div ref={containerRef} className="flex-1 overflow-hidden bg-surface p-1" />
     </div>
   );
 };

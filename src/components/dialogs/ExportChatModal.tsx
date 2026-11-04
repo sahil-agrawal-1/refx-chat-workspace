@@ -193,7 +193,7 @@ export const ExportChatModal: React.FC = () => {
             type="button"
             onClick={handleCopy}
             disabled={!hasMessages}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
           >
             {copied ? <Check size={14} strokeWidth={2} className="text-emerald-400" /> : <Copy size={14} strokeWidth={1.8} />}
             <span>{copied ? 'Copied' : 'Copy'}</span>

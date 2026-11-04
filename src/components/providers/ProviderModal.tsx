@@ -120,7 +120,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
                   isSelected
                     ? 'bg-surface text-foreground font-medium border border-border'
-                    : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate pr-1">
@@ -129,7 +129,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 </div>
                 <span
                   className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    p.status === 'connected' ? 'bg-emerald-400' : 'bg-[#4a4a52]'
+                    p.status === 'connected' ? 'bg-emerald-400' : 'bg-surface'
                   }`}
                 />
               </button>
@@ -154,7 +154,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                   formConfig.status === 'connected' ? 'bg-emerald-400' : 'bg-zinc-600'
                 }`}
               />
-              <span className="capitalize text-[#8a8a92]">
+              <span className="capitalize text-foreground-muted">
                 {formConfig.status === 'connected' ? 'Connected' : 'Not configured'}
               </span>
             </div>
@@ -173,7 +173,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.baseUrl}
                 onChange={(e) => handleFieldChange('baseUrl', e.target.value)}
                 placeholder="e.g. http://localhost:11434 or https://api.openai.com/v1"
-                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-border rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-border"
               />
               <p className="text-[11px] text-foreground-muted mt-1">
                 {formConfig.isLocal
@@ -195,7 +195,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                     value={formConfig.apiKey || ''}
                     onChange={(e) => handleFieldChange('apiKey', e.target.value)}
                     placeholder="Enter API key"
-                    className="w-full bg-surface border border-[#27272b] rounded-lg pl-3 pr-10 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
+                    className="w-full bg-surface border border-border rounded-lg pl-3 pr-10 py-1.5 text-foreground font-mono focus:outline-none focus:border-border"
                   />
                   <button
                     type="button"
@@ -222,7 +222,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.selectedModel}
                 onChange={(e) => handleFieldChange('selectedModel', e.target.value)}
                 placeholder="e.g. gemini-2.5-pro, claude-3-7-sonnet, gpt-4o, qwen2.5-coder, or a custom model ID"
-                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-border rounded-lg px-3 py-1.5 text-foreground font-mono focus:outline-none focus:border-border"
               />
             </div>
 
@@ -289,7 +289,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 type="button"
                 onClick={handleVerify}
                 disabled={verifying}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground border border-border rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface text-foreground border border-border rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
               >
                 <RefreshCw size={12} strokeWidth={1.8} className={verifying ? 'animate-spin' : ''} />
                 <span>{verifying ? 'Testing...' : 'Verify Connection'}</span>

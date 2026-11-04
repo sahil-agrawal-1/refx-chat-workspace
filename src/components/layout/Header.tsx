@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('export')}
-            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
             title="Export Conversation"
             aria-label="Export Conversation"
           >
@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('onboarding')}
-            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
             title="Setup Guide"
             aria-label="Setup Guide"
           >

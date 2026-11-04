@@ -55,7 +55,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('general')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'general' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'general' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -66,7 +66,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('appearance')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'appearance' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'appearance' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -77,7 +77,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('skills')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'skills' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'skills' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -88,7 +88,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('workspace')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'workspace' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'workspace' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Folder size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -99,7 +99,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('terminal')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'terminal' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'terminal' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Terminal size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -110,7 +110,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('security')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'security' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'security' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Shield size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -121,7 +121,7 @@ export const SettingsModal: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('about')}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
-              activeTab === 'about' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+              activeTab === 'about' ? 'bg-surface text-foreground font-medium border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Info size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -184,7 +184,7 @@ export const SettingsModal: React.FC = () => {
                     const created = await desktopBridge.skills.saveSkill({ name: 'New Skill', description: '', instructions: '# Instructions\\n', enabled: true, applyByDefault: false });
                     setSkills((prev) => [created, ...prev]);
                   }}
-                  className="px-2.5 py-1 bg-surface hover:bg-[#2c2c31] text-foreground rounded text-xs cursor-pointer"
+                  className="px-2.5 py-1 bg-surface hover:bg-surface text-foreground rounded text-xs cursor-pointer"
                 >
                   New Skill
                 </button>
@@ -237,7 +237,7 @@ export const SettingsModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => openModal('providers')}
-                  className="w-full py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-center border border-border"
+                  className="w-full py-1.5 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-center border border-border"
                 >
                   Manage Model Providers...
                 </button>
@@ -274,7 +274,7 @@ export const SettingsModal: React.FC = () => {
                 </select>
               </div>
 
-              <div className="p-3 bg-[#151518] border border-border rounded-lg space-y-1">
+              <div className="p-3 bg-surface border border-border rounded-lg space-y-1">
                 <span className="text-foreground font-medium">Windows ConPTY Pseudo-Console</span>
                 <p className="text-[11px] text-foreground-muted">
                   ConPTY attachment executes via native process bridge in Electron Stage 2.
@@ -312,7 +312,7 @@ export const SettingsModal: React.FC = () => {
 
           {activeTab === 'about' && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2.5 p-3 bg-[#151518] border border-border rounded-lg">
+              <div className="flex items-center gap-2.5 p-3 bg-surface border border-border rounded-lg">
                 <Logo width={36} height={48} className="w-6 h-6" />
                 <div>
                   <h4 className="font-medium text-foreground text-xs">REFX AI Desktop</h4>

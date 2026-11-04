@@ -60,7 +60,7 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="my-2 rounded-lg border border-border overflow-hidden bg-[#0d0d0f]">
+    <div className="my-2 rounded-lg border border-border overflow-hidden bg-surface">
       <div className="flex items-center justify-between px-3 py-1.5 bg-surface-raised border-b border-border text-[11px]">
         <div className="flex items-center gap-2">
           <span className="px-1.5 py-0.5 rounded bg-surface text-foreground-muted font-mono uppercase">{lang || 'text'}</span>
@@ -79,7 +79,7 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
           <tbody>
             {lines.map((line, idx) => (
               <tr key={idx} className="hover:bg-surface-raised">
-                <td className="w-10 px-2 text-right text-[#52525a] select-none border-r border-border">{idx + 1}</td>
+                <td className="w-10 px-2 text-right text-foreground-muted select-none border-r border-border">{idx + 1}</td>
                 <td className="px-3 whitespace-pre text-foreground">{line || ' '}</td>
               </tr>
             ))}
@@ -108,7 +108,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
               <ul key={`ul-${elements.length}`} className="list-none space-y-1 my-2 pl-4">
                 {listItems.map((li, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-foreground">
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#71717a] shrink-0" />
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-surface shrink-0" />
                     <span>{renderInline(li)}</span>
                   </li>
                 ))}
@@ -254,7 +254,7 @@ export const ChatMessageList: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#1e1e21] border border-border text-[11px] text-foreground">
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-surface border border-border text-[11px] text-foreground">
                   <Sparkles size={12} strokeWidth={1.8} className="text-foreground-muted" />
                   {msg.model || 'Assistant'}
                 </span>
@@ -331,7 +331,7 @@ export const ChatMessageList: React.FC = () => {
                         toggleBottomPanel('diff');
                       }
                     }}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-[#222724] hover:bg-[#28302b] text-[#d4d4dc] border border-[#2e3b32] rounded-md text-xs transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-surface text-foreground-muted border border-border rounded-md text-xs transition-colors cursor-pointer"
                   >
                     <span>Review Diff</span>
                     <ChevronRight size={12} strokeWidth={2} />

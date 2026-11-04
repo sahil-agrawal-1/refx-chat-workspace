@@ -169,7 +169,7 @@ export const ChatPromptInput: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowProjectPicker(!showProjectPicker)}
-          className="flex items-center gap-1.5 text-xs text-[#8a8a92] hover:text-foreground px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground px-1.5 py-0.5 rounded transition-colors cursor-pointer"
         >
           <span>{selectedWorkspace ? selectedWorkspace.name : 'No workspace selected'}</span>
           <ChevronDown size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -229,7 +229,7 @@ export const ChatPromptInput: React.FC = () => {
       </div>
 
       {/* Main Prompt Box */}
-      <div className="bg-surface-input border border-border rounded-xl p-3 shadow-lg transition-colors focus-within:border-[#3c3c44]">
+      <div className="bg-surface-input border border-border rounded-xl p-3 shadow-lg transition-colors focus-within:border-border">
         {showCommandMenu && (
           <div ref={commandMenuRef} className="mb-2 bg-surface-raised border border-border rounded-lg shadow-xl py-1 text-xs">
             {SLASH_COMMANDS.filter((c) => c.cmd.startsWith(prompt.trim())).map((c) => (
@@ -396,7 +396,7 @@ export const ChatPromptInput: React.FC = () => {
               disabled={!isGenerating && !prompt.trim()}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                 isGenerating
-                  ? 'bg-surface text-foreground hover:bg-[#2c2c31]'
+                  ? 'bg-surface text-foreground hover:bg-surface'
                   : prompt.trim()
                   ? 'bg-white text-black hover:bg-zinc-200'
                   : 'bg-surface text-foreground-muted cursor-not-allowed'

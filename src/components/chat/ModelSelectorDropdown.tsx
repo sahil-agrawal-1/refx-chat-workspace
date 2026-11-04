@@ -46,7 +46,7 @@ export const ModelSelectorDropdown: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-foreground-muted hover:text-foreground bg-[#222226] hover:bg-[#2a2a2f] rounded-lg transition-colors border border-border cursor-pointer"
+        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-foreground-muted hover:text-foreground bg-surface hover:bg-surface rounded-lg transition-colors border border-border cursor-pointer"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
@@ -76,7 +76,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                     setIsOpen(false);
                     openModal('providers');
                   }}
-                  className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer"
+                  className="w-full py-1.5 bg-surface hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer"
                 >
                   Configure Providers
                 </button>
@@ -157,7 +157,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                           <span>{prov.name}</span>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusColor(prov.status)}`} />
                         </div>
-                        <div className="ml-4 mt-0.5 text-[10px] text-[#ef4444]">
+                        <div className="ml-4 mt-0.5 text-[10px] text-foreground-muted">
                           {prov.errorMessage || 'Connection failed'}
                         </div>
                       </div>
@@ -174,7 +174,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                         setIsOpen(false);
                         openModal('providers');
                       }}
-                      className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer"
+                      className="w-full py-1.5 bg-surface hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer"
                     >
                       Configure Providers
                     </button>
@@ -191,7 +191,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                 setIsOpen(false);
                 openModal('providers');
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-1 text-[#91919a] hover:text-foreground hover:bg-surface rounded-md transition-colors text-center cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-1 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors text-center cursor-pointer"
             >
               <Plus size={14} strokeWidth={1.8} />
               <span>Manage Providers...</span>

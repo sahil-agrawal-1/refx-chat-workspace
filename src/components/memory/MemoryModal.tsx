@@ -90,7 +90,7 @@ export const MemoryModal: React.FC = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
               activeTab === 'task'
                 ? 'bg-surface text-foreground font-medium border border-border'
-                : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+                : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Bookmark size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -106,7 +106,7 @@ export const MemoryModal: React.FC = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
               activeTab === 'app'
                 ? 'bg-surface text-foreground font-medium border border-border'
-                : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+                : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Brain size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -122,7 +122,7 @@ export const MemoryModal: React.FC = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
               activeTab === 'settings'
                 ? 'bg-surface text-foreground font-medium border border-border'
-                : 'text-foreground-muted hover:text-foreground hover:bg-[#1e1e21]'
+                : 'text-foreground-muted hover:text-foreground hover:bg-surface'
             }`}
           >
             <Database size={14} strokeWidth={1.8} className="text-foreground-muted" />
@@ -138,7 +138,7 @@ export const MemoryModal: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="w-full bg-surface border border-border rounded-md pl-7 pr-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-[#383840]"
+              className="w-full bg-surface border border-border rounded-md pl-7 pr-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-border"
             />
           </div>
         )}
@@ -154,7 +154,7 @@ export const MemoryModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddingTask(!isAddingTask)}
-              className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs border border-border"
+              className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-xs border border-border"
             >
               <Plus size={14} strokeWidth={1.8} />
               <span>Add Entry</span>
@@ -268,7 +268,7 @@ export const MemoryModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddingApp(!isAddingApp)}
-              className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs border border-border"
+              className="flex items-center gap-1 px-2.5 py-1 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-xs border border-border"
             >
               <Plus size={14} strokeWidth={1.8} />
               <span>Add Memory</span>
@@ -387,7 +387,7 @@ export const MemoryModal: React.FC = () => {
                     globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
                   })
                 }
-                className="px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs border border-[#2c2c31]"
+                className="px-3 py-1.5 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-xs border border-border"
               >
                 Default
               </button>

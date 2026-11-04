@@ -56,7 +56,7 @@ export const PermissionModal: React.FC = () => {
           <button
             type="button"
             onClick={() => resolvePermission(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface text-foreground rounded-md transition-colors cursor-pointer text-xs"
           >
             <X size={14} strokeWidth={1.8} />
             <span>Deny</span>

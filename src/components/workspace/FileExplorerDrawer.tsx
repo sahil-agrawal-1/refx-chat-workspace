@@ -168,7 +168,7 @@ export const FileExplorerDrawer: React.FC = () => {
             <button
               type="button"
               onClick={openWorkspaceDialog}
-              className="w-full py-1.5 bg-[#252529] hover:bg-[#2d2d33] text-foreground rounded text-xs transition-colors cursor-pointer border border-[#313136]"
+              className="w-full py-1.5 bg-surface hover:bg-surface text-foreground rounded text-xs transition-colors cursor-pointer border border-border"
             >
               Select Folder
             </button>
@@ -176,7 +176,7 @@ export const FileExplorerDrawer: React.FC = () => {
         ) : fileTree.length === 0 ? (
           <div className="p-6 text-center text-foreground-muted space-y-1">
             <p className="text-xs">No files detected</p>
-            <p className="text-[11px] text-[#55555d]">
+            <p className="text-[11px] text-foreground-muted">
               Directory indexing active in native Electron host.
             </p>
           </div>
@@ -187,7 +187,7 @@ export const FileExplorerDrawer: React.FC = () => {
 
       <div className="p-2.5 border-t border-border text-[11px] text-foreground-muted flex items-center justify-between bg-surface">
         <span>Workspace Bridge</span>
-        <span className="font-mono text-[#91919a]">
+        <span className="font-mono text-foreground-muted">
           {selectedWorkspace ? 'Connected' : 'Inactive'}
         </span>
       </div>

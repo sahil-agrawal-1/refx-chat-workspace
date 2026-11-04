@@ -50,7 +50,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-[#222225] rounded-md transition-colors cursor-pointer"
+          className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
           aria-label="Collapse sidebar"
           title="Collapse sidebar"
         >
@@ -64,7 +64,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={startNewConversation}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-[#262629] hover:bg-[#2f2f33] text-foreground rounded-lg text-xs font-normal transition-colors text-left border border-[#313136] cursor-pointer"
+          className="w-full flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface text-foreground rounded-lg text-xs font-normal transition-colors text-left border border-border cursor-pointer"
         >
           <Plus size={16} strokeWidth={2} className="text-foreground" />
           <span>New Conversation</span>
@@ -72,7 +72,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Navigation items */}
         <div className="pt-1 space-y-0.5">
-          <div className="flex items-center justify-between px-3 py-1.5 text-xs text-[#a4a4ac] hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer">
+          <div className="flex items-center justify-between px-3 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <History size={16} strokeWidth={1.8} className="text-foreground-muted" />
               <span>Conversation History</span>
@@ -84,7 +84,7 @@ export const Sidebar: React.FC = () => {
 
           <div
             onClick={() => openModal('settings')}
-            className="flex items-center justify-between px-3 py-1.5 text-xs text-[#a4a4ac] hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
+            className="flex items-center justify-between px-3 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Clock size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -104,7 +104,7 @@ export const Sidebar: React.FC = () => {
           <button
             type="button"
             onClick={openWorkspaceDialog}
-            className="p-1 hover:text-foreground hover:bg-[#222225] rounded transition-colors cursor-pointer"
+            className="p-1 hover:text-foreground hover:bg-surface rounded transition-colors cursor-pointer"
             aria-label="Select workspace folder"
             title="Select workspace folder"
           >
@@ -115,7 +115,7 @@ export const Sidebar: React.FC = () => {
         {/* Workspaces list or honest empty state */}
         <div className="mt-1 space-y-0.5">
           {recentWorkspaces.length === 0 && !selectedWorkspace ? (
-            <div className="px-2.5 py-2 text-[11px] text-[#6d6d75] italic">
+            <div className="px-2.5 py-2 text-[11px] text-foreground-muted italic">
               No workspace selected
             </div>
           ) : (
@@ -137,7 +137,7 @@ export const Sidebar: React.FC = () => {
                   <div
                     key={ws.id}
                     onClick={() => setWorkspace(ws)}
-                    className="flex items-center justify-between px-2.5 py-1 rounded-md text-xs cursor-pointer text-[#91919a] hover:text-foreground hover:bg-surface transition-colors"
+                    className="flex items-center justify-between px-2.5 py-1 rounded-md text-xs cursor-pointer text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
                   >
                     <div className="flex items-center gap-2 truncate">
                       <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
@@ -156,7 +156,7 @@ export const Sidebar: React.FC = () => {
           Conversations
         </div>
         {conversations.length === 0 ? (
-          <div className="px-2 py-4 text-center text-[11px] text-[#6b6b74]">
+          <div className="px-2 py-4 text-center text-[11px] text-foreground-muted">
             No conversations yet.
           </div>
         ) : (
@@ -168,8 +168,8 @@ export const Sidebar: React.FC = () => {
                 onClick={() => selectConversation(conv.id)}
                 className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
                   isActive
-                    ? 'bg-[#252529] text-foreground font-medium border border-border'
-                    : 'text-[#91919a] hover:text-foreground hover:bg-[#1e1e21]'
+                    ? 'bg-surface text-foreground font-medium border border-border'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                 }`}
               >
                 <span className="truncate flex-1 pr-1">{conv.title}</span>
@@ -197,7 +197,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={() => openModal('providers')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Cpu size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -218,7 +218,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={() => openModal('memory')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Brain size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -233,7 +233,7 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           onClick={() => openModal('settings')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-[#1e1e21] transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
             <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
@@ -244,7 +244,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Stage Notice */}
         <div className="pt-2 px-1">
-          <div className="flex items-center justify-between text-[10px] text-[#606068] px-1 py-0.5">
+          <div className="flex items-center justify-between text-[10px] text-foreground-muted px-1 py-0.5">
             <span className="flex items-center gap-1">
               <Layers size={14} strokeWidth={1.8} />
               Desktop Bridge
