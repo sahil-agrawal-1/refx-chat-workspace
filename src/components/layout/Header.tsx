@@ -37,14 +37,14 @@ export const Header: React.FC<HeaderProps> = ({
   const isDiffOpen = bottomPanels.has('diff');
 
   return (
-    <header className="h-10 shrink-0 bg-[#161618] border-b border-[#242427] flex items-center justify-between px-3 text-xs select-none z-10">
+    <header className="h-10 shrink-0 bg-surface-raised border-b border-border flex items-center justify-between px-3 text-xs select-none z-10">
       {/* Left: Sidebar toggle if collapsed + Title / Workspace */}
       <div className="flex items-center gap-2 truncate">
         {isSidebarCollapsed && (
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1 text-[#888891] hover:text-white hover:bg-[#202023] rounded transition-colors cursor-pointer"
+            className="p-1 text-foreground-muted hover:text-white hover:bg-surface rounded transition-colors cursor-pointer"
             title="Open Sidebar"
             aria-label="Open Sidebar"
           >
@@ -59,8 +59,8 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {selectedWorkspace && (
-          <div className="flex items-center gap-1.5 text-[#71717a] text-xs font-mono truncate">
-            <span className="text-[#9c9ca4] truncate">{selectedWorkspace.name}</span>
+          <div className="flex items-center gap-1.5 text-foreground-muted text-xs font-mono truncate">
+            <span className="text-foreground-muted truncate">{selectedWorkspace.name}</span>
           </div>
         )}
       </div>
@@ -68,14 +68,14 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right Toolbar Action Buttons */}
       <div className="flex items-center gap-2">
         {/* Primary view controls as a segmented pill */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#1a1a1d] border border-[#2a2a30]">
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface-raised border border-border">
           <button
             type="button"
             onClick={() => toggleDrawer('file-explorer')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               activeDrawer === 'file-explorer'
-                ? 'bg-[#2a2a30] text-white shadow-sm'
-                : 'text-[#888891] hover:text-white'
+                ? 'bg-surface text-white shadow-sm'
+                : 'text-foreground-muted hover:text-white'
             }`}
             title="Toggle File Explorer"
           >
@@ -87,8 +87,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('diff')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               isDiffOpen
-                ? 'bg-[#2a2a30] text-white shadow-sm'
-                : 'text-[#888891] hover:text-white'
+                ? 'bg-surface text-white shadow-sm'
+                : 'text-foreground-muted hover:text-white'
             }`}
             title="Toggle Diff Review"
           >
@@ -105,8 +105,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('terminal')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs ${
               isTerminalOpen
-                ? 'bg-[#2a2a30] text-white shadow-sm'
-                : 'text-[#888891] hover:text-white'
+                ? 'bg-surface text-white shadow-sm'
+                : 'text-foreground-muted hover:text-white'
             }`}
             title="Toggle Terminal"
           >
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('export')}
-            className="p-1.5 text-[#888891] hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
             title="Export Conversation"
             aria-label="Export Conversation"
           >
@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('onboarding')}
-            className="p-1.5 text-[#888891] hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-white hover:bg-[#1e1e21] rounded-md transition-colors cursor-pointer"
             title="Setup Guide"
             aria-label="Setup Guide"
           >

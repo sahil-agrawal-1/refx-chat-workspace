@@ -106,8 +106,8 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 min-h-[400px]">
         {/* Left Provider List */}
-        <div className="md:col-span-4 border-r border-[#242427] pr-3 space-y-1">
-          <div className="text-[11px] font-medium text-[#71717a] uppercase tracking-wider px-2 pb-1">
+        <div className="md:col-span-4 border-r border-border pr-3 space-y-1">
+          <div className="text-[11px] font-medium text-foreground-muted uppercase tracking-wider px-2 pb-1">
             Providers
           </div>
           {providers.map((p) => {
@@ -119,12 +119,12 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 onClick={() => setSelectedProviderId(p.id)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
                   isSelected
-                    ? 'bg-[#242428] text-white font-medium border border-[#303036]'
-                    : 'text-[#9c9ca4] hover:text-white hover:bg-[#1e1e21]'
+                    ? 'bg-surface text-white font-medium border border-border'
+                    : 'text-foreground-muted hover:text-white hover:bg-[#1e1e21]'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate pr-1">
-                  <Cpu size={14} strokeWidth={1.8} className="text-[#888891]" />
+                  <Cpu size={14} strokeWidth={1.8} className="text-foreground-muted" />
                   <span className="truncate">{p.name}</span>
                 </div>
                 <span
@@ -139,11 +139,11 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
 
         {/* Right Provider Form */}
         <div className="md:col-span-8 space-y-4">
-          <div className="flex items-center justify-between pb-2.5 border-b border-[#242427]">
+          <div className="flex items-center justify-between pb-2.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <Cpu size={16} strokeWidth={1.8} className="text-[#888891]" />
+              <Cpu size={16} strokeWidth={1.8} className="text-foreground-muted" />
               <h3 className="text-sm font-medium text-white">{formConfig.name}</h3>
-              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-[#202024] text-[#a1a1aa] border border-[#2a2a30]">
+              <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-surface text-foreground-muted border border-border">
                 {formConfig.isLocal ? 'Local Runtime' : 'API Service'}
               </span>
             </div>
@@ -164,8 +164,8 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
           <div className="space-y-3 text-xs">
             {/* Base URL */}
             <div>
-              <label className="block text-[#a1a1aa] font-medium mb-1 flex items-center gap-1.5">
-                <Globe size={14} strokeWidth={1.8} className="text-[#71717a]" />
+              <label className="block text-foreground-muted font-medium mb-1 flex items-center gap-1.5">
+                <Globe size={14} strokeWidth={1.8} className="text-foreground-muted" />
                 Endpoint URL
               </label>
               <input
@@ -173,9 +173,9 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.baseUrl}
                 onChange={(e) => handleFieldChange('baseUrl', e.target.value)}
                 placeholder="e.g. http://localhost:11434 or https://api.openai.com/v1"
-                className="w-full bg-[#131315] border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
               />
-              <p className="text-[11px] text-[#6c6c74] mt-1">
+              <p className="text-[11px] text-foreground-muted mt-1">
                 {formConfig.isLocal
                   ? 'Server port where local model daemon is listening.'
                   : 'Upstream completion API endpoint.'}
@@ -185,8 +185,8 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
             {/* API Key */}
             {!formConfig.isLocal && (
               <div>
-                <label className="block text-[#a1a1aa] font-medium mb-1 flex items-center gap-1.5">
-                  <Key size={14} strokeWidth={1.8} className="text-[#71717a]" />
+                <label className="block text-foreground-muted font-medium mb-1 flex items-center gap-1.5">
+                  <Key size={14} strokeWidth={1.8} className="text-foreground-muted" />
                   API Key
                 </label>
                 <div className="relative">
@@ -195,12 +195,12 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                     value={formConfig.apiKey || ''}
                     onChange={(e) => handleFieldChange('apiKey', e.target.value)}
                     placeholder="Enter API key"
-                    className="w-full bg-[#131315] border border-[#27272b] rounded-lg pl-3 pr-10 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                    className="w-full bg-surface border border-[#27272b] rounded-lg pl-3 pr-10 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2.5 top-2 text-[#71717a] hover:text-white transition-colors cursor-pointer"
+                    className="absolute right-2.5 top-2 text-foreground-muted hover:text-white transition-colors cursor-pointer"
                     aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
                   >
                     {showApiKey ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
@@ -214,7 +214,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
 
             {/* Selected Model */}
             <div>
-              <label className="block text-[#a1a1aa] font-medium mb-1">
+              <label className="block text-foreground-muted font-medium mb-1">
                 Model Identifier
               </label>
               <input
@@ -222,21 +222,21 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                 value={formConfig.selectedModel}
                 onChange={(e) => handleFieldChange('selectedModel', e.target.value)}
                 placeholder="e.g. gemini-2.5-pro, claude-3-7-sonnet, gpt-4o, qwen2.5-coder, or a custom model ID"
-                className="w-full bg-[#131315] border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
+                className="w-full bg-surface border border-[#27272b] rounded-lg px-3 py-1.5 text-white font-mono focus:outline-none focus:border-[#3c3c44]"
               />
             </div>
 
             {/* Discovered Models */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[#a1a1aa] font-medium">Discovered Models</span>
-                <span className="text-[11px] text-[#71717a] font-mono">
+                <span className="text-foreground-muted font-medium">Discovered Models</span>
+                <span className="text-[11px] text-foreground-muted font-mono">
                   {formConfig.discoveredModels.length} detected
                 </span>
               </div>
-              <div className="p-2 bg-[#131315] border border-[#242428] rounded-lg min-h-[48px] max-h-24 overflow-y-auto custom-scrollbar">
+              <div className="p-2 bg-surface border border-border rounded-lg min-h-[48px] max-h-24 overflow-y-auto custom-scrollbar">
                 {formConfig.discoveredModels.length === 0 ? (
-                  <div className="text-[11px] text-[#6c6c74] py-1 text-center">
+                  <div className="text-[11px] text-foreground-muted py-1 text-center">
                     No models detected. Click &quot;Verify Connection&quot; to discover available models.
                   </div>
                 ) : (
@@ -249,7 +249,7 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
                         className={`px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer transition-colors ${
                           formConfig.selectedModel === m
                             ? 'bg-zinc-200 text-black font-medium'
-                            : 'bg-[#202024] text-[#9c9ca4] hover:text-white'
+                            : 'bg-surface text-foreground-muted hover:text-white'
                         }`}
                       >
                         {m}
@@ -284,12 +284,12 @@ const [hasStoredKey, setHasStoredKey] = useState(false);
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-2.5 border-t border-[#242427]">
+            <div className="flex items-center justify-between pt-2.5 border-t border-border">
               <button
                 type="button"
                 onClick={handleVerify}
                 disabled={verifying}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#202024] hover:bg-[#28282d] text-white border border-[#2f2f35] rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-white border border-border rounded-md transition-colors cursor-pointer disabled:opacity-50 text-xs"
               >
                 <RefreshCw size={12} strokeWidth={1.8} className={verifying ? 'animate-spin' : ''} />
                 <span>{verifying ? 'Testing...' : 'Verify Connection'}</span>

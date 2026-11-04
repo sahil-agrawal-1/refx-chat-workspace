@@ -20,43 +20,43 @@ export const PermissionModal: React.FC = () => {
       maxWidth="max-w-lg"
     >
       <div className="space-y-3.5 text-xs">
-        <div className="flex items-start gap-2.5 p-3 bg-[#18181b] border border-[#26262a] rounded-lg text-[#dedee3]">
+        <div className="flex items-start gap-2.5 p-3 bg-surface-raised border border-border rounded-lg text-foreground">
           <ShieldAlert size={18} strokeWidth={1.8} className="text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="font-medium text-white">{pendingPermission.title}</h4>
-            <p className="text-[#9c9ca4] text-[11px] leading-relaxed">{pendingPermission.description}</p>
+            <p className="text-foreground-muted text-[11px] leading-relaxed">{pendingPermission.description}</p>
           </div>
         </div>
 
         {isTerminal && pendingPermission.details && (
           <div className="space-y-1">
-            <label className="text-[#888891] font-medium text-[11px]">Command to execute:</label>
-            <div className="p-2.5 bg-[#121214] border border-[#242428] rounded font-mono text-zinc-300 break-all select-all text-xs">
+            <label className="text-foreground-muted font-medium text-[11px]">Command to execute:</label>
+            <div className="p-2.5 bg-surface border border-border rounded font-mono text-zinc-300 break-all select-all text-xs">
               {String(pendingPermission.details.command || '')}
             </div>
             {Boolean(pendingPermission.details.cwd) && (
-              <p className="text-[11px] text-[#6c6c74] font-mono">
+              <p className="text-[11px] text-foreground-muted font-mono">
                 Working directory: {String(pendingPermission.details.cwd)}
               </p>
             )}
           </div>
         )}
 
-        <label className="flex items-center gap-2 cursor-pointer pt-1 select-none text-[#9c9ca4]">
+        <label className="flex items-center gap-2 cursor-pointer pt-1 select-none text-foreground-muted">
           <input
             type="checkbox"
             checked={rememberSession}
             onChange={(e) => setRememberSession(e.target.checked)}
-            className="rounded border-[#303036] bg-[#141416] text-white focus:ring-0"
+            className="rounded border-border bg-surface text-white focus:ring-0"
           />
           <span className="text-[11px]">Remember for current session</span>
         </label>
 
-        <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-[#242427]">
+        <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-border">
           <button
             type="button"
             onClick={() => resolvePermission(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#202024] hover:bg-[#28282d] text-[#dedee3] rounded-md transition-colors cursor-pointer text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-foreground rounded-md transition-colors cursor-pointer text-xs"
           >
             <X size={14} strokeWidth={1.8} />
             <span>Deny</span>

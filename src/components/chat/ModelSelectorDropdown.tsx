@@ -46,29 +46,29 @@ export const ModelSelectorDropdown: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-[#a1a1aa] hover:text-white bg-[#222226] hover:bg-[#2a2a2f] rounded-lg transition-colors border border-[#2f2f35] cursor-pointer"
+        className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-foreground-muted hover:text-white bg-[#222226] hover:bg-[#2a2a2f] rounded-lg transition-colors border border-border cursor-pointer"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <Cpu size={14} strokeWidth={1.8} className="text-[#888891]" />
-        <span className="font-normal text-[#dedee3] truncate max-w-[160px]">
+        <Cpu size={14} strokeWidth={1.8} className="text-foreground-muted" />
+        <span className="font-normal text-foreground truncate max-w-[160px]">
           {selectedModel ? `${currentProvider?.name || 'Model'}: ${selectedModel}` : 'No model connected'}
         </span>
-        <ChevronDown size={14} strokeWidth={1.8} className="text-[#71717a]" />
+        <ChevronDown size={14} strokeWidth={1.8} className="text-foreground-muted" />
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 bottom-full mb-1.5 w-72 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 overflow-hidden text-xs">
-          <div className="px-3 py-1.5 text-[11px] font-medium text-[#71717a] uppercase tracking-wider border-b border-[#222226] flex items-center justify-between">
+        <div className="absolute left-0 bottom-full mb-1.5 w-72 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 overflow-hidden text-xs">
+          <div className="px-3 py-1.5 text-[11px] font-medium text-foreground-muted uppercase tracking-wider border-b border-border flex items-center justify-between">
             <span>Model Provider</span>
-            <span className="text-[10px] text-[#71717a] font-mono">
+            <span className="text-[10px] text-foreground-muted font-mono">
               {connectedProviders.length > 0 ? `${connectedProviders.length} active` : 'Disconnected'}
             </span>
           </div>
 
           <div className="max-h-60 overflow-y-auto custom-scrollbar py-1">
             {providers.length === 0 ? (
-              <div className="p-3 text-center text-[#71717a] space-y-1.5">
+              <div className="p-3 text-center text-foreground-muted space-y-1.5">
                 <p className="text-[11px]">No providers configured.</p>
                 <button
                   type="button"
@@ -85,19 +85,19 @@ export const ModelSelectorDropdown: React.FC = () => {
               <>
                 {connectedProviders.length > 0 ? (
                   <>
-                    <div className="px-3 py-1 text-[10px] font-medium text-[#71717a] uppercase tracking-wider border-b border-[#242428]">
+                    <div className="px-3 py-1 text-[10px] font-medium text-foreground-muted uppercase tracking-wider border-b border-border">
                       Connected Providers
                     </div>
                     {connectedProviders.map((prov) => (
                       <div key={prov.id} className="px-2 py-1">
-                        <div className="flex items-center justify-between px-2 py-1 text-[#888891] font-medium text-[11px]">
+                        <div className="flex items-center justify-between px-2 py-1 text-foreground-muted font-medium text-[11px]">
                           <span>{prov.name}</span>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusColor(prov.status)}`} />
                         </div>
 
-                        <div className="space-y-0.5 ml-1 border-l border-[#242428] pl-1.5 mt-0.5">
+                        <div className="space-y-0.5 ml-1 border-l border-border pl-1.5 mt-0.5">
                           {prov.discoveredModels.length === 0 ? (
-                            <div className="text-[10px] text-[#71717a] py-0.5 px-2">No models detected</div>
+                            <div className="text-[10px] text-foreground-muted py-0.5 px-2">No models detected</div>
                           ) : (
                             prov.discoveredModels.map((m) => {
                               const isSelected = selectedModel === m;
@@ -111,8 +111,8 @@ export const ModelSelectorDropdown: React.FC = () => {
                                   }}
                                   className={`w-full flex items-center justify-between px-2 py-1 rounded text-left transition-colors cursor-pointer ${
                                     isSelected
-                                      ? 'bg-[#26262a] text-white font-medium'
-                                      : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'
+                                      ? 'bg-surface text-white font-medium'
+                                      : 'text-foreground-muted hover:text-white hover:bg-surface'
                                   }`}
                                 >
                                   <span className="truncate">{m}</span>
@@ -129,16 +129,16 @@ export const ModelSelectorDropdown: React.FC = () => {
 
                 {verifyingProviders.length > 0 ? (
                   <>
-                    <div className="px-3 py-1 text-[10px] font-medium text-[#71717a] uppercase tracking-wider border-b border-[#242428] mt-2">
+                    <div className="px-3 py-1 text-[10px] font-medium text-foreground-muted uppercase tracking-wider border-b border-border mt-2">
                       Verifying...
                     </div>
                     {verifyingProviders.map((prov) => (
                       <div key={prov.id} className="px-2 py-1">
-                        <div className="flex items-center gap-2 px-2 py-1 text-[#888891] font-medium text-[11px]">
+                        <div className="flex items-center gap-2 px-2 py-1 text-foreground-muted font-medium text-[11px]">
                           <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
                           <span>{prov.name}</span>
                         </div>
-                        <div className="ml-4 mt-0.5 text-[10px] text-[#71717a]">
+                        <div className="ml-4 mt-0.5 text-[10px] text-foreground-muted">
                           {prov.errorMessage || 'Verifying connection...'}
                         </div>
                       </div>
@@ -148,12 +148,12 @@ export const ModelSelectorDropdown: React.FC = () => {
 
                 {failedProviders.length > 0 ? (
                   <>
-                    <div className="px-3 py-1 text-[10px] font-medium text-[#71717a] uppercase tracking-wider border-b border-[#242428] mt-2">
+                    <div className="px-3 py-1 text-[10px] font-medium text-foreground-muted uppercase tracking-wider border-b border-border mt-2">
                       Connection Issues
                     </div>
                     {failedProviders.map((prov) => (
                       <div key={prov.id} className="px-2 py-1">
-                        <div className="flex items-center justify-between px-2 py-1 text-[#888891] font-medium text-[11px]">
+                        <div className="flex items-center justify-between px-2 py-1 text-foreground-muted font-medium text-[11px]">
                           <span>{prov.name}</span>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusColor(prov.status)}`} />
                         </div>
@@ -166,7 +166,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                 ) : null}
 
                 {connectedProviders.length === 0 && verifyingProviders.length === 0 && failedProviders.length > 0 ? (
-                  <div className="p-3 text-center text-[#71717a] space-y-1.5">
+                  <div className="p-3 text-center text-foreground-muted space-y-1.5">
                     <p className="text-[11px]">No providers available. Configure and verify a provider first.</p>
                     <button
                       type="button"
@@ -184,14 +184,14 @@ export const ModelSelectorDropdown: React.FC = () => {
             )}
           </div>
 
-          <div className="pt-1 mt-1 border-t border-[#222226] px-2 pb-1">
+          <div className="pt-1 mt-1 border-t border-border px-2 pb-1">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 openModal('providers');
               }}
-              className="w-full flex items-center justify-center gap-1.5 py-1 text-[#91919a] hover:text-white hover:bg-[#202024] rounded-md transition-colors text-center cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 py-1 text-[#91919a] hover:text-white hover:bg-surface rounded-md transition-colors text-center cursor-pointer"
             >
               <Plus size={14} strokeWidth={1.8} />
               <span>Manage Providers...</span>

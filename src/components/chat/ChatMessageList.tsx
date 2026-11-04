@@ -61,9 +61,9 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
   };
   return (
     <div className="my-2 rounded-lg border border-border overflow-hidden bg-[#0d0d0f]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-[#161618] border-b border-[#242427] text-[11px]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-surface-raised border-b border-border text-[11px]">
         <div className="flex items-center gap-2">
-          <span className="px-1.5 py-0.5 rounded bg-[#242427] text-foreground-muted font-mono uppercase">{lang || 'text'}</span>
+          <span className="px-1.5 py-0.5 rounded bg-surface text-foreground-muted font-mono uppercase">{lang || 'text'}</span>
         </div>
         <button
           type="button"
@@ -78,8 +78,8 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
         <table className="w-full text-[12px] font-mono leading-5">
           <tbody>
             {lines.map((line, idx) => (
-              <tr key={idx} className="hover:bg-[#161618]">
-                <td className="w-10 px-2 text-right text-[#52525a] select-none border-r border-[#202024]">{idx + 1}</td>
+              <tr key={idx} className="hover:bg-surface-raised">
+                <td className="w-10 px-2 text-right text-[#52525a] select-none border-r border-border">{idx + 1}</td>
                 <td className="px-3 whitespace-pre text-foreground">{line || ' '}</td>
               </tr>
             ))}
@@ -123,7 +123,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
             elements.push(<h3 key={`h3-${idx}`} className="text-sm font-semibold text-white mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
           } else if (line.startsWith('## ')) {
             flushList();
-            elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-white mt-4 mb-1.5 border-b border-[#242427] pb-1">{renderInline(line.slice(3))}</h2>);
+            elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-white mt-4 mb-1.5 border-b border-border pb-1">{renderInline(line.slice(3))}</h2>);
           } else if (line.startsWith('# ')) {
             flushList();
             elements.push(<h1 key={`h1-${idx}`} className="text-lg font-bold text-white mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
@@ -216,8 +216,8 @@ export const ChatMessageList: React.FC = () => {
       {messages.map((msg: ChatMessage) => {
         if (msg.role === 'system') {
           return (
-            <div key={msg.id} className="p-3 bg-surface-raised border border-[#26262a] rounded-xl text-xs flex items-start gap-2.5 text-foreground-muted">
-              <Info size={16} strokeWidth={1.8} className="text-[#888891] shrink-0 mt-0.5" />
+            <div key={msg.id} className="p-3 bg-surface-raised border border-border rounded-xl text-xs flex items-start gap-2.5 text-foreground-muted">
+              <Info size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0 mt-0.5" />
               <div className="leading-relaxed flex-1 whitespace-pre-wrap">{msg.content}</div>
             </div>
           );
@@ -228,7 +228,7 @@ export const ChatMessageList: React.FC = () => {
         if (isUser) {
           return (
             <div key={msg.id} className="flex justify-end">
-              <div className="max-w-xl bg-[#242427] text-white rounded-xl px-4 py-2.5 text-xs border border-[#2e2e34] shadow-xs">
+              <div className="max-w-xl bg-surface text-white rounded-xl px-4 py-2.5 text-xs border border-border shadow-xs">
                 <p className="whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-white/10">
@@ -237,7 +237,7 @@ export const ChatMessageList: React.FC = () => {
                         key={att.id}
                         className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-foreground-muted flex items-center gap-1"
                       >
-                        <FileCode size={12} strokeWidth={1.8} className="text-[#888891]" />
+                        <FileCode size={12} strokeWidth={1.8} className="text-foreground-muted" />
                         {att.name}
                       </span>
                     ))}
@@ -255,7 +255,7 @@ export const ChatMessageList: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#1e1e21] border border-border text-[11px] text-foreground">
-                  <Sparkles size={12} strokeWidth={1.8} className="text-[#888891]" />
+                  <Sparkles size={12} strokeWidth={1.8} className="text-foreground-muted" />
                   {msg.model || 'Assistant'}
                 </span>
                 {msg.durationMs ? (
@@ -302,7 +302,7 @@ export const ChatMessageList: React.FC = () => {
                 </summary>
                 <div className="mt-2 space-y-1">
                   {msg.activities.map((step: ActivityStep) => (
-                    <div key={step.id} className="flex items-center gap-2 text-[11px] text-[#9c9ca4]">
+                    <div key={step.id} className="flex items-center gap-2 text-[11px] text-foreground-muted">
                       {step.type === 'file_read' && <FileCode size={12} strokeWidth={1.8} className="text-foreground-muted" />}
                       {step.type === 'file_write' && <FileEdit size={12} strokeWidth={1.8} className="text-foreground-muted" />}
                       <span className="truncate">{step.title}</span>
@@ -315,7 +315,7 @@ export const ChatMessageList: React.FC = () => {
 
             {/* File Modification Proposal Banner */}
             {msg.fileChanges && msg.fileChanges.length > 0 && (
-              <div className="bg-[#1a1a1d] border border-[#2e2e34] rounded-xl p-3 text-xs space-y-2">
+              <div className="bg-surface-raised border border-border rounded-xl p-3 text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Split size={14} strokeWidth={1.8} className="text-amber-400" />
@@ -339,7 +339,7 @@ export const ChatMessageList: React.FC = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {msg.fileChanges.map((fc) => (
-                    <span key={fc.filePath} className="text-[10px] font-mono bg-[#141416] border border-[#242427] px-2 py-0.5 rounded text-[#9c9ca4]">
+                    <span key={fc.filePath} className="text-[10px] font-mono bg-surface border border-border px-2 py-0.5 rounded text-foreground-muted">
                       {fc.action} {fc.filePath.split('\\').pop()} <span className="text-emerald-400">+{fc.additions}</span> <span className="text-red-400">-{fc.deletions}</span>
                     </span>
                   ))}

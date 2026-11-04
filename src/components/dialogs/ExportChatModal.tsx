@@ -138,18 +138,18 @@ export const ExportChatModal: React.FC = () => {
     >
       <div className="space-y-3.5 text-xs">
         <div>
-          <label className="block text-[#a1a1aa] font-medium mb-1">Format</label>
+          <label className="block text-foreground-muted font-medium mb-1">Format</label>
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setFormat('markdown')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'markdown'
-                  ? 'bg-[#242428] text-white border-zinc-500 font-medium'
-                  : 'bg-[#141416] text-[#888891] border-[#242428] hover:text-white'
+                  ? 'bg-surface text-white border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-white'
               }`}
             >
-              <FileText size={14} strokeWidth={1.8} className="text-[#888891]" />
+              <FileText size={14} strokeWidth={1.8} className="text-foreground-muted" />
               <span>Markdown</span>
             </button>
 
@@ -158,11 +158,11 @@ export const ExportChatModal: React.FC = () => {
               onClick={() => setFormat('json')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'json'
-                  ? 'bg-[#242428] text-white border-zinc-500 font-medium'
-                  : 'bg-[#141416] text-[#888891] border-[#242428] hover:text-white'
+                  ? 'bg-surface text-white border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-white'
               }`}
             >
-              <Code size={14} strokeWidth={1.8} className="text-[#888891]" />
+              <Code size={14} strokeWidth={1.8} className="text-foreground-muted" />
               <span>JSON</span>
             </button>
 
@@ -171,29 +171,29 @@ export const ExportChatModal: React.FC = () => {
               onClick={() => setFormat('html')}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                 format === 'html'
-                  ? 'bg-[#242428] text-white border-zinc-500 font-medium'
-                  : 'bg-[#141416] text-[#888891] border-[#242428] hover:text-white'
+                  ? 'bg-surface text-white border-zinc-500 font-medium'
+                  : 'bg-surface text-foreground-muted border-border hover:text-white'
               }`}
             >
-              <Globe size={14} strokeWidth={1.8} className="text-[#888891]" />
+              <Globe size={14} strokeWidth={1.8} className="text-foreground-muted" />
               <span>HTML</span>
             </button>
           </div>
         </div>
 
         <div>
-          <label className="block text-[#a1a1aa] font-medium mb-1">Preview</label>
-          <pre className="p-2.5 bg-[#121214] border border-[#242428] rounded-md text-[11px] font-mono text-[#9c9ca4] max-h-32 overflow-y-auto custom-scrollbar select-text">
+          <label className="block text-foreground-muted font-medium mb-1">Preview</label>
+          <pre className="p-2.5 bg-surface border border-border rounded-md text-[11px] font-mono text-foreground-muted max-h-32 overflow-y-auto custom-scrollbar select-text">
             {content.slice(0, 400) + (content.length > 400 ? '\n...' : '')}
           </pre>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-[#242427]">
+        <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-border">
           <button
             type="button"
             onClick={handleCopy}
             disabled={!hasMessages}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#202024] hover:bg-[#28282d] text-white rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-[#28282d] text-white rounded-md transition-colors cursor-pointer text-xs disabled:opacity-40"
           >
             {copied ? <Check size={14} strokeWidth={2} className="text-emerald-400" /> : <Copy size={14} strokeWidth={1.8} />}
             <span>{copied ? 'Copied' : 'Copy'}</span>

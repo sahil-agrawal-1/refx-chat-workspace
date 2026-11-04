@@ -37,7 +37,7 @@ export const OnboardingModal: React.FC = () => {
     >
       <div className="space-y-4 text-xs">
         {/* Step Indicator */}
-        <div className="flex items-center justify-between border-b border-[#242427] pb-2 text-xs">
+        <div className="flex items-center justify-between border-b border-border pb-2 text-xs">
           {[
             { num: 1, label: 'Provider' },
             { num: 2, label: 'Workspace' },
@@ -59,7 +59,7 @@ export const OnboardingModal: React.FC = () => {
                     ? 'bg-white text-black font-bold'
                     : step > s.num
                     ? 'bg-zinc-700 text-white'
-                    : 'bg-[#202024] text-[#606068]'
+                    : 'bg-surface text-[#606068]'
                 }`}
               >
                 {step > s.num ? '✓' : s.num}
@@ -73,7 +73,7 @@ export const OnboardingModal: React.FC = () => {
         {step === 1 && (
           <div className="space-y-2.5">
             <h3 className="text-xs font-medium text-white">Select Primary Model Provider</h3>
-            <p className="text-[#888891] text-[11px] leading-relaxed">
+            <p className="text-foreground-muted text-[11px] leading-relaxed">
               Connect to an offline local runtime (Ollama, LM Studio) or configure a cloud API provider.
             </p>
 
@@ -90,15 +90,15 @@ export const OnboardingModal: React.FC = () => {
                     }}
                     className={`p-2.5 rounded-lg border cursor-pointer transition-colors ${
                       isSelected
-                        ? 'bg-[#242428] border-zinc-500 text-white'
-                        : 'bg-[#141416] border-[#242428] text-[#888891] hover:text-white'
+                        ? 'bg-surface border-zinc-500 text-white'
+                        : 'bg-surface border-border text-foreground-muted hover:text-white'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-0.5">
                       <span className="font-medium text-xs text-white">{p.name}</span>
                       {isSelected && <Check size={12} strokeWidth={2} className="text-zinc-200" />}
                     </div>
-                    <div className="text-[10px] text-[#71717a] font-mono">
+                    <div className="text-[10px] text-foreground-muted font-mono">
                       {p.isLocal ? 'Local Runtime' : 'API Key'}
                     </div>
                   </div>
@@ -112,14 +112,14 @@ export const OnboardingModal: React.FC = () => {
         {step === 2 && (
           <div className="space-y-2.5">
             <h3 className="text-xs font-medium text-white">Workspace Directory</h3>
-            <p className="text-[#888891] text-[11px] leading-relaxed">
+            <p className="text-foreground-muted text-[11px] leading-relaxed">
               All file modifications and terminal commands are scoped to this directory.
             </p>
 
-            <div className="p-3 bg-[#141416] border border-[#242428] rounded-lg space-y-2">
+            <div className="p-3 bg-surface border border-border rounded-lg space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 truncate pr-2">
-                  <Folder size={16} strokeWidth={1.8} className="text-[#888891] shrink-0" />
+                  <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
                   <span className="font-mono text-white text-xs truncate">
                     {selectedWorkspace ? selectedWorkspace.path : 'No folder selected'}
                   </span>
@@ -127,7 +127,7 @@ export const OnboardingModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={openWorkspaceDialog}
-                  className="px-2.5 py-1 bg-[#202024] hover:bg-[#28282d] text-white rounded text-xs transition-colors cursor-pointer border border-[#2f2f35] shrink-0"
+                  className="px-2.5 py-1 bg-surface hover:bg-[#28282d] text-white rounded text-xs transition-colors cursor-pointer border border-border shrink-0"
                 >
                   Browse...
                 </button>
@@ -140,15 +140,15 @@ export const OnboardingModal: React.FC = () => {
         {step === 3 && (
           <div className="space-y-2.5">
             <h3 className="text-xs font-medium text-white">Memory Configuration</h3>
-            <p className="text-[#888891] text-[11px] leading-relaxed">
+            <p className="text-foreground-muted text-[11px] leading-relaxed">
               Save key context instructions into local Task Memory by default during conversations.
             </p>
 
-            <div className="p-3 bg-[#141416] border border-[#242428] rounded-lg">
+            <div className="p-3 bg-surface border border-border rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-medium text-white text-xs">Default Save Memory</span>
-                  <p className="text-[11px] text-[#71717a] mt-0.5">Captures requirements from prompt submissions.</p>
+                  <p className="text-[11px] text-foreground-muted mt-0.5">Captures requirements from prompt submissions.</p>
                 </div>
                 <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
               </div>
@@ -157,12 +157,12 @@ export const OnboardingModal: React.FC = () => {
         )}
 
         {/* Bottom Navigation */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-[#242427]">
+        <div className="flex items-center justify-between pt-2.5 border-t border-border">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="flex items-center gap-1 px-2.5 py-1 text-[#888891] hover:text-white transition-colors cursor-pointer text-xs"
+              className="flex items-center gap-1 px-2.5 py-1 text-foreground-muted hover:text-white transition-colors cursor-pointer text-xs"
             >
               <ChevronLeft size={14} strokeWidth={1.8} />
               <span>Back</span>

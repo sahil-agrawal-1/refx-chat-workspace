@@ -33,7 +33,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className={`w-full ${maxWidth} bg-[#1b1b1e] border border-[#2d2d32] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-[#e4e4e7]`}
+        className={`w-full ${maxWidth} bg-surface-input border border-[#2d2d32] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-foreground`}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2f]">

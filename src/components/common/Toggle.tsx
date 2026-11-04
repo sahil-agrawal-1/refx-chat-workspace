@@ -10,7 +10,7 @@ interface ToggleProps {
 export const Toggle: React.FC<ToggleProps> = ({ checked, onChange, label, disabled = false }) => {
   return (
     <label className={`inline-flex items-center gap-2 cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-      {label && <span className="text-xs text-[#9c9ca4]">{label}</span>}
+      {label && <span className="text-xs text-foreground-muted">{label}</span>}
       <button
         type="button"
         role="switch"
