@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Terminal,
   FileCode,
@@ -147,8 +147,27 @@ export const ChatMessageList: React.FC = () => {
   const { currentConversation, isGenerating, setActiveDiffFile, toggleBottomPanel, sendMessage, addTaskMemory } = useAppStore();
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedActivities, setExpandedActivities] = useState<Record<string, boolean>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScroll = useRef(true);
 
   const messages = currentConversation?.messages || [];
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      shouldAutoScroll.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    el.addEventListener('scroll', onScroll);
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el && shouldAutoScroll.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, isGenerating]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -193,7 +212,7 @@ export const ChatMessageList: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 max-w-3xl mx-auto w-full [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+    <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-5 max-w-3xl mx-auto w-full [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
       {messages.map((msg: ChatMessage) => {
         if (msg.role === 'system') {
           return (
