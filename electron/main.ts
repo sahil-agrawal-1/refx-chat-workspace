@@ -18,6 +18,7 @@ import type {
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
 import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
 
 import OpenAI from 'openai';
@@ -227,32 +228,20 @@ const isDev = !app.isPackaged && (process.env.NODE_ENV === 'development' || !pro
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
 
 const MAX_FILE_SIZE_BYTES = 1024 * 1024; // 1 MB
-const EXCLUDED_NAMES = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  '.nuxt',
-  'coverage',
-  '.cache',
-  '.turbo',
-  'out',
-  'release',
-]);
-const EXCLUDED_EXTENSIONS = new Set(['.pem', '.key', '.p12', '.pfx', '.crt', '.cer']);
-
 function isExcludedRelative(relativePath: string): boolean {
-  if (!relativePath || relativePath === '.') return false;
-  const segments = relativePath.split(path.sep);
-  for (const seg of segments) {
-    const lower = seg.toLowerCase();
-    if (EXCLUDED_NAMES.has(lower)) return true;
-    if (lower.startsWith('.env')) return true;
-    const ext = path.extname(lower);
-    if (EXCLUDED_EXTENSIONS.has(ext)) return true;
+  return isExcludedRelativeShared(relativePath);
+}
+
+function isWithinRoot(candidate: string): boolean {
+  try {
+    return isWithinRootShared(candidate, ensureWorkspaceRoot());
+  } catch {
+    return false;
   }
-  return false;
+}
+
+function resolveWithinWorkspace(inputPath: string, allowMissing = false): string {
+  return resolveWithinWorkspaceShared(inputPath, ensureWorkspaceRoot(), { allowMissing });
 }
 
 function ensureWorkspaceRoot(): string {
@@ -271,42 +260,6 @@ function ensureWorkspaceRoot(): string {
     throw new Error('No workspace selected.');
   }
   return authorizedWorkspaceRoot;
-}
-
-function resolveWithinWorkspace(inputPath: string, allowMissing = false): string {
-  const root = ensureWorkspaceRoot();
-  if (!inputPath || !inputPath.trim()) {
-    return root;
-  }
-  const trimmed = inputPath.trim();
-  let resolved: string;
-  // If it's a full Windows drive path (e.g. C:\... or E:\...)
-  if (/^[a-zA-Z]:[/\\]/.test(trimmed)) {
-    resolved = path.resolve(trimmed);
-  } else {
-    // Strip leading slashes to prevent resolving to drive root
-    const cleanRel = trimmed.replace(/^[/\\]+/, '');
-    resolved = path.resolve(root, cleanRel);
-  }
-  let real = resolved;
-  if (fs.existsSync(resolved)) {
-    real = fs.realpathSync(resolved);
-  } else if (!allowMissing) {
-    throw new Error('Path does not exist.');
-  }
-  if (real !== root && !real.startsWith(root + path.sep)) {
-    throw new Error('Path is outside the selected workspace.');
-  }
-  const relative = path.relative(root, real);
-  if (isExcludedRelative(relative)) {
-    throw new Error('Path is excluded by workspace security policy.');
-  }
-  return real;
-}
-
-function isWithinRoot(candidate: string): boolean {
-  const root = ensureWorkspaceRoot();
-  return candidate === root || candidate.startsWith(root + path.sep);
 }
 
 function proposeFileChange(request: any): any {
@@ -950,9 +903,6 @@ function registerIpcHandlers(): void {
   // Filesystem IPC handlers (P5-A read-only)
   ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_WORKSPACE_INFO, async (_event, workspacePath: string) => {
     try {
-      if (!authorizedWorkspaceRoot && workspacePath && fs.existsSync(workspacePath) && fs.statSync(workspacePath).isDirectory()) {
-        authorizedWorkspaceRoot = fs.realpathSync(workspacePath);
-      }
       const root = ensureWorkspaceRoot();
       const infoPath = workspacePath ? resolveWithinWorkspace(workspacePath) : root;
       const stat = fs.statSync(infoPath);
@@ -969,9 +919,6 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_DIRECTORY, async (_event, dirPath: string) => {
     try {
-      if (!authorizedWorkspaceRoot && dirPath && fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
-        authorizedWorkspaceRoot = fs.realpathSync(dirPath);
-      }
       const resolved = resolveWithinWorkspace(dirPath);
       const stat = fs.statSync(resolved);
       if (!stat.isDirectory()) throw new Error('Not a directory.');
@@ -981,14 +928,12 @@ function registerIpcHandlers(): void {
         const fullPath = path.join(resolved, entry.name);
         const rel = path.relative(ensureWorkspaceRoot(), fullPath);
         if (isExcludedRelative(rel)) continue;
-        // Symlink/junction escape protection
-        if (entry.isSymbolicLink()) {
-          try {
-            const real = fs.realpathSync(fullPath);
-            if (!isWithinRoot(real)) continue;
-          } catch {
-            continue;
-          }
+        // Symlink/junction/reparse-point escape protection
+        try {
+          const real = fs.realpathSync(fullPath);
+          if (!isWithinRoot(real)) continue;
+        } catch {
+          continue;
         }
         try {
           const st = fs.statSync(fullPath);
@@ -1040,12 +985,10 @@ function registerIpcHandlers(): void {
         const fullPath = path.join(dir, entry.name);
         const rel = path.relative(root, fullPath);
         if (isExcludedRelative(rel)) continue;
-        if (entry.isSymbolicLink()) {
-          try {
-            if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
-          } catch {
-            continue;
-          }
+        try {
+          if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
+        } catch {
+          continue;
         }
         if (entry.isDirectory()) {
           walk(fullPath, depth + 1);
@@ -1076,21 +1019,19 @@ function registerIpcHandlers(): void {
         const fullPath = path.join(dir, entry.name);
         const rel = path.relative(root, fullPath);
         if (isExcludedRelative(rel)) continue;
-        if (entry.isSymbolicLink()) {
-          try {
-            if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
-          } catch {
-            continue;
-          }
+        try {
+          if (!isWithinRoot(fs.realpathSync(fullPath))) continue;
+        } catch {
+          continue;
         }
         if (entry.isDirectory()) {
           walk(fullPath, depth + 1);
         } else {
           try {
             const st = fs.statSync(fullPath);
-            if (st.size > MAX_FILE_SIZE_BYTES) return;
+            if (st.size > MAX_FILE_SIZE_BYTES) continue;
             const buf = fs.readFileSync(fullPath);
-            if (buf.includes(0)) return;
+            if (buf.includes(0)) continue;
             const content = buf.toString('utf8');
             const lines = content.split(/\r?\n/);
             lines.forEach((line, idx) => {
