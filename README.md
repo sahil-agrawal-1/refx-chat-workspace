@@ -256,6 +256,8 @@ MIT
 | 11/4/2026 | Phase 5-7: Tool argument fix, OpenRouter tools, Gemini/Anthropic tools, directory listing, system prompt, feedback | Refx (AI coding agent) |
 | 11/4/2026 | Security CI scanner hardening | Refx (AI coding agent) |
 | 11/4/2026 | Splash screen with fade transition | Refx (AI coding agent) |
+| 11/4/2026 | Terminal xterm.js integration and header refactor | Refx (AI coding agent) |
+| 11/4/2026 | Slash commands, attach files, and auto-scroll | Refx (AI coding agent) |
 | 11/4/2026 | Phases 1-3: Gemini resilience, chat history sanitization, provider parity | Refx (AI coding agent) |
 | 11/4/2026 | Phase 4: Diff IDs, SQLite memory, file viewer, CI scanner | Refx (AI coding agent) |
 | 11/4/2026 | P5-P6: Tool calling, path fixes, feedback, P6-A/P6-B terminal, effort/approval controls | Refx (AI coding agent) |
