@@ -2620,12 +2620,24 @@ async function startProviderChatWithTools(
         if (!tc.id) {
           tc.id = `call_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         }
-        let args: any = {};
-        try {
-          args = JSON.parse(tc?.function?.arguments || '{}');
-        } catch {
-          args = {};
-        }
+         let args: any = {};
+         const rawArgs = tc?.function?.arguments;
+         if (rawArgs && typeof rawArgs === 'object') {
+           args = { ...rawArgs };
+         } else if (typeof rawArgs === 'string' && rawArgs.trim()) {
+           try {
+             args = JSON.parse(rawArgs);
+           } catch {
+             args = {};
+           }
+         }
+         if (args && typeof args === 'object') {
+           for (const key of ['path', 'newPath', 'query']) {
+             if (typeof args[key] === 'string') {
+               args[key] = args[key].trim().replace(/\\/g, '/').replace(/\/+/g, '/');
+             }
+           }
+         }
 
         if (name === 'create_file') {
           toolActions.push(`*Proposed creating file:* \`${args?.path || 'new file'}\``);
