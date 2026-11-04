@@ -2782,6 +2782,11 @@ async function executeWorkspaceTool(name: string, args: any, sender: Electron.We
       case 'run_terminal_command': {
         return await executeTerminalTool(args, sender, requestId, approvalMode);
       }
+
+      case 'search_memory': {
+        const results = memory.searchMemories(args?.query || '', args?.category);
+        return JSON.stringify(results);
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -2937,6 +2942,21 @@ const WORKSPACE_TOOLS_OPENAI = [
           interactive: { type: 'boolean', description: 'Run in interactive terminal (TUI/server).' },
         },
         required: ['command'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_memory',
+      description: 'Search stored user preferences, coding conventions, project requirements, and past learnings from the memory manager.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query.' },
+          category: { type: 'string', description: 'Optional category filter.' },
+        },
+        required: ['query'],
       },
     },
   },

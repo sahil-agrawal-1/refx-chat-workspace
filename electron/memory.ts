@@ -224,6 +224,38 @@ export function getAppMemories(): any[] {
   }
 }
 
+export function searchMemories(query: string, category?: string): any[] {
+  const q = String(query || '').toLowerCase();
+  const results: any[] = [];
+  // app memories
+  for (const m of getAppMemories()) {
+    if (category && m.category !== category) continue;
+    const hay = `${m.title || ''} ${m.summary || ''} ${m.details || ''}`.toLowerCase();
+    if (!q || hay.includes(q)) results.push({ scope: 'app', ...m });
+  }
+  // task memories
+  const root = memoryRoot();
+  const tasksPath = path.join(root, 'tasks');
+  if (fs.existsSync(tasksPath)) {
+    for (const dir of fs.readdirSync(tasksPath)) {
+      const metaPath = path.join(tasksPath, dir, 'metadata.json');
+      if (!fs.existsSync(metaPath)) continue;
+      try {
+        const entries = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        if (!Array.isArray(entries)) continue;
+        for (const e of entries) {
+          if (category && e.category !== category) continue;
+          const hay = `${e.title || ''} ${e.content || ''}`.toLowerCase();
+          if (!q || hay.includes(q)) results.push({ scope: 'task', taskId: e.taskId, ...e });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return results.slice(0, 20);
+}
+
 export function saveAppMemory(entry: any): any {
   const entries = getAppMemories();
   const now = Date.now();
