@@ -1,6 +1,12 @@
 {
   "name": "refx",
   "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "node-pty"
+    ]
+  },
   "version": "1.0.0",
   "description": "REFX - Local-first Windows AI desktop application",
   "main": "dist-electron/main.js",
@@ -11,7 +17,7 @@
     "preview": "vite preview",
     "clean": "node -e \"const fs = require('fs'); ['dist', 'dist-electron', 'release'].forEach(d => fs.rmSync(d, { recursive: true, force: true }));\"",
     "lint": "tsc --noEmit",
-    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-electron/main.js --external:electron --external:better-sqlite3 --external:@google/genai --external:google-auth-library && esbuild electron/preload.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist-electron/preload.cjs --external:electron",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist-electron/main.js --external:electron --external:better-sqlite3 --external:@google/genai --external:google-auth-library --external:node-pty && esbuild electron/preload.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist-electron/preload.cjs --external:electron",
     "build:all": "npm run build && npm run build:electron",
     "electron:dev": "concurrently -k -s first \"npm run dev\" \"wait-on tcp:3000 && npm run build:electron && electron .\"",
     "electron:start": "npm run build:electron && electron .",
@@ -27,6 +33,7 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "node-pty": "^1.1.0",
     "openai": "^7.47.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",

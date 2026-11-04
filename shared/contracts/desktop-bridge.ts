@@ -201,6 +201,7 @@ export interface IFileSystemBridge {
 export interface ITerminalBridge {
   createSession(shell?: string, cwd?: string): Promise<TerminalSessionInfo>;
   sendInput(sessionId: string, input: string): Promise<void>;
+  resize(sessionId: string, cols: number, rows: number): Promise<void>;
   killSession(sessionId: string): Promise<void>;
   onOutput(sessionId: string, callback: (data: string) => void): () => void;
 }
@@ -387,6 +388,16 @@ export const CREDENTIAL_IPC_CHANNELS = {
   MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
 } as const;
 
+export const TERMINAL_IPC_CHANNELS = {
+  CREATE: 'desktop:termCreate',
+  WRITE: 'desktop:termWrite',
+  RESIZE: 'desktop:termResize',
+  KILL: 'desktop:termKill',
+  LIST: 'desktop:termList',
+  OUTPUT: 'desktop:termOutput',
+  EXIT: 'desktop:termExit',
+} as const;
+
 export const MEMORY_IPC_CHANNELS = {
   GET_CONFIG: 'desktop:memGetConfig',
   UPDATE_CONFIG: 'desktop:memUpdateConfig',
@@ -442,6 +453,9 @@ export interface IDesktopAPI {
 
   // Memory bridge (Electron main process SQLite)
   memory: IMemoryBridge;
+
+  // Terminal bridge (Electron main process PTY)
+  terminal: ITerminalBridge;
 
   // Secure credential management (credentials never returned to renderer)
   saveCredential(providerId: string, apiKey: string): Promise<boolean>;

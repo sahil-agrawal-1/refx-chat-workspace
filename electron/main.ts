@@ -17,7 +17,8 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import * as pty from 'node-pty';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
 
@@ -57,6 +58,15 @@ const CREDENTIALS_FILE = path.join(app.getPath('userData'), 'provider-credential
 
 // Authorized workspace root for filesystem containment (resolved realpath).
 let authorizedWorkspaceRoot: string | null = null;
+
+interface TerminalSession {
+  id: string;
+  name: string;
+  shell: string;
+  cwd: string;
+  process: any;
+}
+const terminalSessions = new Map<string, TerminalSession>();
 
 interface PendingFileChange {
   id: string;
@@ -1105,6 +1115,82 @@ function registerIpcHandlers(): void {
   ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => db.saveAppMemory(entry));
   ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => db.deleteAppMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => db.clearAppMemories());
+
+  // Terminal IPC handlers
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.CREATE, async (event, shell?: string, cwd?: string) => {
+    const id = `term-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const shellName = shell || 'powershell.exe';
+    const workDir = cwd && fs.existsSync(cwd) ? cwd : (authorizedWorkspaceRoot || process.cwd());
+    const name = shellName === 'powershell.exe' ? 'PowerShell' : shellName === 'cmd.exe' ? 'Command Prompt' : 'Bash';
+    const proc = pty.spawn(shellName, [], {
+      name: 'xterm-color',
+      cols: 120,
+      rows: 30,
+      cwd: workDir,
+      env: process.env as any,
+    });
+    const session: TerminalSession = { id, name, shell: shellName, cwd: workDir, process: proc };
+    terminalSessions.set(id, session);
+
+    proc.onData((data: string) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(TERMINAL_IPC_CHANNELS.OUTPUT, { sessionId: id, data });
+      }
+    });
+    proc.onExit(({ exitCode }: { exitCode: number }) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(TERMINAL_IPC_CHANNELS.EXIT, { sessionId: id, exitCode });
+      }
+    });
+
+    return { id, name, shell: shellName, cwd: workDir, isRunning: true, exitCode: null, history: [] };
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.WRITE, async (_event, sessionId: string, input: string) => {
+    const session = terminalSessions.get(sessionId);
+    if (!session) return false;
+    try {
+      session.process.write(input + '\r');
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.RESIZE, async (_event, sessionId: string, cols: number, rows: number) => {
+    const session = terminalSessions.get(sessionId);
+    if (!session) return false;
+    try {
+      session.process.resize(cols, rows);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.KILL, async (_event, sessionId: string) => {
+    const session = terminalSessions.get(sessionId);
+    if (!session) return false;
+    try {
+      session.process.kill();
+    } catch {
+      // ignore
+    }
+    terminalSessions.delete(sessionId);
+    return true;
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.LIST, async () => {
+    return Array.from(terminalSessions.values()).map((s) => ({
+      id: s.id,
+      name: s.name,
+      shell: s.shell,
+      cwd: s.cwd,
+      isRunning: true,
+      exitCode: null,
+      history: [],
+    }));
+  });
 }
 
 /**
@@ -2365,6 +2451,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  for (const session of terminalSessions.values()) {
+    try { session.process.kill(); } catch { /* ignore */ }
+  }
+  terminalSessions.clear();
   db.closeDatabase();
 });
 async function executeWorkspaceTool(name: string, args: any): Promise<string> {

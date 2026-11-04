@@ -282,7 +282,14 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     },
   };
 
-  public terminal: ITerminalBridge = {
+  public get terminal(): ITerminalBridge {
+    if (typeof window !== 'undefined' && (window as any).desktop?.terminal) {
+      return (window as any).desktop.terminal as ITerminalBridge;
+    }
+    return this.previewTerminal;
+  }
+
+  private previewTerminal: ITerminalBridge = {
     createSession: async (shell = 'powershell.exe', cwd = ''): Promise<TerminalSessionInfo> => {
       const sessionId = 'term-' + Math.random().toString(36).substring(2, 9);
       const session: TerminalSessionInfo = {
@@ -296,6 +303,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       };
       return session;
     },
+    resize: async (_sessionId: string, _cols: number, _rows: number): Promise<void> => {},
     sendInput: async (sessionId: string, input: string): Promise<void> => {
       const callbacks = this.terminalOutputs.get(sessionId) || [];
       const trimmed = input.trim();

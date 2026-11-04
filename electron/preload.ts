@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -46,6 +46,7 @@ const CREDENTIAL_CHANNELS = {
 const DB_CHANNELS = DATABASE_IPC_CHANNELS;
 const FS_CHANNELS = FILESYSTEM_IPC_CHANNELS;
 const MEM_CHANNELS = MEMORY_IPC_CHANNELS;
+const TERM_CHANNELS = TERMINAL_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -114,6 +115,19 @@ const desktopAPI: IDesktopAPI = {
     return () => {
       ipcRenderer.removeListener(MODEL_CHANNELS.PROVIDER_STREAM, listener);
     };
+  },
+  terminal: {
+    createSession: (shell?: string, cwd?: string) => ipcRenderer.invoke(TERM_CHANNELS.CREATE, shell, cwd),
+    sendInput: (sessionId: string, input: string) => ipcRenderer.invoke(TERM_CHANNELS.WRITE, sessionId, input),
+    resize: (sessionId: string, cols: number, rows: number) => ipcRenderer.invoke(TERM_CHANNELS.RESIZE, sessionId, cols, rows),
+    killSession: (sessionId: string) => ipcRenderer.invoke(TERM_CHANNELS.KILL, sessionId),
+    onOutput: (sessionId: string, callback: (data: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: { sessionId: string; data: string }) => {
+        if (payload.sessionId === sessionId) callback(payload.data);
+      };
+      ipcRenderer.on(TERM_CHANNELS.OUTPUT, listener);
+      return () => ipcRenderer.removeListener(TERM_CHANNELS.OUTPUT, listener);
+    },
   },
   memory: {
     getMemoryConfig: () => ipcRenderer.invoke(MEM_CHANNELS.GET_CONFIG),
