@@ -1239,7 +1239,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const stopWords = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','is','it','this','that','these','those']);
           const keywords = text.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !stopWords.has(w));
           const sensitiveRe = /api[_ -]?key|password|token|secret|private key|credential/i;
-          let appMems = memoryConfig.autoMemoryEnabled ? [...appMemories] : [];
+          const includeAppMemory = saveMemoryActive || settings.memoryInjectionEnabled !== false;
+          let appMems = includeAppMemory ? [...appMemories].filter((m) => m.enabled !== false) : [];
           let taskMems: any[] = [];
           if (targetConvId) {
             try { taskMems = await desktopBridge.memory.getTaskMemories(targetConvId); } catch { taskMems = []; }
