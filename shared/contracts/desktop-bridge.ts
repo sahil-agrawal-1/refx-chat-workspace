@@ -431,6 +431,7 @@ export const FILESYSTEM_IPC_CHANNELS = {
 
 export const SYSTEM_IPC_CHANNELS = {
   CHECK_REMOTE_DEBUGGING: 'desktop:checkRemoteDebugging',
+  OPEN_REMOTE_DEBUGGING: 'desktop:openRemoteDebugging',
 } as const;
 
 export const CREDENTIAL_IPC_CHANNELS = {
@@ -533,6 +534,7 @@ export interface IDesktopAPI {
 
   // System helpers
   checkRemoteDebugging(): Promise<boolean>;
+  openRemoteDebugging(): Promise<void>;
 
   // Trash/backup bin bridge
   trash: ITrashBridge;

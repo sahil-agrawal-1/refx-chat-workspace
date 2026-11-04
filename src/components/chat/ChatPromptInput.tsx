@@ -743,7 +743,13 @@ export const ChatPromptInput: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => { window.open('chrome://inspect/#remote-debugging', '_blank'); }}
+              onClick={async () => {
+                if (typeof window !== 'undefined' && (window as any).desktop?.openRemoteDebugging) {
+                  await (window as any).desktop.openRemoteDebugging();
+                } else {
+                  window.open('chrome://inspect/#remote-debugging', '_blank');
+                }
+              }}
               className="px-3 py-1.5 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
             >
               Enable

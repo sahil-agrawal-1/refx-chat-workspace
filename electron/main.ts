@@ -1440,6 +1440,14 @@ function registerIpcHandlers(): void {
       return false;
     }
   });
+
+  ipcMain.handle(SYSTEM_IPC_CHANNELS.OPEN_REMOTE_DEBUGGING, async () => {
+    try {
+      await shell.openExternal('chrome://inspect/#remote-debugging');
+    } catch {
+      // ignore
+    }
+  });
 }
 
 /**

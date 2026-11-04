@@ -186,6 +186,7 @@ const desktopAPI: IDesktopAPI = {
     purgeExpired: () => ipcRenderer.invoke(TRASH_CHANNELS.PURGE_EXPIRED),
   },
   checkRemoteDebugging: () => ipcRenderer.invoke(SYS_CHANNELS.CHECK_REMOTE_DEBUGGING),
+  openRemoteDebugging: () => ipcRenderer.invoke(SYS_CHANNELS.OPEN_REMOTE_DEBUGGING),
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),
     getConversations: () => ipcRenderer.invoke(DB_CHANNELS.GET_CONVERSATIONS),
