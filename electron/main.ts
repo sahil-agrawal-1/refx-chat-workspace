@@ -2266,7 +2266,7 @@ async function startProviderChatGemini(
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
             requestId: request.requestId,
             type: 'activity',
-            activities: [{ id: activityId, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: `${name === 'read_file' ? 'Reading' : name === 'list_directory' ? 'Listing' : 'Running'} ${args?.path || args?.query || ''}`.trim(), detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'running' }],
+            activities: [{ id: activityId, type: name === 'web_search' ? 'web_search' : name === 'browse_url' ? 'web_browse' : (name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write'), title: name === 'web_search' ? 'Web Search' : name === 'browse_url' ? 'Browsing Page' : (name === 'read_file' ? 'Reading' : name === 'list_directory' ? 'Listing' : 'Running'), detail: name === 'web_search' ? `Searching for: ${args?.query || ''}` : name === 'browse_url' ? (args?.url || '') : (args?.path || args?.query || ''), timestamp: Date.now(), status: 'running' }],
           });
         }
         const cleanName = (name || '').replace(/^default_api:/, '');
@@ -3275,7 +3275,7 @@ async function startProviderChatWithTools(
         }
 
         const result = await executeWorkspaceTool(name || '', args, sender, request.requestId, request.approvalMode || 'ask');
-        activities.push({ id: `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: name || 'tool', detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'completed', outputPreview: String(result).slice(0, 500) });
+        activities.push({ id: `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: name === 'web_search' ? 'web_search' : name === 'browse_url' ? 'web_browse' : (name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write'), title: name === 'web_search' ? 'Web Search' : name === 'browse_url' ? 'Browsing Page' : (name || 'tool'), detail: name === 'web_search' ? `Searching for: ${args?.query || ''}` : name === 'browse_url' ? (args?.url || '') : (args?.path || args?.query || ''), timestamp: Date.now(), status: 'completed', outputPreview: String(result).slice(0, 500) });
         messages.push({
           role: 'tool',
           tool_call_id: tc.id,

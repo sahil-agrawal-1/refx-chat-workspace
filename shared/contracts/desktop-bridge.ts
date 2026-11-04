@@ -377,7 +377,7 @@ export interface ModelStreamEvent {
   error?: string;
   activities?: Array<{
     id: string;
-    type: 'thinking' | 'file_read' | 'file_write' | 'terminal_run' | 'plan' | 'completed' | 'error';
+    type: 'thinking' | 'file_read' | 'file_write' | 'terminal_run' | 'plan' | 'completed' | 'error' | 'web_search' | 'web_browse';
     title: string;
     detail?: string;
     timestamp: number;
