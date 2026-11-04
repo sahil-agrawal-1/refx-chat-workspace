@@ -1848,15 +1848,14 @@ async function startProviderChatGemini(
     let fullText = '';
 
     try {
-    // Format contents for Gemini SDK: role 'user'/'model', merge adjacent same roles.
     const systemParts: string[] = [];
-    const formatted: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    const formatted: Array<{ role: string; parts: any[] }> = [];
     for (const m of request.messages) {
       if (m.role === 'system') {
         systemParts.push(m.content);
         continue;
       }
-      const role: 'user' | 'model' = m.role === 'assistant' ? 'model' : 'user';
+      const role = m.role === 'assistant' ? 'model' : 'user';
       const last = formatted[formatted.length - 1];
       if (last && last.role === role) {
         last.parts.push({ text: m.content });
@@ -1865,39 +1864,59 @@ async function startProviderChatGemini(
       }
     }
 
+    const geminiTools = [
+      {
+        functionDeclarations: WORKSPACE_TOOLS_OPENAI.map((t: any) => ({
+          name: t.function.name,
+          description: t.function.description,
+          parameters: t.function.parameters,
+        })),
+      },
+    ];
+
     const ai = new GoogleGenAI({ apiKey });
 
     const runOnce = async () => {
-      const response = await ai.models.generateContentStream({
-        model: request.model,
-        contents: formatted,
-        config: {
-          systemInstruction: systemParts.length ? { parts: [{ text: systemParts.join('\n\n') }] } : undefined,
-          temperature: request.temperature,
-          maxOutputTokens: request.maxTokens,
-        },
-      });
-      for await (const chunk of response) {
-        if (abortController.signal.aborted) break;
-        const delta = chunk.text || '';
-        if (delta) {
-          fullText += delta;
-          if (!sender.isDestroyed()) {
-            sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-              requestId: request.requestId,
-              type: 'chunk',
-              delta,
-              fullText,
-            });
-          }
+      let finalText = '';
+      for (let i = 0; i < 5; i++) {
+        const response = await ai.models.generateContent({
+          model: request.model,
+          contents: formatted as any,
+          config: {
+            systemInstruction: systemParts.length ? { parts: [{ text: systemParts.join('\n\n') }] } : undefined,
+            temperature: request.temperature,
+            maxOutputTokens: request.maxTokens,
+            tools: geminiTools,
+          },
+        });
+
+        const candidate = response?.candidates?.[0];
+        const parts = candidate?.content?.parts || [];
+        const functionCallPart = parts.find((p: any) => p.functionCall);
+
+        if (!functionCallPart) {
+          finalText = response?.text || parts.map((p: any) => p.text || '').join('') || '';
+          break;
         }
+
+        const fc = functionCallPart.functionCall;
+        const name = fc?.name;
+        const args = fc?.args || {};
+        formatted.push({ role: 'model', parts: [{ functionCall: fc }] });
+        const result = await executeWorkspaceTool(name || '', args);
+        formatted.push({
+          role: 'function',
+          parts: [{ functionResponse: { name, response: { result } } }],
+        });
       }
+      return finalText;
     };
 
     let lastError: any = null;
     for (let attempt = 0; attempt <= 3; attempt++) {
       try {
-        await runOnce();
+        const text = await runOnce();
+        fullText = text;
         lastError = null;
         break;
       } catch (err: any) {
@@ -1925,12 +1944,20 @@ async function startProviderChatGemini(
           error: message,
         });
       }
-    } else if (!sender.isDestroyed()) {
-      sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
-        requestId: request.requestId,
-        type: 'done',
-        fullText,
-      });
+    } else {
+      if (!sender.isDestroyed()) {
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId: request.requestId,
+          type: 'chunk',
+          delta: fullText,
+          fullText,
+        });
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId: request.requestId,
+          type: 'done',
+          fullText,
+        });
+      }
     }
   } catch (err: any) {
     if (abortController.signal.aborted) {
@@ -2667,7 +2694,7 @@ async function startProviderChatWithTools(
           });
         }
 
-        const result = await executeWorkspaceTool(name, args);
+        const result = await executeWorkspaceTool(name || '', args);
         messages.push({
           role: 'tool',
           tool_call_id: tc.id,
