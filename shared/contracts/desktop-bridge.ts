@@ -200,6 +200,21 @@ export interface ISkillBridge {
   getSkillsDir(): Promise<string>;
 }
 
+export interface TrashItem {
+  id: string;
+  type: 'conversation' | 'workspace' | 'file';
+  data: any;
+  deletedAt: number;
+}
+
+export interface ITrashBridge {
+  listTrash(): Promise<TrashItem[]>;
+  addToTrash(type: string, data: any): Promise<TrashItem>;
+  restoreTrash(id: string): Promise<TrashItem | null>;
+  purgeTrash(id: string): Promise<boolean>;
+  purgeExpired(): Promise<number>;
+}
+
 export interface IFileSystemBridge {
   selectFolderDialog(defaultPath?: string): Promise<string | null>;
   selectFileDialog(defaultPath?: string): Promise<string | null>;
@@ -280,6 +295,7 @@ export interface IDesktopBridge {
   memory: IMemoryBridge;
   provider: IProviderBridge;
   database: IDatabaseBridge;
+  trash: ITrashBridge;
   skills: ISkillBridge;
   notify(title: string, message: string): void;
 }
@@ -442,6 +458,14 @@ export const SKILLS_IPC_CHANNELS = {
   DIR: 'desktop:skillsDir',
 } as const;
 
+export const TRASH_IPC_CHANNELS = {
+  LIST: 'desktop:trashList',
+  ADD: 'desktop:trashAdd',
+  RESTORE: 'desktop:trashRestore',
+  PURGE: 'desktop:trashPurge',
+  PURGE_EXPIRED: 'desktop:trashPurgeExpired',
+} as const;
+
 export const MEMORY_IPC_CHANNELS = {
   GET_CONFIG: 'desktop:memGetConfig',
   UPDATE_CONFIG: 'desktop:memUpdateConfig',
@@ -502,6 +526,9 @@ export interface IDesktopAPI {
 
   // Skills bridge (Electron main process filesystem)
   skills: ISkillBridge;
+
+  // Trash/backup bin bridge
+  trash: ITrashBridge;
 
   // Terminal bridge (Electron main process PTY)
   terminal: ITerminalBridge;

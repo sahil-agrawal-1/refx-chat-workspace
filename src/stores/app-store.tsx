@@ -66,6 +66,7 @@ interface AppContextValue {
   refreshWorkspace: () => Promise<void>;
   openWorkspaceDialog: () => Promise<void>;
   setWorkspace: (ws: ProjectWorkspace | null) => void;
+  removeRecentWorkspace: (path: string) => void;
 
   // File Changes & Diff Reviews
   pendingChanges: FileChange[];
@@ -569,6 +570,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteConversation = (id: string) => {
+    if (!confirm('Are you sure you want to delete this conversation? It will be moved to the Backup Bin for 7 days.')) return;
+    const conv = conversations.find((c) => c.id === id);
+    if (conv) {
+      desktopBridge.trash.addToTrash('conversation', conv).catch(() => {});
+    }
     setConversations((prev) => {
       const filtered = prev.filter((c) => c.id !== id);
       if (currentConversationId === id) {
@@ -793,6 +799,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         message: `Set active folder to: ${folderPath}`,
         type: 'info',
       });
+    }
+  };
+
+  const removeRecentWorkspace = (pathValue: string) => {
+    if (!confirm('Are you sure you want to remove this project? It will be moved to the Backup Bin for 7 days.')) return;
+    const ws = recentWorkspaces.find((w) => w.path === pathValue) || selectedWorkspace;
+    if (ws) {
+      desktopBridge.trash.addToTrash('workspace', ws).catch(() => {});
+    }
+    setRecentWorkspaces((prev) => prev.filter((w) => w.path !== pathValue));
+    if (selectedWorkspace?.path === pathValue) {
+      setSelectedWorkspace(null);
+      setFileTree([]);
+      desktopBridge.fs.setActiveWorkspace(null).catch(() => {});
+    }
+    try {
+      localStorage.setItem('refx_recent_workspaces', JSON.stringify(recentWorkspaces.filter((w) => w.path !== pathValue)));
+    } catch {
+      // ignore
     }
   };
 
@@ -1670,6 +1695,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         refreshWorkspace,
         openWorkspaceDialog,
         setWorkspace,
+        removeRecentWorkspace,
         pendingChanges,
         activeDiffFile,
         setActiveDiffFile,

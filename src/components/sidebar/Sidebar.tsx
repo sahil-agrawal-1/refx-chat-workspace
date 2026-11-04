@@ -28,6 +28,7 @@ export const Sidebar: React.FC = () => {
     selectedWorkspace,
     recentWorkspaces,
     setWorkspace,
+    removeRecentWorkspace,
     openWorkspaceDialog,
     taskMemories,
     appMemories,
@@ -121,14 +122,19 @@ export const Sidebar: React.FC = () => {
           ) : (
             <>
               {selectedWorkspace && (
-                <div
-                  onClick={() => setWorkspace(selectedWorkspace)}
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer bg-surface text-foreground font-medium border border-border"
-                >
-                  <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs bg-surface text-foreground font-medium border border-border">
+                  <div onClick={() => setWorkspace(selectedWorkspace)} className="flex items-center gap-2 truncate cursor-pointer flex-1">
                     <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
                     <span className="truncate">{selectedWorkspace.name}</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(selectedWorkspace.path); }}
+                    className="p-1 text-foreground-muted hover:text-red-400 cursor-pointer"
+                    title="Delete project"
+                  >
+                    <Trash2 size={12} strokeWidth={1.8} />
+                  </button>
                 </div>
               )}
               {recentWorkspaces
@@ -136,20 +142,27 @@ export const Sidebar: React.FC = () => {
                 .map((ws) => (
                   <div
                     key={ws.id}
-                    onClick={() => setWorkspace(ws)}
-                    className="flex items-center justify-between px-2.5 py-1 rounded-md text-xs cursor-pointer text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
+                    className="flex items-center justify-between px-2.5 py-1 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
                   >
-                    <div className="flex items-center gap-2 truncate">
+                    <div onClick={() => setWorkspace(ws)} className="flex items-center gap-2 truncate cursor-pointer flex-1">
                       <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
                       <span className="truncate">{ws.name}</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(ws.path); }}
+                      className="p-1 text-foreground-muted hover:text-red-400 cursor-pointer"
+                      title="Delete project"
+                    >
+                      <Trash2 size={12} strokeWidth={1.8} />
+                    </button>
                   </div>
                 ))}
             </>
           )}
         </div>
-      </div>
 
+      </div>
       {/* Recent Conversations List or honest empty state */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5 custom-scrollbar border-t border-border">
         <div className="px-2 pb-1 text-[11px] font-medium text-foreground-muted uppercase tracking-wider">

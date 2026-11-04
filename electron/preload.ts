@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -48,6 +48,7 @@ const FS_CHANNELS = FILESYSTEM_IPC_CHANNELS;
 const MEM_CHANNELS = MEMORY_IPC_CHANNELS;
 const TERM_CHANNELS = TERMINAL_IPC_CHANNELS;
 const SKILLS_CHANNELS = SKILLS_IPC_CHANNELS;
+const TRASH_CHANNELS = TRASH_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -175,6 +176,13 @@ const desktopAPI: IDesktopAPI = {
     deleteSkill: (id: string) => ipcRenderer.invoke(SKILLS_CHANNELS.DELETE, id),
     duplicateSkill: (id: string) => ipcRenderer.invoke(SKILLS_CHANNELS.DUPLICATE, id),
     getSkillsDir: () => ipcRenderer.invoke(SKILLS_CHANNELS.DIR),
+  },
+  trash: {
+    listTrash: () => ipcRenderer.invoke(TRASH_CHANNELS.LIST),
+    addToTrash: (type: string, data: any) => ipcRenderer.invoke(TRASH_CHANNELS.ADD, type, data),
+    restoreTrash: (id: string) => ipcRenderer.invoke(TRASH_CHANNELS.RESTORE, id),
+    purgeTrash: (id: string) => ipcRenderer.invoke(TRASH_CHANNELS.PURGE, id),
+    purgeExpired: () => ipcRenderer.invoke(TRASH_CHANNELS.PURGE_EXPIRED),
   },
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),

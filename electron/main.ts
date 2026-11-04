@@ -17,12 +17,13 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 import * as pty from 'node-pty';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
 import * as memory from './memory';
 import * as skills from './skills';
+import * as trash from './trash';
 
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -1423,6 +1424,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(SKILLS_IPC_CHANNELS.DELETE, async (_event, id: string) => skills.deleteSkill(id));
   ipcMain.handle(SKILLS_IPC_CHANNELS.DUPLICATE, async (_event, id: string) => skills.duplicateSkill(id));
   ipcMain.handle(SKILLS_IPC_CHANNELS.DIR, async () => skills.getSkillsDir());
+
+  // Trash / Backup Bin IPC handlers
+  ipcMain.handle(TRASH_IPC_CHANNELS.LIST, async () => trash.listTrash());
+  ipcMain.handle(TRASH_IPC_CHANNELS.ADD, async (_event, type: string, data: any) => trash.addToTrash(type, data));
+  ipcMain.handle(TRASH_IPC_CHANNELS.RESTORE, async (_event, id: string) => trash.restoreTrash(id));
+  ipcMain.handle(TRASH_IPC_CHANNELS.PURGE, async (_event, id: string) => trash.purgeTrash(id));
+  ipcMain.handle(TRASH_IPC_CHANNELS.PURGE_EXPIRED, async () => trash.purgeExpired());
 }
 
 /**
@@ -2642,6 +2650,7 @@ if (!hasLock) {
   app.whenReady().then(() => {
     db.initDatabase();
     loadPendingChanges();
+    trash.purgeExpired();
     registerIpcHandlers();
     createSplashWindow();
     createWindow();

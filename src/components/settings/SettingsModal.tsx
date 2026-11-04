@@ -35,6 +35,7 @@ export const SettingsModal: React.FC = () => {
     'general' | 'appearance' | 'skills' | 'workspace' | 'terminal' | 'security' | 'about'
   >('general');
   const [skills, setSkills] = React.useState<any[]>([]);
+  const [trashItems, setTrashItems] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (activeTab === 'skills') {
@@ -42,6 +43,12 @@ export const SettingsModal: React.FC = () => {
         .listSkills()
         .then((s) => setSkills(Array.isArray(s) ? s : []))
         .catch(() => setSkills([]));
+    }
+    if (activeTab === 'workspace') {
+      desktopBridge.trash
+        .listTrash()
+        .then((t) => setTrashItems(Array.isArray(t) ? t : []))
+        .catch(() => setTrashItems([]));
     }
   }, [activeTab]);
 
@@ -306,6 +313,26 @@ export const SettingsModal: React.FC = () => {
                   rows={2}
                   className="w-full bg-surface-raised border border-border rounded-xl px-3.5 py-2 text-foreground font-mono text-xs focus:outline-none focus:border-accent"
                 />
+              </div>
+
+              <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+                <div className="font-semibold text-foreground">Backup Bin</div>
+                <p className="text-foreground-muted text-[11px]">Deleted projects and conversations are kept for 7 days.</p>
+                {trashItems.length === 0 ? (
+                  <p className="text-foreground-muted text-xs">Backup bin is empty.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {trashItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-2 bg-surface-raised border border-border rounded-lg">
+                        <div className="text-xs text-foreground truncate">{item.type}: {item.data?.name || item.data?.title || item.id}</div>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={async () => { await desktopBridge.trash.restoreTrash(item.id); setTrashItems((prev) => prev.filter((t) => t.id !== item.id)); }} className="text-[10px] text-foreground-muted hover:text-foreground cursor-pointer">Restore</button>
+                          <button type="button" onClick={async () => { if (!confirm('Permanently delete this item?')) return; await desktopBridge.trash.purgeTrash(item.id); setTrashItems((prev) => prev.filter((t) => t.id !== item.id)); }} className="text-[10px] text-red-400 hover:text-red-300 cursor-pointer">Delete Forever</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

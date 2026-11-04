@@ -7,6 +7,7 @@ import type {
   IProviderBridge,
   IDatabaseBridge,
   ISkillBridge,
+  ITrashBridge,
   FileItem,
   TerminalSessionInfo,
   TaskMemoryEntry,
@@ -721,6 +722,41 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     deleteSkill: async () => true,
     duplicateSkill: async () => null,
     getSkillsDir: async () => 'browser-preview',
+  };
+
+  public get trash(): ITrashBridge {
+    if (typeof window !== 'undefined' && (window as any).desktop?.trash) {
+      return (window as any).desktop.trash as ITrashBridge;
+    }
+    return this.previewTrash;
+  }
+
+  private previewTrash: ITrashBridge = {
+    listTrash: async () => { try { return JSON.parse(localStorage.getItem('refx_trash') || '[]'); } catch { return []; } },
+    addToTrash: async (type: string, data: any) => {
+      const items = JSON.parse(localStorage.getItem('refx_trash') || '[]');
+      const item = { id: `trash-${Date.now()}`, type: type as any, data, deletedAt: Date.now() };
+      items.unshift(item);
+      localStorage.setItem('refx_trash', JSON.stringify(items));
+      return item;
+    },
+    restoreTrash: async (id: string) => {
+      const items = JSON.parse(localStorage.getItem('refx_trash') || '[]');
+      const idx = items.findIndex((i: any) => i.id === id);
+      if (idx < 0) return null;
+      const item = items[idx];
+      items.splice(idx, 1);
+      localStorage.setItem('refx_trash', JSON.stringify(items));
+      return item;
+    },
+    purgeTrash: async (id: string) => {
+      const items = JSON.parse(localStorage.getItem('refx_trash') || '[]');
+      const next = items.filter((i: any) => i.id !== id);
+      if (next.length === items.length) return false;
+      localStorage.setItem('refx_trash', JSON.stringify(next));
+      return true;
+    },
+    purgeExpired: async () => 0,
   };
 
   public get memory(): IMemoryBridge {
