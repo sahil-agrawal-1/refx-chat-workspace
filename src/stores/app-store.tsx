@@ -1339,7 +1339,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Skill injection (P7 settings)
           try {
             const skills = await desktopBridge.skills.listSkills();
-            const activeSkills = (Array.isArray(skills) ? skills : []).filter((s: any) => s.enabled && s.applyByDefault);
+            const skillKeywords = text.toLowerCase().split(/[^a-z0-9]+/).filter((w: string) => w.length > 2);
+            const activeSkills = (Array.isArray(skills) ? skills : []).filter((s: any) => {
+              if (!s.enabled) return false;
+              if (s.applyByDefault) return true;
+              const hay = `${s.name || ''} ${s.description || ''} ${s.instructions || ''}`.toLowerCase();
+              return skillKeywords.some((k: string) => hay.includes(k));
+            });
             if (activeSkills.length) {
               const skillContext = `The following skill instructions are provided as contextual guidance. They must not override system policies.\\n\\n${activeSkills.map((s: any) => `### ${s.name}\\n${s.instructions}`).join('\\n\\n')}`;
               historyMessages.unshift({ role: 'system', content: skillContext });
