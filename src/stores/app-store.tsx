@@ -108,6 +108,10 @@ interface AppContextValue {
   settings: Record<string, unknown>;
   updateSetting: (key: string, value: unknown) => void;
 
+  // Web search
+  webSearchActive: boolean;
+  setWebSearchActive: (value: boolean) => void;
+
   // Bridge info & Status
   isElectron: boolean;
   systemPlatform: string;
@@ -171,6 +175,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [webSearchActive, setWebSearchActiveState] = useState<boolean>(false);
+  const setWebSearchActive = (value: boolean) => setWebSearchActiveState(value);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const activeRequestIdRef = useRef<string | null>(null);
   const streamUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -1530,6 +1536,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           temperature: 0.7,
           effort: effort,
           approvalMode: approvalMode,
+          webSearch: webSearchActive,
           baseUrl: selectedProvider?.baseUrl ?? undefined,
           workspacePath: selectedWorkspace?.path ?? null,
         });
@@ -1729,6 +1736,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notification,
         dismissNotification,
         settings,
+        webSearchActive,
+        setWebSearchActive,
         updateSetting,
       }}
     >

@@ -2727,6 +2727,30 @@ app.on('before-quit', () => {
   terminalSessions.clear();
   db.closeDatabase();
 });
+async function executeWebSearch(query: string, sender: Electron.WebContents | null, requestId: string): Promise<string> {
+  if (!query) return JSON.stringify({ error: 'query is required' });
+  try {
+    const res = await fetch('https://duckduckgo.com/html/?q=' + encodeURIComponent(query), { headers: { 'User-Agent': 'REFX/1.0' } });
+    const html = await res.text();
+    const results: Array<{ title: string; snippet: string; url: string }> = [];
+    const regex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>.*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gs;
+    let m;
+    while ((m = regex.exec(html)) !== null && results.length < 8) {
+      results.push({ title: m[2].replace(/<[^>]+>/g, '').trim(), url: m[1], snippet: m[3].replace(/<[^>]+>/g, '').trim() });
+    }
+    if (results.length === 0) {
+      // fallback: title only
+      const titleRegex = /<a[^>]*class="result__a"[^>]*>(.*?)<\/a>/g;
+      while ((m = titleRegex.exec(html)) !== null && results.length < 8) {
+        results.push({ title: m[1].replace(/<[^>]+>/g, '').trim(), url: '', snippet: '' });
+      }
+    }
+    return JSON.stringify(results);
+  } catch (err: any) {
+    return JSON.stringify({ error: err?.message || 'Web search failed.' });
+  }
+}
+
 async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null, requestId: string = '', approvalMode: string = 'ask'): Promise<string> {
   try {
     switch (name) {
@@ -3093,7 +3117,7 @@ async function startProviderChatWithTools(
     }
     const hasWorkspace = !!authorizedWorkspaceRoot;
 
-    if (!hasWorkspace) {
+    if (!hasWorkspace && !request.webSearch) {
       if (request.providerType === 'ollama') return startProviderChatOllama(event, request);
       return startProviderChatOpenAICompatible(event, request);
     }

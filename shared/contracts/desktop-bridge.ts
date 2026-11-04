@@ -351,6 +351,7 @@ export interface ModelInferenceRequest {
   apiKey?: string;
   baseUrl?: string;
   workspacePath?: string | null;
+  webSearch?: boolean;
 }
 
 /**
