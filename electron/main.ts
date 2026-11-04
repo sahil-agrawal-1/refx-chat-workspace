@@ -1849,7 +1849,7 @@ async function startProviderChatGemini(
 
     try {
     const systemParts: string[] = [];
-    const formatted: Array<{ role: string; parts: any[] }> = [];
+    const formatted: any[] = [];
     for (const m of request.messages) {
       if (m.role === 'system') {
         systemParts.push(m.content);
@@ -1902,7 +1902,9 @@ async function startProviderChatGemini(
         const fc = functionCallPart.functionCall;
         const name = fc?.name;
         const args = fc?.args || {};
-        formatted.push({ role: 'model', parts: [{ functionCall: fc }] });
+        if (candidate?.content) {
+          formatted.push(candidate.content);
+        }
         const activityId = `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
         if (!sender.isDestroyed()) {
           sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
