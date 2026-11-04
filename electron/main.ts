@@ -67,6 +67,7 @@ interface TerminalSession {
   process: any;
 }
 const terminalSessions = new Map<string, TerminalSession>();
+const terminalToolAborts = new Map<string, AbortController>();
 
 interface PendingTerminalApproval {
   resolve: (approved: boolean) => void;
@@ -434,7 +435,7 @@ function restoreFileBackup(id: string): boolean {
   return true;
 }
 
-async function executeTerminalTool(args: any, sender: Electron.WebContents | null): Promise<string> {
+async function executeTerminalTool(args: any, sender: Electron.WebContents | null, requestId: string = ''): Promise<string> {
   const command = String(args?.command || '').trim();
   if (!command) {
     return JSON.stringify({ error: 'command is required' });
@@ -505,11 +506,15 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
     let stderr = '';
     let killed = false;
 
+    const abortController = new AbortController();
+    if (requestId) terminalToolAborts.set(requestId, abortController);
+
     let resolved = false;
     const finish = (code: number | null) => {
       if (resolved) return;
       resolved = true;
       clearTimeout(timer);
+      if (requestId) terminalToolAborts.delete(requestId);
       resolve(JSON.stringify({
         approved: true,
         command: fullCommand,
@@ -535,15 +540,46 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
       finish(null);
     }, timeoutMs);
 
+    abortController.signal.addEventListener('abort', () => {
+      killed = true;
+      if (process.platform === 'win32' && child.pid) {
+        try {
+          const { execSync } = require('node:child_process');
+          execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: 'ignore' });
+        } catch {
+          try { child.kill(); } catch {}
+        }
+      } else {
+        try { child.kill(); } catch {}
+      }
+      finish(null);
+    });
+
     child.stdout?.on('data', (d: Buffer) => {
       const chunk = d.toString();
       stdout += chunk;
       if (stdout.length > 50000) stdout = stdout.slice(-50000);
+      if (sender && !sender.isDestroyed() && requestId) {
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId,
+          type: 'chunk',
+          delta: chunk,
+          fullText: (stdout + (stderr ? '\\n' + stderr : '')).trim().slice(-4000),
+        });
+      }
     });
     child.stderr?.on('data', (d: Buffer) => {
       const chunk = d.toString();
       stderr += chunk;
       if (stderr.length > 50000) stderr = stderr.slice(-50000);
+      if (sender && !sender.isDestroyed() && requestId) {
+        sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+          requestId,
+          type: 'chunk',
+          delta: chunk,
+          fullText: (stdout + (stderr ? '\\n' + stderr : '')).trim().slice(-4000),
+        });
+      }
     });
     child.on('close', (code: number | null) => {
       finish(code);
@@ -874,13 +910,20 @@ function registerIpcHandlers(): void {
     MODEL_CHANNELS.CANCEL_PROVIDER_CHAT,
     async (_event, requestId: string): Promise<boolean> => {
       const controller = activeChatAborts.get(requestId);
+      let cancelled = false;
       if (controller) {
         controller.abort();
         activeChatAborts.delete(requestId);
         activeStreamSenders.delete(requestId);
-        return true;
+        cancelled = true;
       }
-      return false;
+      const termAbort = terminalToolAborts.get(requestId);
+      if (termAbort) {
+        termAbort.abort();
+        terminalToolAborts.delete(requestId);
+        cancelled = true;
+      }
+      return cancelled;
     }
   );
 
@@ -2148,7 +2191,7 @@ async function startProviderChatGemini(
           });
         }
         const cleanName = (name || '').replace(/^default_api:/, '');
-        const result = await executeWorkspaceTool(cleanName, args, sender);
+        const result = await executeWorkspaceTool(cleanName, args, sender, request.requestId);
         formatted.push({
           role: 'user',
           parts: [{ functionResponse: { name, response: { result } } }],
@@ -2292,7 +2335,7 @@ async function startProviderChatAnthropic(
 
         conversation.push({ role: 'assistant', content: response.content as any });
         for (const tu of toolUses as any[]) {
-          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {}, sender);
+          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {}, sender, request.requestId);
           conversation.push({
             role: 'user',
             content: [{ type: 'tool_result', tool_use_id: (tu as any).id, content: result }] as any,
@@ -2607,7 +2650,7 @@ app.on('before-quit', () => {
   terminalSessions.clear();
   db.closeDatabase();
 });
-async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null): Promise<string> {
+async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null, requestId: string = ''): Promise<string> {
   try {
     switch (name) {
       case 'get_workspace_info': {
@@ -2714,7 +2757,7 @@ async function executeWorkspaceTool(name: string, args: any, sender: Electron.We
       }
 
       case 'run_terminal_command': {
-        return await executeTerminalTool(args, sender);
+        return await executeTerminalTool(args, sender, requestId);
       }
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -3047,7 +3090,7 @@ async function startProviderChatWithTools(
           toolActions.push(`*Searched workspace for:* "${args?.query || ''}"`);
         }
 
-        const result = await executeWorkspaceTool(name || '', args, sender);
+        const result = await executeWorkspaceTool(name || '', args, sender, request.requestId);
         activities.push({ id: `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: name || 'tool', detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'completed', outputPreview: String(result).slice(0, 500) });
         messages.push({
           role: 'tool',
