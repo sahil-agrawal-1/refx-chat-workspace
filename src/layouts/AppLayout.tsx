@@ -54,6 +54,7 @@ export const AppLayout: React.FC = () => {
           activeDrawer={activeDrawer}
           bottomPanels={bottomPanels}
           toggleBottomPanel={toggleBottomPanel}
+          pendingChangesCount={pendingChangesCount}
         />
 
         {/* Notification Toast */}
