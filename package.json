@@ -1,12 +1,6 @@
 {
   "name": "refx",
   "private": true,
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "node-pty"
-    ]
-  },
   "version": "1.0.0",
   "description": "REFX - Local-first Windows AI desktop application",
   "main": "dist-electron/main.js",

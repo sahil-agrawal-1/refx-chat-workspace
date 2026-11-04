@@ -1,1 +1,0 @@
-const pty=require('node-pty'); const shell='powershell.exe'; const p=pty.spawn(shell, [], {name:'xterm-color',cols:80,rows:30,cwd:process.cwd(),env:process.env}); p.onData(d=>process.stdout.write(d)); setTimeout(()=>{p.write('echo hello\r');},500); setTimeout(()=>{p.kill(); process.exit(0);},2000);
