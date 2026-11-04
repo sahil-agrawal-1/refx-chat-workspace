@@ -283,6 +283,7 @@ function ensureWorkspaceRoot(): string {
 
 function proposeFileChange(request: any): any {
   const type = request?.type || 'modify';
+  const approvalMode = request?.approvalMode || 'ask';
   const targetPath = resolveWithinWorkspace(request?.path, type === 'create');
   const originalExists = fs.existsSync(targetPath);
   let originalContent = '';
@@ -346,7 +347,14 @@ function proposeFileChange(request: any): any {
 
   pendingFileChanges.set(id, change);
   savePendingChanges();
-  return computeFileChange(change);
+  if (approvalMode === 'turbo' && type !== 'delete' && type !== 'rename' && type !== 'move') {
+    try {
+      applyFileChange(id);
+    } catch {
+      // leave pending
+    }
+  }
+  return computeFileChange(pendingFileChanges.get(id) || change);
 }
 
 function getPendingChanges(): any[] {
@@ -435,7 +443,7 @@ function restoreFileBackup(id: string): boolean {
   return true;
 }
 
-async function executeTerminalTool(args: any, sender: Electron.WebContents | null, requestId: string = ''): Promise<string> {
+async function executeTerminalTool(args: any, sender: Electron.WebContents | null, requestId: string = '', approvalMode: string = 'ask'): Promise<string> {
   const command = String(args?.command || '').trim();
   if (!command) {
     return JSON.stringify({ error: 'command is required' });
@@ -448,26 +456,36 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
     return JSON.stringify({ error: 'No renderer available for approval.' });
   }
 
-  const approvedPromise = new Promise<boolean>((resolve) => {
-    const timeout = setTimeout(() => {
-      pendingTerminalApprovals.delete(id);
-      resolve(false);
-    }, 60000);
-    pendingTerminalApprovals.set(id, { resolve, timeout });
-    sender.send(TERMINAL_IPC_CHANNELS.AGENT_REQUEST, {
-      id,
-      command,
-      args: args?.args || [],
-      cwd,
-      reason: args?.reason || '',
-      timeout: timeoutMs,
-    });
-  });
+  const lowRisk = !/rm |del |format |sudo |shutdown|kill|rd |rmdir/i.test(command);
 
-  const approved = await approvedPromise;
-  const pendingApproval = pendingTerminalApprovals.get(id);
-  const approvedSessionId = pendingApproval?.sessionId;
-  pendingTerminalApprovals.delete(id);
+  if (approvalMode === 'auto_preview') {
+    return JSON.stringify({ preview: true, command, message: 'Auto Preview: command prepared but not executed. User approval required to run.' });
+  }
+
+  let approved = true;
+  let approvedSessionId: string | undefined;
+  if (!(approvalMode === 'turbo' && lowRisk)) {
+    const approvedPromise = new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => {
+        pendingTerminalApprovals.delete(id);
+        resolve(false);
+      }, 60000);
+      pendingTerminalApprovals.set(id, { resolve, timeout });
+      sender.send(TERMINAL_IPC_CHANNELS.AGENT_REQUEST, {
+        id,
+        command,
+        args: args?.args || [],
+        cwd,
+        reason: args?.reason || '',
+        timeout: timeoutMs,
+      });
+    });
+    approved = await approvedPromise;
+    const pendingApproval = pendingTerminalApprovals.get(id);
+    approvedSessionId = pendingApproval?.sessionId;
+    pendingTerminalApprovals.delete(id);
+  }
+
   if (!approved) {
     return JSON.stringify({ approved: false, error: 'Command rejected or timed out.' });
   }
@@ -2046,6 +2064,7 @@ async function startProviderChatOpenAICompatible(
         stream: true,
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
         ...(request.maxTokens !== undefined ? { max_tokens: request.maxTokens } : {}),
+         ...(request.effort && request.effort !== 'auto' && request.effort.toLowerCase() !== 'auto' ? { reasoning_effort: (request.effort.toLowerCase() === 'extra high' || request.effort.toLowerCase() === 'max' ? 'high' : request.effort.toLowerCase()) as any } : {}),
       });
 
       for await (const chunk of stream) {
@@ -2191,7 +2210,7 @@ async function startProviderChatGemini(
           });
         }
         const cleanName = (name || '').replace(/^default_api:/, '');
-        const result = await executeWorkspaceTool(cleanName, args, sender, request.requestId);
+        const result = await executeWorkspaceTool(cleanName, args, sender, request.requestId, request.approvalMode || 'ask');
         formatted.push({
           role: 'user',
           parts: [{ functionResponse: { name, response: { result } } }],
@@ -2323,6 +2342,7 @@ async function startProviderChatAnthropic(
           system: systemMsg?.content,
           messages: conversation as any,
           tools: anthropicTools as any,
+          ...(request.effort && request.effort !== 'auto' ? { output_config: { effort: (request.effort.toLowerCase() === 'extra high' ? 'max' : request.effort.toLowerCase()) as any } } : {}),
         });
 
         const toolUses = (response.content || []).filter((b: any) => b.type === 'tool_use');
@@ -2335,7 +2355,7 @@ async function startProviderChatAnthropic(
 
         conversation.push({ role: 'assistant', content: response.content as any });
         for (const tu of toolUses as any[]) {
-          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {}, sender, request.requestId);
+          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {}, sender, request.requestId, request.approvalMode || 'ask');
           conversation.push({
             role: 'user',
             content: [{ type: 'tool_result', tool_use_id: (tu as any).id, content: result }] as any,
@@ -2650,7 +2670,7 @@ app.on('before-quit', () => {
   terminalSessions.clear();
   db.closeDatabase();
 });
-async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null, requestId: string = ''): Promise<string> {
+async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null, requestId: string = '', approvalMode: string = 'ask'): Promise<string> {
   try {
     switch (name) {
       case 'get_workspace_info': {
@@ -2736,12 +2756,12 @@ async function executeWorkspaceTool(name: string, args: any, sender: Electron.We
       }
 
       case 'create_file': {
-        const change = proposeFileChange({ type: 'create', path: args?.path, content: args?.content ?? '' });
-        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, diff: 'pending review' });
+        const change = proposeFileChange({ type: 'create', path: args?.path, content: args?.content ?? '', approvalMode });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, diff: 'pending review', autoApplied: change.status === 'applied' });
       }
       case 'edit_file': {
-        const change = proposeFileChange({ type: 'modify', path: args?.path, content: args?.content ?? '' });
-        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath });
+        const change = proposeFileChange({ type: 'modify', path: args?.path, content: args?.content ?? '', approvalMode });
+        return JSON.stringify({ proposed: true, id: change.id, path: change.filePath, autoApplied: change.status === 'applied' });
       }
       case 'rename_file': {
         const change = proposeFileChange({ type: 'rename', path: args?.path, newPath: args?.newPath });
@@ -2757,7 +2777,7 @@ async function executeWorkspaceTool(name: string, args: any, sender: Electron.We
       }
 
       case 'run_terminal_command': {
-        return await executeTerminalTool(args, sender, requestId);
+        return await executeTerminalTool(args, sender, requestId, approvalMode);
       }
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -3090,7 +3110,7 @@ async function startProviderChatWithTools(
           toolActions.push(`*Searched workspace for:* "${args?.query || ''}"`);
         }
 
-        const result = await executeWorkspaceTool(name || '', args, sender, request.requestId);
+        const result = await executeWorkspaceTool(name || '', args, sender, request.requestId, request.approvalMode || 'ask');
         activities.push({ id: `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: name || 'tool', detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'completed', outputPreview: String(result).slice(0, 500) });
         messages.push({
           role: 'tool',

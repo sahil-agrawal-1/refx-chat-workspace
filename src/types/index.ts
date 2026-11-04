@@ -70,6 +70,8 @@ export interface Conversation {
   projectId?: string;
   model: string;
   providerId: string;
+  effort?: string;
+  approvalMode?: 'ask' | 'turbo' | 'auto_preview';
   messages: ChatMessage[];
   saveMemoryDefault: boolean;
 }

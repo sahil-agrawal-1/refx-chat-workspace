@@ -45,6 +45,10 @@ interface AppContextValue {
   selectedProvider: ProviderConfig | null;
   selectedModel: string;
   setSelectedModel: (model: string, providerId?: string) => void;
+  effort: string;
+  setEffort: (value: string) => void;
+  approvalMode: 'ask' | 'turbo' | 'auto_preview';
+  setApprovalMode: (value: 'ask' | 'turbo' | 'auto_preview') => void;
   saveProviderConfig: (provider: ProviderConfig) => Promise<void>;
   verifyProviderConnection: (providerId: string) => Promise<ProviderVerificationResult>;
 
@@ -320,6 +324,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               projectId: undefined,
               model: c.modelId || selectedModel || 'No model connected',
               providerId: c.providerId || '',
+              effort: c.metadata?.effort || 'auto',
+              approvalMode: c.metadata?.approvalMode || 'ask',
               messages: (Array.isArray(msgs) ? msgs : []).map((m: any) => ({
                 id: m.id,
                 role: m.role,
@@ -456,6 +462,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: Date.now(),
       model: selectedModel || 'No model connected',
       providerId: selectedProviderId || '',
+      effort: 'auto',
+      approvalMode: 'ask',
       saveMemoryDefault: saveMemoryActive,
       messages: [],
     };
@@ -471,7 +479,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         workspacePath: selectedWorkspace?.path || null,
         createdAt: newConv.createdAt,
         updatedAt: newConv.updatedAt,
-        metadata: { saveMemoryDefault: newConv.saveMemoryDefault },
+        metadata: { saveMemoryDefault: newConv.saveMemoryDefault, effort: newConv.effort, approvalMode: newConv.approvalMode },
       })
       .catch(() => {});
   }, [selectedModel, selectedProviderId, saveMemoryActive, selectedWorkspace]);
@@ -525,6 +533,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedProviderId(providerId);
     }
   };
+
+  const effort = currentConversation?.effort || 'auto';
+  const approvalMode = (currentConversation?.approvalMode as 'ask' | 'turbo' | 'auto_preview') || 'ask';
+
+  const setEffort = useCallback((value: string) => {
+    if (!currentConversationId) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === currentConversationId ? { ...c, effort: value } : c))
+    );
+    desktopBridge.database.updateConversation(currentConversationId, { metadata: { ...((currentConversation as any)?.metadata || {}), effort: value } } as any).catch(() => {});
+  }, [currentConversationId, currentConversation]);
+
+  const setApprovalMode = useCallback((value: 'ask' | 'turbo' | 'auto_preview') => {
+    if (!currentConversationId) return;
+    setConversations((prev) =>
+      prev.map((c) => (c.id === currentConversationId ? { ...c, approvalMode: value } : c))
+    );
+    desktopBridge.database.updateConversation(currentConversationId, { metadata: { ...((currentConversation as any)?.metadata || {}), approvalMode: value } } as any).catch(() => {});
+  }, [currentConversationId, currentConversation]);
 
   const saveProviderConfig = async (provider: ProviderConfig) => {
     // Never persist the raw API key to localStorage. Strip it before saving
@@ -1002,7 +1029,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           workspacePath: selectedWorkspace?.path || null,
           createdAt: newConv.createdAt,
           updatedAt: newConv.updatedAt,
-          metadata: { saveMemoryDefault: newConv.saveMemoryDefault },
+          metadata: { saveMemoryDefault: newConv.saveMemoryDefault, effort: newConv.effort, approvalMode: newConv.approvalMode },
         })
         .catch(() => {});
     }
@@ -1312,6 +1339,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           model: selectedModel,
           messages: historyMessages,
           temperature: 0.7,
+          effort: effort,
+          approvalMode: approvalMode,
           baseUrl: selectedProvider?.baseUrl ?? undefined,
         });
 
@@ -1457,6 +1486,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedProvider,
         selectedModel,
         setSelectedModel,
+        effort,
+        setEffort,
+        approvalMode,
+        setApprovalMode,
         saveProviderConfig,
         verifyProviderConnection,
         selectedWorkspace,

@@ -304,6 +304,8 @@ export interface ModelInferenceRequest {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   temperature?: number;
   maxTokens?: number;
+  effort?: string;
+  approvalMode?: 'ask' | 'turbo' | 'auto_preview';
   stream?: boolean;
   apiKey?: string;
   baseUrl?: string;

@@ -19,6 +19,8 @@ export const ChatPromptInput: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [showEffortMenu, setShowEffortMenu] = useState(false);
+  const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,10 @@ export const ChatPromptInput: React.FC = () => {
     recentWorkspaces,
     setWorkspace,
     openWorkspaceDialog,
+    effort,
+    setEffort,
+    approvalMode,
+    setApprovalMode,
   } = useAppStore();
 
   useEffect(() => {
@@ -211,6 +217,65 @@ export const ChatPromptInput: React.FC = () => {
             </div>
 
             <ModelSelectorDropdown />
+
+            {/* Effort selector */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowEffortMenu(!showEffortMenu)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[#9c9ca4] hover:text-white hover:bg-[#242428] transition-colors cursor-pointer"
+                title="Reasoning effort"
+              >
+                <span>Effort: {effort}</span>
+                <ChevronDown size={12} strokeWidth={1.8} />
+              </button>
+              {showEffortMenu && (
+                <div className="absolute bottom-full mb-1 left-0 w-40 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+                  {['Auto', 'Low', 'Medium', 'High', 'Extra High', 'Max'].map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { setEffort(opt); setShowEffortMenu(false); }}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${effort === opt ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'}`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Approval mode */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowApprovalMenu(!showApprovalMenu)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[#9c9ca4] hover:text-white hover:bg-[#242428] transition-colors cursor-pointer"
+                title="Approval mode"
+              >
+                <span>Approval: {approvalMode}</span>
+                <ChevronDown size={12} strokeWidth={1.8} />
+              </button>
+              {showApprovalMenu && (
+                <div className="absolute bottom-full mb-1 left-0 w-64 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+                  {[
+                    { id: 'ask', label: 'Ask', desc: 'Require approval for writes and terminal commands.' },
+                    { id: 'turbo', label: 'Turbo', desc: 'Auto-apply reversible edits with backups; ask for destructive ops.' },
+                    { id: 'auto_preview', label: 'Auto Preview', desc: 'Prepare changes without applying them.' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => { setApprovalMode(opt.id as any); setShowApprovalMenu(false); }}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${approvalMode === opt.id ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'}`}
+                    >
+                      <div>{opt.label}</div>
+                      <div className="text-[10px] text-[#6c6c74]">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
