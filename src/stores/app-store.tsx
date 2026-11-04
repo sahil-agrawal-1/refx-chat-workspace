@@ -210,11 +210,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeDiffFile, setActiveDiffFile] = useState<FileChange | null>(null);
 
   // Memory System (Empty by default)
-  const [saveMemoryActive, setSaveMemoryActive] = useState<boolean>(true);
+  const [saveMemoryActive, setSaveMemoryActive] = useState<boolean>(false);
   const [taskMemories, setTaskMemories] = useState<TaskMemoryEntry[]>([]);
   const [appMemories, setAppMemories] = useState<AppMemoryEntry[]>([]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
-    autoMemoryEnabled: true,
+    autoMemoryEnabled: false,
     globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
     storageBackend: 'sqlite',
     maxEntries: 1000,
