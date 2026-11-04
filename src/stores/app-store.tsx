@@ -1241,9 +1241,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const sensitiveRe = /api[_ -]?key|password|token|secret|private key|credential/i;
           const includeAppMemory = saveMemoryActive || settings.memoryInjectionEnabled !== false;
           let appMems = includeAppMemory ? [...appMemories].filter((m) => m.enabled !== false) : [];
+          const recallKeywords = /previous project|requirements|preference|remember/i.test(text);
           let taskMems: any[] = [];
           if (targetConvId) {
-            try { taskMems = await desktopBridge.memory.getTaskMemories(targetConvId); } catch { taskMems = []; }
+            try {
+              if (recallKeywords) {
+                const all: any[] = [];
+                for (const conv of conversations) {
+                  try {
+                    const mems = await desktopBridge.memory.getTaskMemories(conv.id);
+                    if (Array.isArray(mems)) all.push(...mems);
+                  } catch {
+                    // ignore
+                  }
+                }
+                taskMems = all;
+              } else {
+                taskMems = await desktopBridge.memory.getTaskMemories(targetConvId);
+              }
+            } catch {
+              taskMems = [];
+            }
           }
           // relevance filter
           const score = (m: any) => {
