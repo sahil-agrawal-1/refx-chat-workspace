@@ -1916,7 +1916,7 @@ async function startProviderChatGemini(
         const cleanName = (name || '').replace(/^default_api:/, '');
         const result = await executeWorkspaceTool(cleanName, args);
         formatted.push({
-          role: 'function',
+          role: 'user',
           parts: [{ functionResponse: { name, response: { result } } }],
         });
       }
