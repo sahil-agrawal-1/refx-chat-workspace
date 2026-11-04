@@ -2094,6 +2094,10 @@ async function startProviderChatOpenAICompatible(
   request: ModelInferenceRequest
 ): Promise<ModelInferenceResult> {
   const apiKey = getCredentialForProvider(request.providerId);
+  let model = request.model;
+  if (request.providerType === 'openrouter' && request.webSearch && !model.endsWith(':online')) {
+    model = model + ':online';
+  }
   const baseUrl = request.baseUrl || (request.providerType === 'openai' ? 'https://api.openai.com/v1' : (request.providerType === 'openrouter' ? 'https://openrouter.ai/api/v1' : ''));
 
   const abortController = new AbortController();
@@ -2731,7 +2735,7 @@ app.on('before-quit', () => {
 async function executeWebSearch(query: string, sender: Electron.WebContents | null, requestId: string): Promise<string> {
   if (!query) return JSON.stringify({ error: 'query is required' });
   try {
-    const res = await fetch('https://duckduckgo.com/html/?q=' + encodeURIComponent(query), { headers: { 'User-Agent': 'REFX/1.0' } });
+    const res = await fetch('https://duckduckgo.com/html/?q=' + encodeURIComponent(query), { headers: { 'User-Agent': 'REFX/1.0' }, signal: AbortSignal.timeout(8000) });
     const html = await res.text();
     const results: Array<{ title: string; snippet: string; url: string }> = [];
     const regex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>.*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/gs;
@@ -3079,6 +3083,10 @@ async function callProviderNonStreamingOpenAICompatible(
   signal?: AbortSignal
 ): Promise<any> {
   const apiKey = getCredentialForProvider(request.providerId);
+  let model = request.model;
+  if (request.providerType === 'openrouter' && request.webSearch && !model.endsWith(':online')) {
+    model = model + ':online';
+  }
   const baseUrl = request.baseUrl || (request.providerType === 'openai' ? 'https://api.openai.com/v1' : (request.providerType === 'openrouter' ? 'https://openrouter.ai/api/v1' : ''));
   const endpoint = baseUrl ? baseUrl.replace(/\/$/, '') + '/chat/completions' : '';
   if (!endpoint) throw new Error('Base URL is required.');
@@ -3090,7 +3098,7 @@ async function callProviderNonStreamingOpenAICompatible(
       ...(request.providerType === 'openrouter' ? { 'HTTP-Referer': 'https://refx.ai', 'X-Title': 'REFX AI Desktop' } : {}),
     },
     body: JSON.stringify({
-      model: request.model,
+      model,
       messages,
       tools: request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI,
       tool_choice: 'auto',
@@ -3110,11 +3118,15 @@ async function callProviderNonStreamingOllama(
   messages: any[],
   signal?: AbortSignal
 ): Promise<any> {
+  let model = request.model;
+  if (request.providerType === 'openrouter' && request.webSearch && !model.endsWith(':online')) {
+    // ollama won't use :online, but keep consistent
+  }
   const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: request.model,
+      model,
       messages,
       tools: request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI,
       stream: false,
