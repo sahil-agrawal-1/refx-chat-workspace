@@ -1434,6 +1434,12 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(SYSTEM_IPC_CHANNELS.CHECK_REMOTE_DEBUGGING, async () => {
     try {
+      const res = await fetch('http://127.0.0.1:9222/json/version', { signal: AbortSignal.timeout(1000) });
+      if (res.ok) return true;
+    } catch {
+      // ignore
+    }
+    try {
       const res = await fetch('http://localhost:9222/json/version', { signal: AbortSignal.timeout(1000) });
       return res.ok;
     } catch {

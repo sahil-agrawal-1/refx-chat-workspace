@@ -766,12 +766,23 @@ export const ChatPromptInput: React.FC = () => {
                   setShowRemoteDebugPopup(false);
                   setRemoteDebugStatus('');
                 } else {
-                  setRemoteDebugStatus('Not enabled yet. Enable remote debugging and try again.');
+                  setRemoteDebugStatus('Could not detect port 9222. If remote debugging is enabled, click "Proceed Anyway".');
                 }
               }}
               className="px-3 py-1.5 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
             >
               Check Again
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setWebSearchActive(true);
+                setShowRemoteDebugPopup(false);
+                setRemoteDebugStatus('');
+              }}
+              className="px-3 py-1.5 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
+            >
+              Proceed Anyway
             </button>
             <button
               type="button"
