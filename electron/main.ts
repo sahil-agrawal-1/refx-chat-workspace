@@ -1341,7 +1341,7 @@ function registerIpcHandlers(): void {
     const session = terminalSessions.get(sessionId);
     if (!session) return false;
     try {
-      session.process.write(input + '\r');
+      session.process.write(input);
       return true;
     } catch {
       return false;

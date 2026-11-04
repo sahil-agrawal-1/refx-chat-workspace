@@ -936,7 +936,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const executeTerminalCommand = async (cmd: string) => {
     if (!activeTerminalId) return;
-    await desktopBridge.terminal.sendInput(activeTerminalId, cmd);
+    await desktopBridge.terminal.sendInput(activeTerminalId, cmd + '\r');
   };
 
   const createNewTerminalSession = async (shell = 'powershell.exe') => {
