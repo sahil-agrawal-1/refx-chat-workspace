@@ -239,15 +239,15 @@ MIT
 
 | Date | Change | Author |
 |------|--------|--------|
-| 11/2/2026 | Initial technical audit report created | Cline (AI coding agent) |
-| 11/2/2026 | Stage 3A: Ollama + Local Model Integration | Cline (AI coding agent) |
-| 11/2/2026 | Stage 3B: Multi-Provider Chat Inference | Cline (AI coding agent) |
-| 11/3/2026 | P1: Chat-state repair (conversation creation, stale history, generation state, error handling, stop generation) | Cline (AI coding agent) |
-| 11/3/2026 | P2: Security hardening (safeStorage DPAPI, XSS prevention, credential migration, audit pipeline) | Cline (AI coding agent) |
-| 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Cline (AI coding agent) |
-| 11/3/2026 | Documentation update (README, report.md, security.md) | Cline (AI coding agent) |
-| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |
-| 11/4/2026 | P4: SQLite database & persistent storage | Cline (AI coding agent) |
-| 11/4/2026 | P5-A: Real workspace filesystem integration (read-only) | Cline (AI coding agent) |
-| 11/4/2026 | P5-B: Real file modification engine (approval, backups, undo) | Cline (AI coding agent) |
-| 11/4/2026 | P6: Workspace tool integration for AI chat | Cline (AI coding agent) |
+| 11/2/2026 | Initial technical audit report created | Refx (AI coding agent) |
+| 11/2/2026 | Stage 3A: Ollama + Local Model Integration | Refx (AI coding agent) |
+| 11/2/2026 | Stage 3B: Multi-Provider Chat Inference | Refx (AI coding agent) |
+| 11/3/2026 | P1: Chat-state repair (conversation creation, stale history, generation state, error handling, stop generation) | Refx (AI coding agent) |
+| 11/3/2026 | P2: Security hardening (safeStorage DPAPI, XSS prevention, credential migration, audit pipeline) | Refx (AI coding agent) |
+| 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Refx (AI coding agent) |
+| 11/3/2026 | Documentation update (README, report.md, security.md) | Refx (AI coding agent) |
+| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Refx (AI coding agent) |
+| 11/4/2026 | P4: SQLite database & persistent storage | Refx (AI coding agent) |
+| 11/4/2026 | P5-A: Real workspace filesystem integration (read-only) | Refx (AI coding agent) |
+| 11/4/2026 | P5-B: Real file modification engine (approval, backups, undo) | Refx (AI coding agent) |
+| 11/4/2026 | P6: Workspace tool integration for AI chat | Refx (AI coding agent) |
