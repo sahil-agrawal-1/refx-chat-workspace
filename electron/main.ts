@@ -1443,7 +1443,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(SYSTEM_IPC_CHANNELS.OPEN_REMOTE_DEBUGGING, async () => {
     try {
-      await shell.openExternal('chrome://inspect/#remote-debugging');
+      // Open a browser-neutral help page; Chrome/Edge users can enable
+      // remote debugging from there or via chrome://inspect/#remote-debugging.
+      await shell.openExternal('https://developer.chrome.com/docs/devtools/remote-debugging/');
     } catch {
       // ignore
     }
