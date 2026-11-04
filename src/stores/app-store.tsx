@@ -1177,7 +1177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   ? {
                       ...c,
                       messages: c.messages.map((m) =>
-                        m.id === assistantMsgId ? { ...m, content: event.fullText! } : m
+                        m.id === assistantMsgId ? { ...m, content: event.fullText!, activities: event.activities as any } : m
                       ),
                     }
                   : c
@@ -1207,7 +1207,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               );
             }
             desktopBridge.database
-              .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed" } })
+              .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed", activities: event.activities } })
               .catch(() => {});
             desktopBridge.fs.getPendingChanges().then((pending) => {
               if (Array.isArray(pending)) setPendingChanges(pending);

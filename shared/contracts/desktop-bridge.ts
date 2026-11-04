@@ -322,10 +322,20 @@ export interface ModelInferenceResult {
  */
 export interface ModelStreamEvent {
   requestId: string;
-  type: 'chunk' | 'done' | 'error';
+  type: 'chunk' | 'done' | 'error' | 'activity';
   delta?: string;
   fullText?: string;
   error?: string;
+  activities?: Array<{
+    id: string;
+    type: 'thinking' | 'file_read' | 'file_write' | 'terminal_run' | 'plan' | 'completed' | 'error';
+    title: string;
+    detail?: string;
+    timestamp: number;
+    status: 'running' | 'completed' | 'failed';
+    durationMs?: number;
+    outputPreview?: string;
+  }>;
 }
 
 /**
