@@ -462,7 +462,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Apply appearance settings to document
   useEffect(() => {
-    const theme = (settings.theme as string) || 'dark';
+    const theme = (settings.theme as string) || 'Dark';
     const accent = (settings.accent as string) || 'Neutral';
     const density = (settings.density as string) || 'Comfortable';
     const fontSize = (settings.fontSize as string) || '14';

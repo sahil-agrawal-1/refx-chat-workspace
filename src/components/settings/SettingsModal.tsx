@@ -11,9 +11,6 @@ import {
   Check,
   Plus,
   Trash2,
-  HardDrive,
-  Cpu,
-  Monitor,
   Moon,
   Sun,
   Laptop,
@@ -81,8 +78,8 @@ export const SettingsModal: React.FC = () => {
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[440px]">
         {/* Left Navigation Sidebar */}
-        <div className="md:col-span-4 border-r border-[#242427] pr-3 space-y-1 text-xs">
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pb-1.5">
+        <div className="md:col-span-4 border-r border-border pr-3 space-y-1 text-xs">
+          <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider px-2 pb-1.5">
             Preferences
           </div>
           {NAV_ITEMS.map((item) => {
@@ -94,11 +91,11 @@ export const SettingsModal: React.FC = () => {
                 onClick={() => setActiveTab(item.id as any)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all cursor-pointer font-medium ${
                   isSelected
-                    ? 'bg-white/10 text-white shadow-xs border border-white/10'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-surface text-foreground shadow-xs border border-border'
+                    : 'text-foreground-muted hover:text-foreground hover:bg-surface'
                 }`}
               >
-                <span className={isSelected ? 'text-indigo-400' : 'text-zinc-500'}>
+                <span className={isSelected ? 'text-indigo-400' : 'text-foreground-muted'}>
                   {item.icon}
                 </span>
                 <span>{item.label}</span>
@@ -112,18 +109,18 @@ export const SettingsModal: React.FC = () => {
           {/* General Tab */}
           {activeTab === 'general' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="bg-[#18181b] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
+              <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden">
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Model Providers</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">
+                    <div className="font-semibold text-foreground">Model Providers</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">
                       Configure your cloud API keys and local inference engines.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => openModal('providers')}
-                    className="px-3 py-1.5 bg-[#222226] hover:bg-[#2b2b30] border border-white/10 rounded-xl text-zinc-200 hover:text-white font-medium cursor-pointer transition-all"
+                    className="px-3 py-1.5 bg-surface-raised hover:bg-surface border border-border rounded-xl text-foreground font-medium cursor-pointer transition-all"
                   >
                     Open Providers
                   </button>
@@ -131,15 +128,15 @@ export const SettingsModal: React.FC = () => {
 
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Editor Font Size</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">
+                    <div className="font-semibold text-foreground">Editor Font Size</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">
                       Adjust font scale for chat code blocks and terminal logs.
                     </p>
                   </div>
                   <select
                     value={fontSize}
                     onChange={(e) => setFontSize(e.target.value)}
-                    className="bg-[#141416] border border-[#27272a] rounded-xl px-3 py-1.5 text-zinc-200 text-xs focus:outline-none"
+                    className="bg-surface-raised border border-border rounded-xl px-3 py-1.5 text-foreground text-xs focus:outline-none"
                   >
                     <option value="12">12px (Compact)</option>
                     <option value="14">14px (Standard)</option>
@@ -149,8 +146,8 @@ export const SettingsModal: React.FC = () => {
 
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Auto Save Memory</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">
+                    <div className="font-semibold text-foreground">Auto Save Memory</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">
                       Automatically store context summaries during active tasks.
                     </p>
                   </div>
@@ -167,7 +164,7 @@ export const SettingsModal: React.FC = () => {
           {activeTab === 'appearance' && (
             <div className="space-y-4 animate-in fade-in">
               <div>
-                <label className="block text-zinc-300 font-semibold mb-2">Theme Preference</label>
+                <label className="block text-foreground font-semibold mb-2">Theme Preference</label>
                 <div className="grid grid-cols-3 gap-2.5">
                   {[
                     { id: 'Dark', label: 'Dark Mode', icon: <Moon size={16} /> },
@@ -182,11 +179,11 @@ export const SettingsModal: React.FC = () => {
                         onClick={() => updateSetting('theme', t.id)}
                         className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-2 ${
                           isCurrent
-                            ? 'bg-white/10 border-indigo-500 text-white font-medium shadow-md'
-                            : 'bg-[#18181b] border-white/5 text-zinc-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-surface-raised border-2 border-indigo-500 text-foreground font-semibold shadow-md ring-2 ring-indigo-500/20'
+                            : 'bg-surface border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                         }`}
                       >
-                        <span className={isCurrent ? 'text-indigo-400' : 'text-zinc-500'}>{t.icon}</span>
+                        <span className={isCurrent ? 'text-indigo-400' : 'text-foreground-muted'}>{t.icon}</span>
                         <span className="text-xs">{t.label}</span>
                       </button>
                     );
@@ -194,16 +191,16 @@ export const SettingsModal: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-[#18181b] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
+              <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden">
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Interface Density</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">Compact or comfortable layout padding.</p>
+                    <div className="font-semibold text-foreground">Interface Density</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">Compact or comfortable layout padding.</p>
                   </div>
                   <select
                     value={(settings.density as string) || 'Comfortable'}
                     onChange={(e) => updateSetting('density', e.target.value)}
-                    className="bg-[#141416] border border-[#27272a] rounded-xl px-3 py-1.5 text-zinc-200 text-xs focus:outline-none"
+                    className="bg-surface-raised border border-border rounded-xl px-3 py-1.5 text-foreground text-xs focus:outline-none"
                   >
                     <option value="Comfortable">Comfortable</option>
                     <option value="Compact">Compact</option>
@@ -212,8 +209,8 @@ export const SettingsModal: React.FC = () => {
 
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Reduce Motion</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">Disable smooth animations and transitions.</p>
+                    <div className="font-semibold text-foreground">Reduce Motion</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">Disable smooth animations and transitions.</p>
                   </div>
                   <Toggle
                     checked={Boolean(settings.reduceMotion)}
@@ -229,64 +226,52 @@ export const SettingsModal: React.FC = () => {
             <div className="space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold text-zinc-200">Agent Skills</h4>
-                  <p className="text-zinc-500 text-[11px] mt-0.5">
+                  <h4 className="font-semibold text-foreground">Agent Skills</h4>
+                  <p className="text-foreground-muted text-[11px] mt-0.5">
                     Extend your AI assistant with prompt instructions and custom tool skills.
                   </p>
                 </div>
-
-              </div>
-
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  const files = Array.from(e.dataTransfer?.files || []).filter((f) => f.name.toLowerCase().endsWith('.md'));
-                  for (const file of files) {
-                    const text = await file.text();
-                    const created = await desktopBridge.skills.saveSkill({ name: file.name.replace(/\.md$/i, ''), description: '', instructions: text, enabled: true, applyByDefault: false });
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const created = await desktopBridge.skills.saveSkill({
+                      name: 'Custom Skill',
+                      description: 'Custom workflow instructions',
+                      instructions: '# Skill Guidelines\n',
+                      enabled: true,
+                      applyByDefault: false,
+                    });
                     setSkills((prev) => [created, ...prev]);
-                  }
-                }}
-                className="mb-2 border border-dashed border-[#27272a] rounded-xl p-3 text-center text-zinc-500 text-xs"
-              >
-                Drag and drop SKILL.md files here (or use Import)
-                <div className="mt-2">
-                  <label className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs cursor-pointer">
-                    Import SKILL.md
-                    <input type="file" accept=".md" className="hidden" onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const text = await file.text();
-                      const created = await desktopBridge.skills.saveSkill({ name: file.name.replace(/\.md$/i, ''), description: '', instructions: text, enabled: true, applyByDefault: false });
-                      setSkills((prev) => [created, ...prev]);
-                      e.target.value = '';
-                    }} />
-                  </label>
-                </div>
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-surface hover:opacity-90 rounded-xl font-semibold cursor-pointer text-xs shadow-xs"
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                  <span>New Skill</span>
+                </button>
               </div>
+
               <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                 {skills.length === 0 ? (
-                  <div className="p-8 text-center bg-[#18181b]/50 border border-dashed border-[#27272a] rounded-2xl text-zinc-500">
+                  <div className="p-8 text-center bg-surface border border-dashed border-border rounded-2xl text-foreground-muted">
                     No custom skills registered. Add one above to enhance your workflows.
                   </div>
                 ) : (
                   skills.map((sk) => (
                     <div
                       key={sk.id}
-                      className="p-3.5 bg-[#18181b] border border-white/5 rounded-2xl flex items-center justify-between group"
+                      className="p-3.5 bg-surface border border-border rounded-2xl flex items-center justify-between group"
                     >
                       <div className="space-y-1 truncate pr-2">
                         <div className="flex items-center gap-2">
                           <Sparkles size={13} className="text-indigo-400" />
-                          <span className="font-semibold text-zinc-200 text-xs">{sk.name}</span>
+                          <span className="font-semibold text-foreground text-xs">{sk.name}</span>
                           {sk.applyByDefault && (
                             <span className="px-1.5 py-0.2 rounded-full bg-indigo-500/10 text-indigo-400 text-[9px] font-mono">
                               Default
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-zinc-400 truncate">{sk.description || 'No description provided.'}</p>
+                        <p className="text-[11px] text-foreground-muted truncate">{sk.description || 'No description provided.'}</p>
                       </div>
 
                       <button
@@ -295,7 +280,7 @@ export const SettingsModal: React.FC = () => {
                           await desktopBridge.skills.deleteSkill(sk.id);
                           setSkills((prev) => prev.filter((s) => s.id !== sk.id));
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 rounded-lg transition-opacity cursor-pointer shrink-0"
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-foreground-muted hover:text-red-400 rounded-lg transition-opacity cursor-pointer shrink-0"
                         title="Delete skill"
                       >
                         <Trash2 size={14} />
@@ -310,16 +295,16 @@ export const SettingsModal: React.FC = () => {
           {/* Workspace & Files Tab */}
           {activeTab === 'workspace' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="bg-[#18181b] border border-white/5 rounded-2xl p-4 space-y-3">
-                <div className="font-semibold text-zinc-200">Ignored Patterns</div>
-                <p className="text-zinc-500 text-[11px]">
+              <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+                <div className="font-semibold text-foreground">Ignored Patterns</div>
+                <p className="text-foreground-muted text-[11px]">
                   Files and folders excluded from workspace scanning and context retrieval.
                 </p>
                 <textarea
                   value={ignoredPatterns}
                   onChange={(e) => updateSetting('ignoredPatterns', e.target.value)}
                   rows={2}
-                  className="w-full bg-[#141416] border border-[#27272a] rounded-xl px-3.5 py-2 text-zinc-200 font-mono text-xs focus:outline-none focus:border-zinc-500"
+                  className="w-full bg-surface-raised border border-border rounded-xl px-3.5 py-2 text-foreground font-mono text-xs focus:outline-none focus:border-accent"
                 />
               </div>
             </div>
@@ -328,16 +313,16 @@ export const SettingsModal: React.FC = () => {
           {/* Terminal & Shell Tab */}
           {activeTab === 'terminal' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="bg-[#18181b] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
+              <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden">
                 <div className="p-4 flex items-center justify-between">
                   <div>
-                    <div className="font-semibold text-zinc-200">Default Shell</div>
-                    <p className="text-zinc-500 text-[11px] mt-0.5">Windows command processor for terminal panel.</p>
+                    <div className="font-semibold text-foreground">Default Shell</div>
+                    <p className="text-foreground-muted text-[11px] mt-0.5">Windows command processor for terminal panel.</p>
                   </div>
                   <select
                     value={defaultShell}
                     onChange={(e) => setDefaultShell(e.target.value)}
-                    className="bg-[#141416] border border-[#27272a] rounded-xl px-3 py-1.5 text-zinc-200 text-xs focus:outline-none font-mono"
+                    className="bg-surface-raised border border-border rounded-xl px-3 py-1.5 text-foreground text-xs focus:outline-none font-mono"
                   >
                     <option value="powershell.exe">PowerShell (powershell.exe)</option>
                     <option value="cmd.exe">Command Prompt (cmd.exe)</option>
@@ -346,11 +331,11 @@ export const SettingsModal: React.FC = () => {
                 </div>
 
                 <div className="p-4 space-y-1">
-                  <div className="font-semibold text-zinc-200 flex items-center gap-1.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
                     <Terminal size={14} className="text-emerald-400" />
                     <span>Windows ConPTY Pseudo-Console Engine</span>
                   </div>
-                  <p className="text-zinc-500 text-[11px]">
+                  <p className="text-foreground-muted text-[11px]">
                     Direct integration via node-pty on Node 22 runtime with full ANSI color support and pty dimensions.
                   </p>
                 </div>
@@ -362,8 +347,8 @@ export const SettingsModal: React.FC = () => {
           {activeTab === 'security' && (
             <div className="space-y-4 animate-in fade-in">
               <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Execution Security Policy</label>
-                <p className="text-zinc-500 text-xs mb-3">
+                <label className="block text-foreground font-semibold mb-1">Execution Security Policy</label>
+                <p className="text-foreground-muted text-xs mb-3">
                   Control when the assistant requires explicit human permission before executing actions.
                 </p>
               </div>
@@ -393,20 +378,20 @@ export const SettingsModal: React.FC = () => {
                       onClick={() => setSecurityPolicy(pol.id as any)}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
                         isChosen
-                          ? 'bg-[#1e1e24] border-indigo-500 text-white shadow-md'
-                          : 'bg-[#18181b] border-white/5 text-zinc-400 hover:text-white hover:bg-white/5'
+                          ? 'bg-surface-raised border-2 border-indigo-500 text-foreground font-medium shadow-md ring-2 ring-indigo-500/20'
+                          : 'bg-surface border-border text-foreground-muted hover:text-foreground hover:bg-surface-raised'
                       }`}
                     >
                       <div
                         className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
-                          isChosen ? 'border-indigo-400 bg-indigo-500' : 'border-zinc-600'
+                          isChosen ? 'border-indigo-400 bg-indigo-500' : 'border-border'
                         }`}
                       >
                         {isChosen && <Check size={10} strokeWidth={3} className="text-white" />}
                       </div>
                       <div className="space-y-0.5">
-                        <div className="font-semibold text-xs text-zinc-100">{pol.title}</div>
-                        <div className="text-[11px] text-zinc-400 leading-relaxed">{pol.desc}</div>
+                        <div className="font-semibold text-xs text-foreground">{pol.title}</div>
+                        <div className="text-[11px] text-foreground-muted leading-relaxed">{pol.desc}</div>
                       </div>
                     </div>
                   );
@@ -418,27 +403,27 @@ export const SettingsModal: React.FC = () => {
           {/* About Tab */}
           {activeTab === 'about' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="p-5 bg-[#18181b] border border-white/5 rounded-2xl flex items-center gap-4">
+              <div className="p-5 bg-surface border border-border rounded-2xl flex items-center gap-4">
                 <Logo width={48} height={48} className="w-10 h-10 shrink-0" />
                 <div>
-                  <h4 className="font-bold text-sm text-white">REFX AI Desktop</h4>
-                  <p className="text-zinc-400 text-xs">Windows Local-First Pair Programming Environment</p>
-                  <p className="text-[10px] text-zinc-500 font-mono mt-1">Version 1.0.0 (Production Release)</p>
+                  <h4 className="font-bold text-sm text-foreground">REFX AI Desktop</h4>
+                  <p className="text-foreground-muted text-xs">Windows Local-First Pair Programming Environment</p>
+                  <p className="text-[10px] text-foreground-muted font-mono mt-1">Version 1.0.0 (Production Release)</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-[#18181b] border border-white/5 rounded-2xl space-y-2 text-[11px] text-zinc-400">
-                <div className="flex justify-between py-1 border-b border-white/5">
+              <div className="p-4 bg-surface border border-border rounded-2xl space-y-2 text-[11px] text-foreground-muted">
+                <div className="flex justify-between py-1 border-b border-border">
                   <span>Host Environment</span>
-                  <span className="font-mono text-zinc-200">{isElectron ? 'Electron 45 Desktop Native' : 'Browser Preview'}</span>
+                  <span className="font-mono text-foreground">{isElectron ? 'Electron 45 Desktop Native' : 'Browser Preview'}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-white/5">
+                <div className="flex justify-between py-1 border-b border-border">
                   <span>Architecture</span>
-                  <span className="font-mono text-zinc-200">x64 (Windows 10/11)</span>
+                  <span className="font-mono text-foreground">x64 (Windows 10/11)</span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span>UI Framework</span>
-                  <span className="font-mono text-zinc-200">React 19 + Tailwind CSS v4</span>
+                  <span className="font-mono text-foreground">React 19 + Tailwind CSS v4</span>
                 </div>
               </div>
             </div>

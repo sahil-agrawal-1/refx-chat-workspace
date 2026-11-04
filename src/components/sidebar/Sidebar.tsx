@@ -206,7 +206,7 @@ export const Sidebar: React.FC = () => {
           <span
             className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
               connectedProvidersCount > 0
-                ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40'
+                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
                 : 'text-foreground-muted'
             }`}
           >
@@ -249,7 +249,7 @@ export const Sidebar: React.FC = () => {
               <Layers size={14} strokeWidth={1.8} />
               Desktop Bridge
             </span>
-            <span className="font-mono text-zinc-400">Stage 1</span>
+            <span className="font-mono text-foreground-muted">Stage 1</span>
           </div>
         </div>
       </div>

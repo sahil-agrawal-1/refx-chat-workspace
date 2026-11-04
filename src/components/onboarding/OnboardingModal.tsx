@@ -175,7 +175,7 @@ export const OnboardingModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(step + 1)}
-              className="flex items-center gap-1 px-3.5 py-1.5 bg-white text-black hover:bg-zinc-200 rounded font-medium transition-colors cursor-pointer text-xs"
+              className="flex items-center gap-1 px-3.5 py-1.5 bg-foreground text-surface hover:opacity-90 rounded-xl font-medium transition-colors cursor-pointer text-xs"
             >
               <span>Next</span>
               <ChevronRight size={14} strokeWidth={1.8} />
@@ -184,7 +184,7 @@ export const OnboardingModal: React.FC = () => {
             <button
               type="button"
               onClick={closeModal}
-              className="flex items-center gap-1 px-3.5 py-1.5 bg-white text-black hover:bg-zinc-200 rounded font-medium transition-colors cursor-pointer text-xs"
+              className="flex items-center gap-1 px-3.5 py-1.5 bg-foreground text-surface hover:opacity-90 rounded-xl font-medium transition-colors cursor-pointer text-xs"
             >
               <span>Complete</span>
             </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   PanelLeft,
   FolderTree,
@@ -9,7 +9,6 @@ import {
   Search,
   FolderPlus,
   Plus,
-  Sparkles,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import type { ActiveModal, ActiveDrawer } from '@/types';
@@ -43,14 +42,14 @@ export const Header: React.FC<HeaderProps> = ({
   const isDiffOpen = bottomPanels.has('diff');
 
   return (
-    <header className="h-12 shrink-0 bg-[#141416]/90 backdrop-blur-md border-b border-[#242427] flex items-center justify-between px-4 text-xs select-none z-10">
+    <header className="h-12 shrink-0 bg-surface-raised/95 backdrop-blur-md border-b border-border flex items-center justify-between px-4 text-xs select-none z-10 transition-colors">
       {/* Left: Brand title "Ask AI" / REFX Chat */}
       <div className="flex items-center gap-3 truncate">
         {isSidebarCollapsed && (
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-xl transition-all cursor-pointer"
             title="Open Sidebar"
             aria-label="Open Sidebar"
           >
@@ -60,43 +59,43 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="flex items-center gap-2">
           {isSidebarCollapsed && <Logo width={18} height={18} className="w-4 h-4" />}
-          <span className="text-sm font-semibold tracking-tight text-white">Ask AI</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">Ask AI</span>
           {selectedWorkspace && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1e1e24] border border-white/5 text-[11px] text-zinc-400 font-mono">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface border border-border text-[11px] text-foreground-muted font-mono">
               {selectedWorkspace.name}
             </span>
           )}
         </div>
       </div>
 
-      {/* Right Toolbar: Quick Pills (matching Image 2) + Dev Tools */}
+      {/* Right Toolbar: Quick Pills + Dev Tools */}
       <div className="flex items-center gap-2">
-        {/* Quick action pills from Image 2 */}
+        {/* Quick action pills matching modern desktop AI */}
         <div className="hidden md:flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => toggleDrawer('history')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181b] hover:bg-[#222226] border border-white/5 hover:border-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-raised border border-border text-foreground transition-all cursor-pointer text-xs shadow-xs"
             title="Search conversations"
           >
-            <Search size={13} strokeWidth={2} className="text-zinc-400" />
+            <Search size={13} strokeWidth={2} className="text-foreground-muted" />
             <span>Search thread</span>
           </button>
 
           <button
             type="button"
             onClick={openWorkspaceDialog}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181b] hover:bg-[#222226] border border-white/5 hover:border-white/15 text-zinc-300 hover:text-white transition-all cursor-pointer text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-raised border border-border text-foreground transition-all cursor-pointer text-xs shadow-xs"
             title="Open or create workspace folder"
           >
-            <FolderPlus size={13} strokeWidth={2} className="text-zinc-400" />
+            <FolderPlus size={13} strokeWidth={2} className="text-foreground-muted" />
             <span>Workspace</span>
           </button>
 
           <button
             type="button"
             onClick={startNewConversation}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black hover:bg-zinc-200 transition-all cursor-pointer text-xs font-medium shadow-xs active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-foreground text-surface hover:opacity-90 transition-all cursor-pointer text-xs font-medium shadow-xs active:scale-95"
             title="Start new conversation"
           >
             <Plus size={14} strokeWidth={2.5} />
@@ -105,17 +104,17 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Separator */}
-        <div className="hidden md:block w-px h-4 bg-white/10 mx-1" />
+        <div className="hidden md:block w-px h-4 bg-border mx-1" />
 
         {/* Dev View Controls: Files | Diff | Terminal as segmented pill */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-full bg-[#18181b] border border-[#27272a]">
+        <div className="flex items-center gap-0.5 p-0.5 rounded-full bg-surface border border-border">
           <button
             type="button"
             onClick={() => toggleDrawer('file-explorer')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors cursor-pointer text-xs ${
               activeDrawer === 'file-explorer'
-                ? 'bg-[#27272d] text-white shadow-xs'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-surface-raised text-foreground font-medium shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle File Explorer"
           >
@@ -127,15 +126,15 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('diff')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors cursor-pointer text-xs ${
               isDiffOpen
-                ? 'bg-[#27272d] text-white shadow-xs'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-surface-raised text-foreground font-medium shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle Diff Review"
           >
             <Split size={13} strokeWidth={1.8} />
             <span className="hidden sm:inline">Diff</span>
             {pendingChangesCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 text-[9px] rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold">
+              <span className="ml-0.5 px-1.5 py-0.2 text-[9px] rounded-full bg-amber-500/20 text-amber-500 font-mono font-bold">
                 {pendingChangesCount}
               </span>
             )}
@@ -145,8 +144,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => toggleBottomPanel('terminal')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-colors cursor-pointer text-xs ${
               isTerminalOpen
-                ? 'bg-[#27272d] text-white shadow-xs'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-surface-raised text-foreground font-medium shadow-xs'
+                : 'text-foreground-muted hover:text-foreground'
             }`}
             title="Toggle Terminal"
           >
@@ -160,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('export')}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-xl transition-all cursor-pointer"
             title="Export Conversation"
             aria-label="Export Conversation"
           >
@@ -169,7 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => openModal('onboarding')}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-xl transition-all cursor-pointer"
             title="Setup Guide"
             aria-label="Setup Guide"
           >
