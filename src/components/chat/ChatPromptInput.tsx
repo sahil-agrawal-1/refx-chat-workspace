@@ -20,6 +20,7 @@ export const ChatPromptInput: React.FC = () => {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -108,7 +109,7 @@ export const ChatPromptInput: React.FC = () => {
             setPrompt(`Model not found: ${args[0]}`);
           }
         } else {
-          setPrompt('/model <model-id>');
+          setShowModelPicker(true);
         }
         return true;
       }
@@ -159,6 +160,7 @@ export const ChatPromptInput: React.FC = () => {
   };
 
   return (
+    <>
     <div className="w-full max-w-3xl mx-auto px-4 pb-6 pt-2 select-none">
       {/* Workspace indicator / selector directly above prompt container */}
       <div className="relative mb-2 inline-block" ref={projectPickerRef}>
@@ -403,5 +405,37 @@ export const ChatPromptInput: React.FC = () => {
         </div>
       </div>
     </div>
+
+    {showModelPicker && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="w-96 max-h-[70vh] overflow-auto bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-white font-medium">Select Model</span>
+            <button type="button" onClick={() => setShowModelPicker(false)} className="text-[#71717a] hover:text-white">X</button>
+          </div>
+          <div className="space-y-1">
+            {providers.filter((p) => p.status === 'connected').map((p) => (
+              <div key={p.id}>
+                <div className="text-[10px] text-[#71717a] uppercase px-2 py-1">{p.name}</div>
+                {p.discoveredModels.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => { setSelectedModel(m, p.id); setShowModelPicker(false); setPrompt(''); }}
+                    className="w-full text-left px-2 py-1.5 text-xs text-[#9c9ca4] hover:text-white hover:bg-[#202023] rounded"
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {providers.filter((p) => p.status === 'connected').length === 0 && (
+              <p className="text-xs text-[#71717a] px-2">No connected providers.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 };
