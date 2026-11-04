@@ -17,7 +17,7 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
 
@@ -1094,6 +1094,17 @@ function registerIpcHandlers(): void {
   ipcMain.handle(FILESYSTEM_IPC_CHANNELS.RESTORE_BACKUP, async (_event, id: string) => {
     return restoreFileBackup(id);
   });
+
+  // Memory IPC handlers
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => db.getMemoryConfig());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) => db.updateMemoryConfig(config));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) => db.getTaskMemories(taskId));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) => db.saveTaskMemory(entry));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) => db.deleteTaskMemory(id));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => db.getAppMemories());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => db.saveAppMemory(entry));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => db.deleteAppMemory(id));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => db.clearAppMemories());
 }
 
 /**

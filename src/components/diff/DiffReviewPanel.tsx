@@ -103,7 +103,7 @@ export const DiffReviewPanel: React.FC = () => {
             <>
               <button
                 type="button"
-                onClick={() => approveChange(currentChange.id || currentChange.filePath)}
+                onClick={() => { if (currentChange.id) approveChange(currentChange.id); }}
                 className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs transition-colors cursor-pointer"
               >
                 <Check size={12} strokeWidth={2} className="text-emerald-400" />
@@ -112,7 +112,7 @@ export const DiffReviewPanel: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => rejectChange(currentChange.id || currentChange.filePath)}
+                onClick={() => { if (currentChange.id) rejectChange(currentChange.id); }}
                 className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-xs transition-colors cursor-pointer"
               >
                 <X size={12} strokeWidth={2} className="text-red-400" />

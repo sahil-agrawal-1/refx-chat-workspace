@@ -377,6 +377,18 @@ export const CREDENTIAL_IPC_CHANNELS = {
   MIGRATE_CREDENTIAL: 'desktop:migrateCredential',
 } as const;
 
+export const MEMORY_IPC_CHANNELS = {
+  GET_CONFIG: 'desktop:memGetConfig',
+  UPDATE_CONFIG: 'desktop:memUpdateConfig',
+  GET_TASK_MEMORIES: 'desktop:memGetTaskMemories',
+  SAVE_TASK_MEMORY: 'desktop:memSaveTaskMemory',
+  DELETE_TASK_MEMORY: 'desktop:memDeleteTaskMemory',
+  GET_APP_MEMORIES: 'desktop:memGetAppMemories',
+  SAVE_APP_MEMORY: 'desktop:memSaveAppMemory',
+  DELETE_APP_MEMORY: 'desktop:memDeleteAppMemory',
+  CLEAR_APP_MEMORIES: 'desktop:memClearAppMemories',
+} as const;
+
 export const DATABASE_IPC_CHANNELS = {
   INITIALIZE: 'desktop:dbInitialize',
   GET_CONVERSATIONS: 'desktop:dbGetConversations',
@@ -417,6 +429,9 @@ export interface IDesktopAPI {
   onProviderStream(callback: (event: ModelStreamEvent) => void): () => void;
   // Secure filesystem bridge (typed, allowlisted)
   fs: IFileSystemBridge;
+
+  // Memory bridge (Electron main process SQLite)
+  memory: IMemoryBridge;
 
   // Secure credential management (credentials never returned to renderer)
   saveCredential(providerId: string, apiKey: string): Promise<boolean>;

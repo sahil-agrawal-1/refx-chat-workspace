@@ -328,7 +328,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     },
   };
 
-  public memory: IMemoryBridge = {
+  private previewMemory: IMemoryBridge = {
     getMemoryConfig: async (): Promise<MemoryConfig> => ({ ...this.memoryConfig }),
     updateMemoryConfig: async (config: Partial<MemoryConfig>): Promise<MemoryConfig> => {
       this.memoryConfig = { ...this.memoryConfig, ...config };
@@ -681,6 +681,13 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     migrateLegacyData: async () => ({ success: true, imported: 0 }),
     integrityCheck: async () => ({ ok: true }),
   };
+
+  public get memory(): IMemoryBridge {
+    if (typeof window !== 'undefined' && (window as any).desktop?.memory) {
+      return (window as any).desktop.memory as IMemoryBridge;
+    }
+    return this.previewMemory;
+  }
 
   public get database(): IDatabaseBridge {
     if (typeof window !== 'undefined' && (window as any).desktop?.database) {

@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -45,6 +45,7 @@ const CREDENTIAL_CHANNELS = {
 
 const DB_CHANNELS = DATABASE_IPC_CHANNELS;
 const FS_CHANNELS = FILESYSTEM_IPC_CHANNELS;
+const MEM_CHANNELS = MEMORY_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -113,6 +114,17 @@ const desktopAPI: IDesktopAPI = {
     return () => {
       ipcRenderer.removeListener(MODEL_CHANNELS.PROVIDER_STREAM, listener);
     };
+  },
+  memory: {
+    getMemoryConfig: () => ipcRenderer.invoke(MEM_CHANNELS.GET_CONFIG),
+    updateMemoryConfig: (config: any) => ipcRenderer.invoke(MEM_CHANNELS.UPDATE_CONFIG, config),
+    getTaskMemories: (taskId: string) => ipcRenderer.invoke(MEM_CHANNELS.GET_TASK_MEMORIES, taskId),
+    saveTaskMemory: (entry: any) => ipcRenderer.invoke(MEM_CHANNELS.SAVE_TASK_MEMORY, entry),
+    deleteTaskMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.DELETE_TASK_MEMORY, id),
+    getAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.GET_APP_MEMORIES),
+    saveAppMemory: (entry: any) => ipcRenderer.invoke(MEM_CHANNELS.SAVE_APP_MEMORY, entry),
+    deleteAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.DELETE_APP_MEMORY, id),
+    clearAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.CLEAR_APP_MEMORIES),
   },
   fs: {
     selectFolderDialog: (defaultPath?: string) => ipcRenderer.invoke(IPC_CHANNELS.SELECT_WORKSPACE, defaultPath),

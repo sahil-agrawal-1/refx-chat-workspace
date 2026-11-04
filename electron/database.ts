@@ -31,6 +31,32 @@ let initialized = false;
 
 const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
   {
+    version: 2,
+    name: 'memory_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS task_memories (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        tags TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS app_memories (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        details TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_memories_task ON task_memories(task_id);
+    `,
+  },
+  {
     version: 1,
     name: 'initial_schema',
     sql: `
@@ -792,4 +818,113 @@ export function migrateLegacyData(
   } catch (err: any) {
     return { success: false, imported: 0, error: err?.message || String(err) };
   }
+}// ---------------- Memory ----------------
+
+export function getTaskMemories(taskId: string): any[] {
+  const database = getDatabase();
+  if (!database) return [];
+  const rows = database.prepare('SELECT id, task_id, title, content, tags, created_at, updated_at FROM task_memories WHERE task_id = ? ORDER BY created_at DESC').all(taskId) as any[];
+  return rows.map((r) => ({
+    id: r.id,
+    taskId: r.task_id,
+    title: r.title,
+    content: r.content,
+    tags: r.tags ? JSON.parse(r.tags) : [],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
+export function saveTaskMemory(entry: any): any {
+  const database = getDatabase();
+  if (!database) throw new Error('Database not available');
+  const now = Date.now();
+  const id = entry.id || `task-mem-${now}-${Math.random().toString(36).slice(2, 8)}`;
+  database.prepare(`INSERT INTO task_memories (id, task_id, title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET title=excluded.title, content=excluded.content, tags=excluded.tags, updated_at=excluded.updated_at`).run(
+    id,
+    entry.taskId || 'default-task',
+    entry.title || '',
+    entry.content || '',
+    JSON.stringify(entry.tags || []),
+    entry.createdAt || now,
+    now
+  );
+  return { id, taskId: entry.taskId || 'default-task', title: entry.title, content: entry.content, tags: entry.tags || [], createdAt: entry.createdAt || now, updatedAt: now };
+}
+
+export function deleteTaskMemory(id: string): boolean {
+  const database = getDatabase();
+  if (!database) return false;
+  const r = database.prepare('DELETE FROM task_memories WHERE id = ?').run(id);
+  return r.changes > 0;
+}
+
+export function getAppMemories(): any[] {
+  const database = getDatabase();
+  if (!database) return [];
+  const rows = database.prepare('SELECT id, category, title, summary, details, enabled, created_at, updated_at FROM app_memories ORDER BY created_at DESC').all() as any[];
+  return rows.map((r) => ({
+    id: r.id,
+    category: r.category,
+    title: r.title,
+    summary: r.summary,
+    details: r.details,
+    enabled: Boolean(r.enabled),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
+export function saveAppMemory(entry: any): any {
+  const database = getDatabase();
+  if (!database) throw new Error('Database not available');
+  const now = Date.now();
+  const id = entry.id || `app-mem-${now}-${Math.random().toString(36).slice(2, 8)}`;
+  database.prepare(`INSERT INTO app_memories (id, category, title, summary, details, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET category=excluded.category, title=excluded.title, summary=excluded.summary, details=excluded.details, enabled=excluded.enabled, updated_at=excluded.updated_at`).run(
+    id,
+    entry.category || 'preference',
+    entry.title || '',
+    entry.summary || '',
+    entry.details || '',
+    entry.enabled ? 1 : 0,
+    entry.createdAt || now,
+    now
+  );
+  return { id, category: entry.category, title: entry.title, summary: entry.summary, details: entry.details, enabled: entry.enabled ?? true, createdAt: entry.createdAt || now, updatedAt: now };
+}
+
+export function deleteAppMemory(id: string): boolean {
+  const database = getDatabase();
+  if (!database) return false;
+  const r = database.prepare('DELETE FROM app_memories WHERE id = ?').run(id);
+  return r.changes > 0;
+}
+
+export function clearAppMemories(): boolean {
+  const database = getDatabase();
+  if (!database) return false;
+  database.prepare('DELETE FROM app_memories').run();
+  return true;
+}
+
+export function getMemoryConfig(): any {
+  const database = getDatabase();
+  const defaultConfig = { autoMemoryEnabled: false, globalMemoryDirectory: '%APPDATA%\\Refx\\memory', storageBackend: 'sqlite', maxEntries: 1000 };
+  if (!database) return defaultConfig;
+  const row = database.prepare('SELECT value FROM app_settings WHERE key = ?').get('memory_config') as any;
+  if (!row) return defaultConfig;
+  try { return { ...defaultConfig, ...JSON.parse(row.value) }; } catch { return defaultConfig; }
+}
+
+export function updateMemoryConfig(config: any): any {
+  const database = getDatabase();
+  const current = getMemoryConfig();
+  const updated = { ...current, ...config };
+  if (database) {
+    database.prepare(`INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).run('memory_config', JSON.stringify(updated), Date.now());
+  }
+  return updated;
 }

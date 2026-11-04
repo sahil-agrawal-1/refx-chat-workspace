@@ -37,6 +37,8 @@ export const AppLayout: React.FC = () => {
     openModal,
     selectedWorkspace,
     pendingChanges,
+    selectedFile,
+    selectedFileContent,
     notification,
     dismissNotification,
   } = useAppStore();
@@ -188,6 +190,15 @@ export const AppLayout: React.FC = () => {
 
           <FileExplorerDrawer />
         </div>
+
+        {selectedFileContent !== null && (
+          <div className="h-48 border-t border-[#242427] bg-[#131315] flex flex-col">
+            <div className="px-3 py-1.5 border-b border-[#242427] text-xs text-[#9c9ca4] font-mono truncate">
+              {selectedFile}
+            </div>
+            <pre className="flex-1 overflow-auto p-3 text-xs font-mono text-[#dedee3] whitespace-pre-wrap">{selectedFileContent}</pre>
+          </div>
+        )}
 
         {/* Bottom Panels */}
         <TerminalPanel />
