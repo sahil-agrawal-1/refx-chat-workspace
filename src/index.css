@@ -1,13 +1,34 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  :root[data-theme="Dark"] body,
+  :root[data-theme="System"] body {
     background-color: #141416;
     color: #e4e4e7;
+  }
+  :root[data-theme="Light"] body {
+    background-color: #f4f4f5;
+    color: #18181b;
+  }
+  body {
     overflow: hidden;
     user-select: none;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  :root[data-theme="System"] {
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="System"] body {
+      background-color: #f4f4f5;
+      color: #18181b;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="System"] body {
+      background-color: #141416;
+      color: #e4e4e7;
+    }
   }
 }
 
