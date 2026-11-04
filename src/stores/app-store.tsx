@@ -1285,22 +1285,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Sanitize: merge consecutive same-role turns and ensure alternation starting with user.
-      const sanitized: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
-      for (const m of historyMessages) {
-        if (!m.content.trim()) continue;
-        const last = sanitized[sanitized.length - 1];
+      // Sanitize: preserve system messages (instructions + memory context), merge consecutive
+      // same-role turns for user/assistant and ensure the non-system sequence starts with user.
+      const systemMessages = historyMessages
+        .filter((m) => m.role === "system" && m.content.trim())
+        .map((m) => m.content.trim());
+      const turns = historyMessages.filter((m) => (m.role === "user" || m.role === "assistant") && m.content.trim());
+
+      const sanitizedTurns: Array<{ role: "user" | "assistant"; content: string }> = [];
+      for (const m of turns) {
+        const last = sanitizedTurns[sanitizedTurns.length - 1];
         if (last && last.role === m.role) {
           last.content = `${last.content}\\n${m.content}`.trim();
         } else {
-          sanitized.push({ role: m.role, content: m.content });
+          sanitizedTurns.push({ role: m.role as "user" | "assistant", content: m.content });
         }
       }
-      // Ensure starts with user
-      while (sanitized.length > 0 && sanitized[0].role !== 'user') {
-        sanitized.shift();
+      while (sanitizedTurns.length > 0 && sanitizedTurns[0].role !== "user") {
+        sanitizedTurns.shift();
       }
-      // Remove trailing empty
+
+      const sanitized: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+      if (systemMessages.length > 0) {
+        sanitized.push({ role: "system", content: systemMessages.join("\\n\\n") });
+      }
+      sanitized.push(...sanitizedTurns);
       historyMessages.splice(0, historyMessages.length, ...sanitized);
 
       // Check if we are running inside Electron with the desktop bridge
