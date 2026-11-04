@@ -180,6 +180,26 @@ export interface TextSearchResult {
   preview: string;
 }
 
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  enabled: boolean;
+  applyByDefault: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ISkillBridge {
+  listSkills(): Promise<Skill[]>;
+  getSkill(id: string): Promise<Skill | null>;
+  saveSkill(skill: Partial<Skill> & { id?: string }): Promise<Skill>;
+  deleteSkill(id: string): Promise<boolean>;
+  duplicateSkill(id: string): Promise<Skill | null>;
+  getSkillsDir(): Promise<string>;
+}
+
 export interface IFileSystemBridge {
   selectFolderDialog(defaultPath?: string): Promise<string | null>;
   selectFileDialog(defaultPath?: string): Promise<string | null>;
@@ -260,6 +280,7 @@ export interface IDesktopBridge {
   memory: IMemoryBridge;
   provider: IProviderBridge;
   database: IDatabaseBridge;
+  skills: ISkillBridge;
   notify(title: string, message: string): void;
 }
 
@@ -412,6 +433,15 @@ export const TERMINAL_IPC_CHANNELS = {
   AGENT_REJECT: 'desktop:termAgentReject',
 } as const;
 
+export const SKILLS_IPC_CHANNELS = {
+  LIST: 'desktop:skillsList',
+  GET: 'desktop:skillsGet',
+  SAVE: 'desktop:skillsSave',
+  DELETE: 'desktop:skillsDelete',
+  DUPLICATE: 'desktop:skillsDuplicate',
+  DIR: 'desktop:skillsDir',
+} as const;
+
 export const MEMORY_IPC_CHANNELS = {
   GET_CONFIG: 'desktop:memGetConfig',
   UPDATE_CONFIG: 'desktop:memUpdateConfig',
@@ -469,6 +499,9 @@ export interface IDesktopAPI {
 
   // Memory bridge (Electron main process SQLite)
   memory: IMemoryBridge;
+
+  // Skills bridge (Electron main process filesystem)
+  skills: ISkillBridge;
 
   // Terminal bridge (Electron main process PTY)
   terminal: ITerminalBridge;

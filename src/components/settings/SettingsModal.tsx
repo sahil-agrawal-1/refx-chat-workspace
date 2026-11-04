@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useAppStore } from '@/stores/app-store';
+import { desktopBridge } from '@/desktop/browser-preview-bridge';
 import { Logo } from '@/components/ui/Logo';
 
 export const SettingsModal: React.FC = () => {
@@ -20,7 +21,14 @@ export const SettingsModal: React.FC = () => {
     updateSetting,
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'workspace' | 'terminal' | 'security' | 'about'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'skills' | 'workspace' | 'terminal' | 'security' | 'about'>('general');
+  const [skills, setSkills] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (activeTab === 'skills') {
+      desktopBridge.skills.listSkills().then((s) => setSkills(Array.isArray(s) ? s : [])).catch(() => setSkills([]));
+    }
+  }, [activeTab]);
   const defaultShell = (settings.defaultShell as string) || 'powershell.exe';
   const fontSize = (settings.fontSize as string) || '14';
   const securityPolicy = (settings.securityPolicy as 'always' | 'high_risk' | 'never') || 'high_risk';
@@ -52,6 +60,28 @@ export const SettingsModal: React.FC = () => {
           >
             <Settings size={16} strokeWidth={1.8} className="text-[#888891]" />
             <span>General</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('appearance')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
+              activeTab === 'appearance' ? 'bg-[#242428] text-white font-medium border border-[#303036]' : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
+            }`}
+          >
+            <Settings size={16} strokeWidth={1.8} className="text-[#888891]" />
+            <span>Appearance</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('skills')}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-colors cursor-pointer ${
+              activeTab === 'skills' ? 'bg-[#242428] text-white font-medium border border-[#303036]' : 'text-[#888891] hover:text-white hover:bg-[#1e1e21]'
+            }`}
+          >
+            <Settings size={16} strokeWidth={1.8} className="text-[#888891]" />
+            <span>Skills</span>
           </button>
 
           <button
@@ -101,6 +131,92 @@ export const SettingsModal: React.FC = () => {
 
         {/* Right Tab Content */}
         <div className="md:col-span-8 space-y-3.5 text-xs">
+          {activeTab === 'appearance' && (
+            <div className="space-y-3.5">
+              <div>
+                <label className="block text-[#a1a1aa] font-medium mb-1">Theme</label>
+                <select value={(settings.theme as string) || 'Dark'} onChange={(e) => updateSetting('theme', e.target.value)} className="bg-[#131315] border border-[#242428] rounded-md px-3 py-1.5 text-white w-full text-xs">
+                  <option value="Dark">Dark</option>
+                  <option value="Light">Light</option>
+                  <option value="System">System</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#a1a1aa] font-medium mb-1">Accent Color</label>
+                <select value={(settings.accent as string) || 'Neutral'} onChange={(e) => updateSetting('accent', e.target.value)} className="bg-[#131315] border border-[#242428] rounded-md px-3 py-1.5 text-white w-full text-xs">
+                  <option value="Neutral">Neutral</option>
+                  <option value="Blue">Blue</option>
+                  <option value="Violet">Violet</option>
+                  <option value="Green">Green</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#a1a1aa] font-medium mb-1">Interface Density</label>
+                <select value={(settings.density as string) || 'Comfortable'} onChange={(e) => updateSetting('density', e.target.value)} className="bg-[#131315] border border-[#242428] rounded-md px-3 py-1.5 text-white w-full text-xs">
+                  <option value="Comfortable">Comfortable</option>
+                  <option value="Compact">Compact</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#a1a1aa] font-medium mb-1">Font Size</label>
+                <select value={(settings.fontSize as string) || '14'} onChange={(e) => updateSetting('fontSize', e.target.value)} className="bg-[#131315] border border-[#242428] rounded-md px-3 py-1.5 text-white w-full text-xs">
+                  <option value="12">Small</option>
+                  <option value="14">Medium</option>
+                  <option value="16">Large</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[#a1a1aa] font-medium mb-1">Reduce Motion</label>
+                <button type="button" onClick={() => updateSetting('reduceMotion', !settings.reduceMotion)} className="px-3 py-1.5 bg-[#131315] border border-[#242428] rounded-md text-white text-xs">
+                  {(settings.reduceMotion as boolean) ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'skills' && (
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[#71717a] text-xs">Local skills stored in the Refx AI skills directory.</p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const created = await desktopBridge.skills.saveSkill({ name: 'New Skill', description: '', instructions: '# Instructions\\n', enabled: true, applyByDefault: false });
+                    setSkills((prev) => [created, ...prev]);
+                  }}
+                  className="px-2.5 py-1 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
+                >
+                  New Skill
+                </button>
+              </div>
+              {skills.length === 0 ? (
+                <p className="text-[#71717a] text-xs">No skills found.</p>
+              ) : (
+                skills.map((sk) => (
+                  <div key={sk.id} className="p-2.5 bg-[#18181b] border border-[#242428] rounded-lg space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-xs font-medium">{sk.name}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await desktopBridge.skills.deleteSkill(sk.id);
+                            setSkills((prev) => prev.filter((s) => s.id !== sk.id));
+                          }}
+                          className="text-[#71717a] hover:text-red-400 text-xs cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[#71717a]">{sk.description}</p>
+                    <p className="text-[10px] text-[#6c6c74]">Apply by default: {sk.applyByDefault ? 'Yes' : 'No'}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           {activeTab === 'general' && (
             <div className="space-y-3.5">
               <div>

@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -47,6 +47,7 @@ const DB_CHANNELS = DATABASE_IPC_CHANNELS;
 const FS_CHANNELS = FILESYSTEM_IPC_CHANNELS;
 const MEM_CHANNELS = MEMORY_IPC_CHANNELS;
 const TERM_CHANNELS = TERMINAL_IPC_CHANNELS;
+const SKILLS_CHANNELS = SKILLS_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -166,6 +167,14 @@ const desktopAPI: IDesktopAPI = {
     restoreFileBackup: (id: string) => ipcRenderer.invoke(FS_CHANNELS.RESTORE_BACKUP, id),
     writeFile: async () => false,
     watchDirectory: () => () => {},
+  },
+  skills: {
+    listSkills: () => ipcRenderer.invoke(SKILLS_CHANNELS.LIST),
+    getSkill: (id: string) => ipcRenderer.invoke(SKILLS_CHANNELS.GET, id),
+    saveSkill: (skill: any) => ipcRenderer.invoke(SKILLS_CHANNELS.SAVE, skill),
+    deleteSkill: (id: string) => ipcRenderer.invoke(SKILLS_CHANNELS.DELETE, id),
+    duplicateSkill: (id: string) => ipcRenderer.invoke(SKILLS_CHANNELS.DUPLICATE, id),
+    getSkillsDir: () => ipcRenderer.invoke(SKILLS_CHANNELS.DIR),
   },
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),

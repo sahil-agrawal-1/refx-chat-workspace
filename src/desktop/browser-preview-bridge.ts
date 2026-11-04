@@ -6,6 +6,7 @@ import type {
   IMemoryBridge,
   IProviderBridge,
   IDatabaseBridge,
+  ISkillBridge,
   FileItem,
   TerminalSessionInfo,
   TaskMemoryEntry,
@@ -704,6 +705,22 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     validateDatabaseFile: async () => ({ valid: false, error: 'Not supported in browser preview' }),
     migrateLegacyData: async () => ({ success: true, imported: 0 }),
     integrityCheck: async () => ({ ok: true }),
+  };
+
+  public get skills(): ISkillBridge {
+    if (typeof window !== 'undefined' && (window as any).desktop?.skills) {
+      return (window as any).desktop.skills as ISkillBridge;
+    }
+    return this.previewSkills;
+  }
+
+  private previewSkills: ISkillBridge = {
+    listSkills: async () => [],
+    getSkill: async () => null,
+    saveSkill: async (skill: any) => ({ id: `preview-${Date.now()}`, name: skill?.name || 'Skill', description: '', instructions: skill?.instructions || '', enabled: true, applyByDefault: false, createdAt: Date.now(), updatedAt: Date.now() }),
+    deleteSkill: async () => true,
+    duplicateSkill: async () => null,
+    getSkillsDir: async () => 'browser-preview',
   };
 
   public get memory(): IMemoryBridge {
