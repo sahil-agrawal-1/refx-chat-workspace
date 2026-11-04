@@ -1,14 +1,52 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --surface: #141416;
+    --surface-raised: #18181b;
+    --surface-input: #1b1b1e;
+    --border: #242427;
+    --text: #e4e4e7;
+    --text-muted: #7c7c85;
+    --accent: #3c3c44;
+  }
+  :root[data-theme="Light"] {
+    --surface: #f4f4f5;
+    --surface-raised: #ffffff;
+    --surface-input: #ffffff;
+    --border: #e4e4e7;
+    --text: #18181b;
+    --text-muted: #52525a;
+    --accent: #d4d4d8;
+  }
+  :root[data-theme="System"] {
+    --surface: #141416;
+    --surface-raised: #18181b;
+    --surface-input: #1b1b1e;
+    --border: #242427;
+    --text: #e4e4e7;
+    --text-muted: #7c7c85;
+    --accent: #3c3c44;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="System"] {
+      --surface: #f4f4f5;
+      --surface-raised: #ffffff;
+      --surface-input: #ffffff;
+      --border: #e4e4e7;
+      --text: #18181b;
+      --text-muted: #52525a;
+      --accent: #d4d4d8;
+    }
+  }
   :root[data-theme="Dark"] body,
   :root[data-theme="System"] body {
-    background-color: #141416;
-    color: #e4e4e7;
+    background-color: var(--surface);
+    color: var(--text);
   }
   :root[data-theme="Light"] body {
-    background-color: #f4f4f5;
-    color: #18181b;
+    background-color: var(--surface);
+    color: var(--text);
   }
   body {
     overflow: hidden;
@@ -16,21 +54,15 @@
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-  :root[data-theme="System"] {
-  }
-  @media (prefers-color-scheme: light) {
-    :root[data-theme="System"] body {
-      background-color: #f4f4f5;
-      color: #18181b;
-    }
-  }
-  @media (prefers-color-scheme: dark) {
-    :root[data-theme="System"] body {
-      background-color: #141416;
-      color: #e4e4e7;
-    }
-  }
 }
+
+.bg-surface { background-color: var(--surface); }
+.bg-surface-raised { background-color: var(--surface-raised); }
+.bg-surface-input { background-color: var(--surface-input); }
+.border-border { border-color: var(--border); }
+.text-foreground { color: var(--text); }
+.text-foreground-muted { color: var(--text-muted); }
+.bg-accent { background-color: var(--accent); }
 
 /* Custom minimal scrollbar */
 .custom-scrollbar::-webkit-scrollbar {

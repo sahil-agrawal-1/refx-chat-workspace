@@ -32,14 +32,14 @@ const renderInline = (text: string): React.ReactNode[] => {
     }
     if (match[1] !== undefined) {
       parts.push(
-        <code key={match.index} className="px-1 py-0.5 rounded bg-[#0f0f11] border border-[#2a2a2e] text-[#c4c4cc] text-[11px] font-mono">
+        <code key={match.index} className="px-1 py-0.5 rounded bg-surface border border-border text-foreground text-[11px] font-mono">
           {match[1]}
         </code>
       );
     } else if (match[2] !== undefined) {
       parts.push(<strong key={match.index} className="font-semibold text-white">{match[2]}</strong>);
     } else if (match[3] !== undefined) {
-      parts.push(<em key={match.index} className="italic text-[#c4c4cc]">{match[3]}</em>);
+      parts.push(<em key={match.index} className="italic text-foreground">{match[3]}</em>);
     } else if (match[4] !== undefined) {
       parts.push(<a key={match.index} href={match[5]} className="text-blue-400 underline" target="_blank" rel="noreferrer">{match[4]}</a>);
     }
@@ -60,15 +60,15 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="my-2 rounded-lg border border-[#2a2a2e] overflow-hidden bg-[#0d0d0f]">
+    <div className="my-2 rounded-lg border border-border overflow-hidden bg-[#0d0d0f]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-[#161618] border-b border-[#242427] text-[11px]">
         <div className="flex items-center gap-2">
-          <span className="px-1.5 py-0.5 rounded bg-[#242427] text-[#a1a1aa] font-mono uppercase">{lang || 'text'}</span>
+          <span className="px-1.5 py-0.5 rounded bg-[#242427] text-foreground-muted font-mono uppercase">{lang || 'text'}</span>
         </div>
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-[#71717a] hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-1 text-foreground-muted hover:text-white transition-colors cursor-pointer"
         >
           {copied ? <Check size={12} strokeWidth={2} className="text-emerald-400" /> : <Copy size={12} strokeWidth={1.8} />}
           <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -80,7 +80,7 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
             {lines.map((line, idx) => (
               <tr key={idx} className="hover:bg-[#161618]">
                 <td className="w-10 px-2 text-right text-[#52525a] select-none border-r border-[#202024]">{idx + 1}</td>
-                <td className="px-3 whitespace-pre text-[#dedee3]">{line || ' '}</td>
+                <td className="px-3 whitespace-pre text-foreground">{line || ' '}</td>
               </tr>
             ))}
           </tbody>
@@ -107,7 +107,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
             elements.push(
               <ul key={`ul-${elements.length}`} className="list-none space-y-1 my-2 pl-4">
                 {listItems.map((li, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-[#dedee3]">
+                  <li key={idx} className="flex items-start gap-2 text-foreground">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#71717a] shrink-0" />
                     <span>{renderInline(li)}</span>
                   </li>
@@ -133,7 +133,7 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
             flushList();
           } else {
             flushList();
-            elements.push(<p key={`p-${idx}`} className="my-1.5 leading-relaxed text-[#dedee3]">{renderInline(line)}</p>);
+            elements.push(<p key={`p-${idx}`} className="my-1.5 leading-relaxed text-foreground">{renderInline(line)}</p>);
           }
         });
         flushList();
@@ -203,7 +203,7 @@ export const ChatMessageList: React.FC = () => {
         <div className="max-w-sm space-y-2.5 opacity-90">
           <Logo width={46} height={48} className="w-8 h-8 mx-auto opacity-70 mb-3" />
           <h1 className="text-base font-medium text-white tracking-tight">REFX AI Workspace</h1>
-          <p className="text-xs text-[#7c7c85] leading-relaxed">
+          <p className="text-xs text-foreground-muted leading-relaxed">
             Local-first AI desktop application for Windows. Select a workspace folder, connect your model provider, and start building.
           </p>
         </div>
@@ -216,7 +216,7 @@ export const ChatMessageList: React.FC = () => {
       {messages.map((msg: ChatMessage) => {
         if (msg.role === 'system') {
           return (
-            <div key={msg.id} className="p-3 bg-[#18181b] border border-[#26262a] rounded-xl text-xs flex items-start gap-2.5 text-[#a1a1aa]">
+            <div key={msg.id} className="p-3 bg-surface-raised border border-[#26262a] rounded-xl text-xs flex items-start gap-2.5 text-foreground-muted">
               <Info size={16} strokeWidth={1.8} className="text-[#888891] shrink-0 mt-0.5" />
               <div className="leading-relaxed flex-1 whitespace-pre-wrap">{msg.content}</div>
             </div>
@@ -235,7 +235,7 @@ export const ChatMessageList: React.FC = () => {
                     {msg.attachments.map((att) => (
                       <span
                         key={att.id}
-                        className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-[#a1a1aa] flex items-center gap-1"
+                        className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-foreground-muted flex items-center gap-1"
                       >
                         <FileCode size={12} strokeWidth={1.8} className="text-[#888891]" />
                         {att.name}
@@ -250,16 +250,16 @@ export const ChatMessageList: React.FC = () => {
 
         // Assistant Message
         return (
-          <div key={msg.id} className="space-y-2.5 text-xs text-[#dedee3]">
+          <div key={msg.id} className="space-y-2.5 text-xs text-foreground">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#1e1e21] border border-[#2a2a2e] text-[11px] text-[#c4c4cc]">
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#1e1e21] border border-border text-[11px] text-foreground">
                   <Sparkles size={12} strokeWidth={1.8} className="text-[#888891]" />
                   {msg.model || 'Assistant'}
                 </span>
                 {msg.durationMs ? (
-                  <span className="flex items-center gap-1 text-[10px] text-[#71717a]">
+                  <span className="flex items-center gap-1 text-[10px] text-foreground-muted">
                     <Clock size={10} strokeWidth={1.8} />
                     {(msg.durationMs / 1000).toFixed(1)}s
                   </span>
@@ -269,7 +269,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleCopy(msg.content, msg.id)}
-                  className="p-1 text-[#71717a] hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
                   title="Copy response"
                 >
                   {copiedId === msg.id ? <Check size={14} strokeWidth={2} className="text-emerald-400" /> : <Copy size={14} strokeWidth={1.8} />}
@@ -277,7 +277,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleRetry(msg)}
-                  className="p-1 text-[#71717a] hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
                   title="Retry"
                 >
                   <RotateCcw size={14} strokeWidth={1.8} />
@@ -285,7 +285,7 @@ export const ChatMessageList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSaveMemory(msg)}
-                  className="p-1 text-[#71717a] hover:text-white rounded transition-colors cursor-pointer"
+                  className="p-1 text-foreground-muted hover:text-white rounded transition-colors cursor-pointer"
                   title="Save to Memory"
                 >
                   <Save size={14} strokeWidth={1.8} />
@@ -295,16 +295,16 @@ export const ChatMessageList: React.FC = () => {
 
             {/* Activities Timeline */}
             {msg.activities && msg.activities.length > 0 && (
-              <details className="bg-[#18181b] border border-[#242428] rounded-xl p-2.5 text-xs group">
-                <summary className="cursor-pointer select-none text-[11px] text-[#71717a] flex items-center gap-1.5">
+              <details className="bg-surface-raised border border-border rounded-xl p-2.5 text-xs group">
+                <summary className="cursor-pointer select-none text-[11px] text-foreground-muted flex items-center gap-1.5">
                   <ChevronRight size={12} strokeWidth={1.8} className="group-open:rotate-90 transition-transform" />
                   Worked for {msg.durationMs ? (msg.durationMs / 1000).toFixed(0) : '?'}s \u25BE  \u2022  Explored {msg.activities.length} action{msg.activities.length > 1 ? 's' : ''}
                 </summary>
                 <div className="mt-2 space-y-1">
                   {msg.activities.map((step: ActivityStep) => (
                     <div key={step.id} className="flex items-center gap-2 text-[11px] text-[#9c9ca4]">
-                      {step.type === 'file_read' && <FileCode size={12} strokeWidth={1.8} className="text-[#71717a]" />}
-                      {step.type === 'file_write' && <FileEdit size={12} strokeWidth={1.8} className="text-[#71717a]" />}
+                      {step.type === 'file_read' && <FileCode size={12} strokeWidth={1.8} className="text-foreground-muted" />}
+                      {step.type === 'file_write' && <FileEdit size={12} strokeWidth={1.8} className="text-foreground-muted" />}
                       <span className="truncate">{step.title}</span>
                       {step.status === 'completed' && <CheckCircle2 size={12} strokeWidth={1.8} className="text-emerald-400" />}
                     </div>
@@ -348,7 +348,7 @@ export const ChatMessageList: React.FC = () => {
             )}
 
             {/* Text content */}
-            <div className="bg-[#18181b] border border-[#242428] rounded-xl p-3.5 leading-relaxed">
+            <div className="bg-surface-raised border border-border rounded-xl p-3.5 leading-relaxed">
               <MarkdownContent content={msg.content || (isGenerating ? '' : 'No response generated.')} />
               {isGenerating && msg.id === messages[messages.length - 1]?.id && (
                 <span className="inline-block w-1.5 h-3 bg-white ml-0.5 align-middle animate-pulse" />
@@ -359,7 +359,7 @@ export const ChatMessageList: React.FC = () => {
       })}
 
       {isGenerating && (
-        <div className="flex items-center gap-2 text-xs text-[#71717a] py-1 animate-pulse">
+        <div className="flex items-center gap-2 text-xs text-foreground-muted py-1 animate-pulse">
           <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
           <span>Generating response...</span>
         </div>

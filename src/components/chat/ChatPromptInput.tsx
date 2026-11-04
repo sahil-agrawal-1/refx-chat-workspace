@@ -176,7 +176,7 @@ export const ChatPromptInput: React.FC = () => {
         </button>
 
         {showProjectPicker && (
-          <div className="absolute left-0 bottom-full mb-1 w-64 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+          <div className="absolute left-0 bottom-full mb-1 w-64 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 text-xs">
             <div className="px-3 py-1.5 text-[11px] text-[#71717a] uppercase tracking-wider border-b border-[#222226]">
               Workspace Directory
             </div>
@@ -187,7 +187,7 @@ export const ChatPromptInput: React.FC = () => {
                 setShowProjectPicker(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors cursor-pointer ${
-                !selectedWorkspace ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'
+                !selectedWorkspace ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-[#202023]'
               }`}
             >
               <span>No workspace</span>
@@ -202,7 +202,7 @@ export const ChatPromptInput: React.FC = () => {
                   setShowProjectPicker(false);
                 }}
                 className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors cursor-pointer ${
-                  selectedWorkspace?.id === ws.id ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'
+                  selectedWorkspace?.id === ws.id ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-[#202023]'
                 }`}
               >
                 <div className="truncate pr-2">
@@ -219,7 +219,7 @@ export const ChatPromptInput: React.FC = () => {
                   setShowProjectPicker(false);
                   openWorkspaceDialog();
                 }}
-                className="w-full text-center py-1.5 text-xs text-[#9c9ca4] hover:text-white hover:bg-[#202024] rounded-md transition-colors cursor-pointer"
+                className="w-full text-center py-1.5 text-xs text-foreground-muted hover:text-white hover:bg-[#202024] rounded-md transition-colors cursor-pointer"
               >
                 Open workspace folder...
               </button>
@@ -229,15 +229,15 @@ export const ChatPromptInput: React.FC = () => {
       </div>
 
       {/* Main Prompt Box */}
-      <div className="bg-[#1b1b1e] border border-[#2a2a30] rounded-xl p-3 shadow-lg transition-colors focus-within:border-[#3c3c44]">
+      <div className="bg-surface-input border border-border rounded-xl p-3 shadow-lg transition-colors focus-within:border-[#3c3c44]">
         {showCommandMenu && (
-          <div ref={commandMenuRef} className="mb-2 bg-[#18181b] border border-[#2a2a30] rounded-lg shadow-xl py-1 text-xs">
+          <div ref={commandMenuRef} className="mb-2 bg-surface-raised border border-border rounded-lg shadow-xl py-1 text-xs">
             {SLASH_COMMANDS.filter((c) => c.cmd.startsWith(prompt.trim())).map((c) => (
               <button
                 key={c.cmd}
                 type="button"
                 onClick={() => { setPrompt(c.cmd + ' '); setShowCommandMenu(false); }}
-                className="w-full text-left px-3 py-1.5 text-[#9c9ca4] hover:text-white hover:bg-[#202023] cursor-pointer"
+                className="w-full text-left px-3 py-1.5 text-foreground-muted hover:text-white hover:bg-[#202023] cursor-pointer"
               >
                 <span className="font-mono text-white">{c.cmd}</span> <span className="text-[#6c6c74]">{c.desc}</span>
               </button>
@@ -251,16 +251,16 @@ export const ChatPromptInput: React.FC = () => {
           onKeyDown={handleKeyDown}
           placeholder="Describe what you want to build..."
           rows={1}
-          className="w-full bg-transparent text-[#e4e4e7] placeholder-[#6c6c74] text-sm resize-none focus:outline-none custom-scrollbar min-h-[38px] max-h-[160px] leading-relaxed select-text"
+          className="w-full bg-transparent text-foreground placeholder-[#6c6c74] text-sm resize-none focus:outline-none custom-scrollbar min-h-[38px] max-h-[160px] leading-relaxed select-text"
         />
 
-        <div className="flex items-center justify-between pt-2 mt-1 border-t border-[#242428]">
+        <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
           <div className="flex items-center gap-1.5">
             <div className="relative" ref={attachMenuRef}>
               <button
                 type="button"
                 onClick={() => setShowAttachMenu(!showAttachMenu)}
-                className="p-1.5 text-[#888891] hover:text-white hover:bg-[#242428] rounded-md transition-colors cursor-pointer"
+                className="p-1.5 text-[#888891] hover:text-white hover:bg-surface rounded-md transition-colors cursor-pointer"
                 aria-label="Add attachments or context"
                 title="Add context"
               >
@@ -268,7 +268,7 @@ export const ChatPromptInput: React.FC = () => {
               </button>
 
               {showAttachMenu && (
-                <div className="absolute left-0 bottom-full mb-1.5 w-52 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+                <div className="absolute left-0 bottom-full mb-1.5 w-52 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 text-xs">
                   <div className="px-3 py-1 text-[11px] text-[#71717a] uppercase tracking-wider border-b border-[#222226]">
                     Context
                   </div>
@@ -278,7 +278,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@file ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[#9c9ca4] hover:text-white hover:bg-[#202023] cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-[#202023] cursor-pointer"
                   >
                     <FileCode size={14} strokeWidth={1.8} className="text-[#888891]" />
                     <span>Workspace File</span>
@@ -289,7 +289,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@terminal ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[#9c9ca4] hover:text-white hover:bg-[#202023] cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-[#202023] cursor-pointer"
                   >
                     <Terminal size={14} strokeWidth={1.8} className="text-[#888891]" />
                     <span>Terminal Output</span>
@@ -300,7 +300,7 @@ export const ChatPromptInput: React.FC = () => {
                       setPrompt((prev) => (prev ? prev + '\n' : '') + '@memory ');
                       setShowAttachMenu(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-[#9c9ca4] hover:text-white hover:bg-[#202023] cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-foreground-muted hover:text-white hover:bg-[#202023] cursor-pointer"
                   >
                     <Paperclip size={14} strokeWidth={1.8} className="text-[#888891]" />
                     <span>Task Memory</span>
@@ -315,20 +315,20 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowEffortMenu(!showEffortMenu)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[#9c9ca4] hover:text-white hover:bg-[#242428] transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-white hover:bg-surface transition-colors cursor-pointer"
                 title="Reasoning effort"
               >
                 <span>Effort: {effort}</span>
                 <ChevronDown size={12} strokeWidth={1.8} />
               </button>
               {showEffortMenu && (
-                <div className="absolute bottom-full mb-1 left-0 w-40 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+                <div className="absolute bottom-full mb-1 left-0 w-40 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 text-xs">
                   {['Auto', 'Low', 'Medium', 'High', 'Extra High', 'Max'].map((opt) => (
                     <button
                       key={opt}
                       type="button"
                       onClick={() => { setEffort(opt); setShowEffortMenu(false); }}
-                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${effort === opt ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'}`}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${effort === opt ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-[#202023]'}`}
                     >
                       {opt}
                     </button>
@@ -342,14 +342,14 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowApprovalMenu(!showApprovalMenu)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-[#9c9ca4] hover:text-white hover:bg-[#242428] transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground-muted hover:text-white hover:bg-surface transition-colors cursor-pointer"
                 title="Approval mode"
               >
                 <span>Approval: {approvalMode}</span>
                 <ChevronDown size={12} strokeWidth={1.8} />
               </button>
               {showApprovalMenu && (
-                <div className="absolute bottom-full mb-1 left-0 w-64 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl py-1 z-50 text-xs">
+                <div className="absolute bottom-full mb-1 left-0 w-64 bg-surface-raised border border-border rounded-xl shadow-xl py-1 z-50 text-xs">
                   {[
                     { id: 'ask', label: 'Ask', desc: 'Require approval for writes and terminal commands.' },
                     { id: 'turbo', label: 'Turbo', desc: 'Auto-apply reversible edits with backups; ask for destructive ops.' },
@@ -359,7 +359,7 @@ export const ChatPromptInput: React.FC = () => {
                       key={opt.id}
                       type="button"
                       onClick={() => { setApprovalMode(opt.id as any); setShowApprovalMenu(false); }}
-                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${approvalMode === opt.id ? 'bg-[#242428] text-white font-medium' : 'text-[#9c9ca4] hover:text-white hover:bg-[#202023]'}`}
+                      className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${approvalMode === opt.id ? 'bg-surface text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-[#202023]'}`}
                     >
                       <div>{opt.label}</div>
                       <div className="text-[10px] text-[#6c6c74]">{opt.desc}</div>
@@ -372,7 +372,7 @@ export const ChatPromptInput: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#7c7c85] font-normal">Save Memory</span>
+              <span className="text-xs text-foreground-muted font-normal">Save Memory</span>
               <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
             </div>
 
@@ -382,7 +382,7 @@ export const ChatPromptInput: React.FC = () => {
               className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                 isListening
                   ? 'text-red-400 bg-red-950/40'
-                  : 'text-[#7c7c85] hover:text-white hover:bg-[#242428]'
+                  : 'text-foreground-muted hover:text-white hover:bg-surface'
               }`}
               aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
               title={isListening ? 'Listening...' : 'Voice input'}
@@ -412,7 +412,7 @@ export const ChatPromptInput: React.FC = () => {
 
     {showModelPicker && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-        <div className="w-96 max-h-[70vh] overflow-auto bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl p-3">
+        <div className="w-96 max-h-[70vh] overflow-auto bg-surface-raised border border-border rounded-xl shadow-xl p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-white font-medium">Select Model</span>
             <button type="button" onClick={() => setShowModelPicker(false)} className="text-[#71717a] hover:text-white">X</button>
@@ -426,7 +426,7 @@ export const ChatPromptInput: React.FC = () => {
                     key={m}
                     type="button"
                     onClick={() => { setSelectedModel(m, p.id); setShowModelPicker(false); setPrompt(''); }}
-                    className="w-full text-left px-2 py-1.5 text-xs text-[#9c9ca4] hover:text-white hover:bg-[#202023] rounded"
+                    className="w-full text-left px-2 py-1.5 text-xs text-foreground-muted hover:text-white hover:bg-[#202023] rounded"
                   >
                     {m}
                   </button>
