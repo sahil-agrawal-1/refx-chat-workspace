@@ -1104,6 +1104,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .updateConversation(targetConvId as string, { title: (newTitle || 'New Conversation') as string, updatedAt: Date.now() })
         .catch(() => {});
 
+      // Automatic application memory extraction (P7-B), only when enabled.
+      if (memoryConfig.autoMemoryEnabled) {
+        const sensitive = /api[_ -]?key|password|token|secret|private key|credential/i.test(text);
+        const isPreference = /\b(i prefer|i always|i never|always use|never use|my preference|remember that i)\b/i.test(text);
+        if (!sensitive && isPreference && text.length > 20) {
+          const existing = appMemories.find((m) => m.title.toLowerCase() === text.slice(0, 40).toLowerCase());
+          if (!existing) {
+            addAppMemory('preference', text.slice(0, 40), text.slice(0, 120), text).catch(() => {});
+          }
+        }
+      }
       // If no provider is connected, post a genuine system message explaining real state.
       // isGenerating is always reset here — this branch used to leave it stuck at true.
       const isModelConnected = selectedProvider && selectedProvider.status === "connected" && selectedModel;
