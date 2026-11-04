@@ -71,6 +71,7 @@ const terminalSessions = new Map<string, TerminalSession>();
 interface PendingTerminalApproval {
   resolve: (approved: boolean) => void;
   timeout: NodeJS.Timeout;
+  sessionId?: string;
 }
 const pendingTerminalApprovals = new Map<string, PendingTerminalApproval>();
 
@@ -463,8 +464,34 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
   });
 
   const approved = await approvedPromise;
+  const pendingApproval = pendingTerminalApprovals.get(id);
+  const approvedSessionId = pendingApproval?.sessionId;
+  pendingTerminalApprovals.delete(id);
   if (!approved) {
     return JSON.stringify({ approved: false, error: 'Command rejected or timed out.' });
+  }
+
+  const interactiveRequested = Boolean(args?.interactive) || /opencode|npm\s+start|python\s+-i|dev server|serve/i.test(command);
+  if (interactiveRequested) {
+    let session = approvedSessionId ? terminalSessions.get(approvedSessionId) : (args?.sessionId ? terminalSessions.get(args.sessionId) : undefined);
+    if (!session) {
+      const first = Array.from(terminalSessions.values())[0];
+      if (first) session = first;
+    }
+    if (!session) {
+      const id = `term-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const shellName = 'powershell.exe';
+      const workDir = (authorizedWorkspaceRoot || process.cwd());
+      const proc = pty.spawn(shellName, [], { name: 'xterm-color', cols: 120, rows: 30, cwd: workDir, env: process.env as any });
+      session = { id, name: 'PowerShell', shell: shellName, cwd: workDir, process: proc };
+      terminalSessions.set(id, session);
+    }
+    try {
+      session.process.write(command + (Array.isArray(args?.args) && args.args.length ? ' ' + args.args.join(' ') : '') + '\r');
+    } catch {
+      // ignore
+    }
+    return JSON.stringify({ approved: true, interactive: true, message: `Command "${command}" launched in interactive terminal.` });
   }
 
   // Execute using child_process (capturing output) with timeout
@@ -1276,12 +1303,13 @@ function registerIpcHandlers(): void {
     }));
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_APPROVE, async (_event, id: string) => {
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_APPROVE, async (_event, id: string, sessionId?: string) => {
     const pending = pendingTerminalApprovals.get(id);
     if (!pending) return false;
+    if (sessionId) pending.sessionId = sessionId;
     clearTimeout(pending.timeout);
     pending.resolve(true);
-    pendingTerminalApprovals.delete(id);
+    // keep pending for execution to read sessionId; delete after execution in tool
     return true;
   });
 
@@ -2821,6 +2849,7 @@ const WORKSPACE_TOOLS_OPENAI = [
           cwd: { type: 'string', description: 'Working directory.' },
           reason: { type: 'string', description: 'Reason for running.' },
           timeout: { type: 'number', description: 'Timeout in ms.' },
+          interactive: { type: 'boolean', description: 'Run in interactive terminal (TUI/server).' },
         },
         required: ['command'],
       },

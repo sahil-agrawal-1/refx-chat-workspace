@@ -205,7 +205,7 @@ export interface ITerminalBridge {
   killSession(sessionId: string): Promise<void>;
   onOutput(sessionId: string, callback: (data: string) => void): () => void;
   onAgentRequest(callback: (request: any) => void): () => void;
-  approveAgentCommand(id: string): Promise<boolean>;
+  approveAgentCommand(id: string, sessionId?: string): Promise<boolean>;
   rejectAgentCommand(id: string): Promise<boolean>;
 }
 

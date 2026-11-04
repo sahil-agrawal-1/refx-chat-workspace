@@ -224,7 +224,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         details: { command: req.command, args: req.args, cwd: req.cwd, reason: req.reason },
       });
       if (allowed) {
-        await window.desktop!.terminal.approveAgentCommand(req.id);
+        let sessionId: string | undefined;
+        if (req.interactive) {
+          const session = await desktopBridge.terminal.createSession('powershell.exe', selectedWorkspace?.path || 'No workspace opened');
+          setTerminalSessions((prev) => [...prev, session]);
+          setActiveTerminalId(session.id);
+          desktopBridge.terminal.onOutput(session.id, (data) => {
+            setTerminalLogs((prev) => ({ ...prev, [session.id]: (prev[session.id] || '') + data }));
+          });
+          setTerminalLogs((prev) => ({ ...prev, [session.id]: `PS> ` }));
+          sessionId = session.id;
+          setBottomPanel('terminal');
+        }
+        await window.desktop!.terminal.approveAgentCommand(req.id, sessionId);
       } else {
         await window.desktop!.terminal.rejectAgentCommand(req.id);
       }

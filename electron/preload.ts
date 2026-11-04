@@ -133,7 +133,7 @@ const desktopAPI: IDesktopAPI = {
       ipcRenderer.on(TERM_CHANNELS.AGENT_REQUEST, listener);
       return () => ipcRenderer.removeListener(TERM_CHANNELS.AGENT_REQUEST, listener);
     },
-    approveAgentCommand: (id: string) => ipcRenderer.invoke(TERM_CHANNELS.AGENT_APPROVE, id),
+    approveAgentCommand: (id: string, sessionId?: string) => ipcRenderer.invoke(TERM_CHANNELS.AGENT_APPROVE, id, sessionId),
     rejectAgentCommand: (id: string) => ipcRenderer.invoke(TERM_CHANNELS.AGENT_REJECT, id),
   },
   memory: {
