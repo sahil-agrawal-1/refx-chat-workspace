@@ -58,8 +58,6 @@ export const ChatPromptInput: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
-  const webSearchActive = useAppStore().webSearchActive;
-  const setWebSearchActive = useAppStore().setWebSearchActive;
   const [showRemoteDebugPopup, setShowRemoteDebugPopup] = useState(false);
   const [remoteDebugStatus, setRemoteDebugStatus] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
@@ -100,6 +98,8 @@ export const ChatPromptInput: React.FC = () => {
     startNewConversation,
     setSelectedModel,
     providers,
+    webSearchActive,
+    setWebSearchActive,
   } = useAppStore();
 
   // Cleanup object URLs on unmount
@@ -236,10 +236,7 @@ export const ChatPromptInput: React.FC = () => {
       if (handled) return;
     }
 
-    let text = prompt;
-    if (webSearchActive) {
-      text = `[Web Search Active]\n${text}`;
-    }
+    const text = prompt;
 
     // Convert attached files to MessageAttachment[]
     const messageAttachments = attachedFiles.map((f) => ({
