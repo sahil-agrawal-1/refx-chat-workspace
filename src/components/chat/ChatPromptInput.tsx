@@ -26,6 +26,7 @@ export const ChatPromptInput: React.FC = () => {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false);
@@ -338,39 +339,51 @@ export const ChatPromptInput: React.FC = () => {
                     <div className="px-3 py-1 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
                       Add Context
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrompt((prev) => (prev ? prev + '\n' : '') + '@file ');
-                        setShowAttachMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                    >
-                      <FileCode size={14} className="text-indigo-400" />
-                      <span>Workspace File</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrompt((prev) => (prev ? prev + '\n' : '') + '@terminal ');
-                        setShowAttachMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                    >
-                      <Terminal size={14} className="text-emerald-400" />
-                      <span>Terminal Output</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrompt((prev) => (prev ? prev + '\n' : '') + '@memory ');
-                        setShowAttachMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                    >
-                      <Sparkles size={14} className="text-amber-400" />
-                      <span>Task Memory</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.multiple = true;
+                          input.accept = 'image/*,.txt,.md,.json,.csv,.pdf,.doc,.docx';
+                          input.onchange = (ev) => {
+                            const files = Array.from((ev.target as HTMLInputElement).files || []);
+                            if (files.length) {
+                              setPrompt((prev) => (prev ? prev + '\n' : '') + files.map((f) => `@file ${f.name}`).join('\n'));
+                            }
+                            setShowAttachMenu(false);
+                          };
+                          input.click();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
+                      >
+                        <FileCode size={14} className="text-foreground-muted" />
+                        <span>Files</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { openWorkspaceDialog(); setShowAttachMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
+                      >
+                        <Folder size={14} className="text-foreground-muted" />
+                        <span>Folder</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPrompt((prev) => prev + '@'); setShowAttachMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
+                      >
+                        <span className="text-foreground-muted font-mono">@</span>
+                        <span>Mention</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowCommandMenu(true); setShowAttachMenu(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
+                      >
+                        <Terminal size={14} className="text-foreground-muted" />
+                        <span>Commands</span>
+                      </button>
                   </div>
                 )}
               </div>
