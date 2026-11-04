@@ -17,7 +17,7 @@ import type {
   ProviderVerificationResult,
   MODEL_IPC_CHANNELS,
 } from '../shared/contracts/desktop-bridge';
-import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS, SYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 import * as pty from 'node-pty';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
@@ -1431,6 +1431,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(TRASH_IPC_CHANNELS.RESTORE, async (_event, id: string) => trash.restoreTrash(id));
   ipcMain.handle(TRASH_IPC_CHANNELS.PURGE, async (_event, id: string) => trash.purgeTrash(id));
   ipcMain.handle(TRASH_IPC_CHANNELS.PURGE_EXPIRED, async () => trash.purgeExpired());
+
+  ipcMain.handle(SYSTEM_IPC_CHANNELS.CHECK_REMOTE_DEBUGGING, async () => {
+    try {
+      const res = await fetch('http://localhost:9222/json/version', { signal: AbortSignal.timeout(1000) });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**

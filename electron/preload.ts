@@ -13,7 +13,7 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from '../shared/contracts/desktop-bridge';
-import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
+import { DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS, SYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 
 /**
  * Allowlisted IPC Channels
@@ -49,6 +49,7 @@ const MEM_CHANNELS = MEMORY_IPC_CHANNELS;
 const TERM_CHANNELS = TERMINAL_IPC_CHANNELS;
 const SKILLS_CHANNELS = SKILLS_IPC_CHANNELS;
 const TRASH_CHANNELS = TRASH_IPC_CHANNELS;
+const SYS_CHANNELS = SYSTEM_IPC_CHANNELS;
 
 /**
  * Native Desktop API implementation for Electron Renderer
@@ -184,6 +185,7 @@ const desktopAPI: IDesktopAPI = {
     purgeTrash: (id: string) => ipcRenderer.invoke(TRASH_CHANNELS.PURGE, id),
     purgeExpired: () => ipcRenderer.invoke(TRASH_CHANNELS.PURGE_EXPIRED),
   },
+  checkRemoteDebugging: () => ipcRenderer.invoke(SYS_CHANNELS.CHECK_REMOTE_DEBUGGING),
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),
     getConversations: () => ipcRenderer.invoke(DB_CHANNELS.GET_CONVERSATIONS),

@@ -59,6 +59,8 @@ export const ChatPromptInput: React.FC = () => {
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false);
+  const [showRemoteDebugPopup, setShowRemoteDebugPopup] = useState(false);
+  const [remoteDebugStatus, setRemoteDebugStatus] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -549,7 +551,7 @@ export const ChatPromptInput: React.FC = () => {
               {/* Web Search Pill Button (Web icon + text "Search") */}
               <button
                 type="button"
-                onClick={() => setWebSearchActive(!webSearchActive)}
+                onClick={() => setShowRemoteDebugPopup(true)}
                 className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs ${
                   webSearchActive
                     ? 'bg-blue-500/15 border-blue-500/40 text-blue-500 font-medium shadow-xs'
@@ -731,6 +733,53 @@ export const ChatPromptInput: React.FC = () => {
           </div>
         </div>
       )}
-    </>
+      {showRemoteDebugPopup && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="w-96 bg-[#18181b] border border-[#2a2a30] rounded-xl shadow-xl p-4 space-y-3">
+          <h4 className="text-sm text-white font-medium">Enable Remote Debugging</h4>
+          <p className="text-xs text-[#9c9ca4]">
+            Web search uses Chrome remote debugging. Open chrome://inspect/#remote-debugging and enable it, then click Check Again.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { window.open('chrome://inspect/#remote-debugging', '_blank'); }}
+              className="px-3 py-1.5 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
+            >
+              Enable
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                let ok = false;
+                if (typeof window !== 'undefined' && (window as any).desktop?.checkRemoteDebugging) {
+                  ok = await (window as any).desktop.checkRemoteDebugging();
+                }
+                if (ok) {
+                  setWebSearchActive(true);
+                  setShowRemoteDebugPopup(false);
+                  setRemoteDebugStatus('');
+                } else {
+                  setRemoteDebugStatus('Not enabled yet. Enable remote debugging and try again.');
+                }
+              }}
+              className="px-3 py-1.5 bg-[#242428] hover:bg-[#2c2c31] text-white rounded text-xs cursor-pointer"
+            >
+              Check Again
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRemoteDebugPopup(false)}
+              className="px-3 py-1.5 text-[#9c9ca4] hover:text-white text-xs cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+          {remoteDebugStatus && <p className="text-xs text-red-400">{remoteDebugStatus}</p>}
+        </div>
+      </div>
+    )}
+
+  </>
   );
 };

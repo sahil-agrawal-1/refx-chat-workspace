@@ -429,6 +429,10 @@ export const FILESYSTEM_IPC_CHANNELS = {
   RESTORE_BACKUP: 'desktop:fsRestoreBackup',
 } as const;
 
+export const SYSTEM_IPC_CHANNELS = {
+  CHECK_REMOTE_DEBUGGING: 'desktop:checkRemoteDebugging',
+} as const;
+
 export const CREDENTIAL_IPC_CHANNELS = {
   SAVE_CREDENTIAL: 'desktop:saveCredential',
   DELETE_CREDENTIAL: 'desktop:deleteCredential',
@@ -526,6 +530,9 @@ export interface IDesktopAPI {
 
   // Skills bridge (Electron main process filesystem)
   skills: ISkillBridge;
+
+  // System helpers
+  checkRemoteDebugging(): Promise<boolean>;
 
   // Trash/backup bin bridge
   trash: ITrashBridge;
