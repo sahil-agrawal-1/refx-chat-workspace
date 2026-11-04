@@ -2218,7 +2218,7 @@ async function startProviderChatGemini(
 
     const geminiTools = [
       {
-        functionDeclarations: WORKSPACE_TOOLS_OPENAI.map((t: any) => ({
+        functionDeclarations: (request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI).map((t: any) => ({
           name: t.function.name,
           description: t.function.description,
           parameters: t.function.parameters,
@@ -2384,7 +2384,8 @@ async function startProviderChatAnthropic(
         content: m.content,
       }));
 
-      const anthropicTools = WORKSPACE_TOOLS_OPENAI.map((t: any) => ({
+      const anthropicSourceTools = request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI;
+      const anthropicTools = anthropicSourceTools.map((t: any) => ({
         name: t.function.name,
         description: t.function.description,
         input_schema: t.function.parameters,
@@ -3039,6 +3040,38 @@ const WORKSPACE_TOOLS_OPENAI = [
     },
   },
 ];
+const WEB_TOOLS_OPENAI = [
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description: 'Search the live web for current events, documentation, news, pricing, or real-time information.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query terms.' },
+          num_results: { type: 'number', description: 'Number of results (1-5).' },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'browse_url',
+      description: 'Fetch and read the text content of a specific web page URL.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'The HTTP/HTTPS URL to visit.' },
+        },
+        required: ['url'],
+      },
+    },
+  },
+];
+
 
 async function callProviderNonStreamingOpenAICompatible(
   request: ModelInferenceRequest,
@@ -3059,7 +3092,7 @@ async function callProviderNonStreamingOpenAICompatible(
     body: JSON.stringify({
       model: request.model,
       messages,
-      tools: WORKSPACE_TOOLS_OPENAI,
+      tools: request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI,
       tool_choice: 'auto',
     }),
     signal,
@@ -3083,7 +3116,7 @@ async function callProviderNonStreamingOllama(
     body: JSON.stringify({
       model: request.model,
       messages,
-      tools: WORKSPACE_TOOLS_OPENAI,
+      tools: request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI,
       stream: false,
     }),
     signal,
