@@ -1349,9 +1349,8 @@ async function startProviderChatStream(
     case 'openai_compatible':
     case 'lm_studio':
     case 'custom_local':
-      return startProviderChatWithTools(event, request);
     case 'openrouter':
-      return startProviderChatOpenRouter(event, request);
+      return startProviderChatWithTools(event, request);
     case 'gemini':
       return startProviderChatGemini(event, request);
     case 'anthropic':
