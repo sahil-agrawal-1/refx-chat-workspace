@@ -128,6 +128,13 @@ const desktopAPI: IDesktopAPI = {
       ipcRenderer.on(TERM_CHANNELS.OUTPUT, listener);
       return () => ipcRenderer.removeListener(TERM_CHANNELS.OUTPUT, listener);
     },
+    onAgentRequest: (callback: (request: any) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+      ipcRenderer.on(TERM_CHANNELS.AGENT_REQUEST, listener);
+      return () => ipcRenderer.removeListener(TERM_CHANNELS.AGENT_REQUEST, listener);
+    },
+    approveAgentCommand: (id: string) => ipcRenderer.invoke(TERM_CHANNELS.AGENT_APPROVE, id),
+    rejectAgentCommand: (id: string) => ipcRenderer.invoke(TERM_CHANNELS.AGENT_REJECT, id),
   },
   memory: {
     getMemoryConfig: () => ipcRenderer.invoke(MEM_CHANNELS.GET_CONFIG),

@@ -213,6 +213,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   // Conversations are persisted via the database bridge; no localStorage sync.
+  // Listen for AI-requested terminal commands (P6-B)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.desktop?.terminal?.onAgentRequest) return;
+    const unsubscribe = window.desktop.terminal.onAgentRequest(async (req: any) => {
+      const allowed = await requestPermission({
+        type: 'terminal_exec',
+        title: 'AI Terminal Command Request',
+        description: `Command: ${req.command} ${Array.isArray(req.args) ? req.args.join(' ') : ''}`.trim(),
+        details: { command: req.command, args: req.args, cwd: req.cwd, reason: req.reason },
+      });
+      if (allowed) {
+        await window.desktop!.terminal.approveAgentCommand(req.id);
+      } else {
+        await window.desktop!.terminal.rejectAgentCommand(req.id);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
+
   // Load provider & bridge configuration
   useEffect(() => {
     async function initBridgeData() {

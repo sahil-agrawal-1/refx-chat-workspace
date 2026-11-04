@@ -204,6 +204,9 @@ export interface ITerminalBridge {
   resize(sessionId: string, cols: number, rows: number): Promise<void>;
   killSession(sessionId: string): Promise<void>;
   onOutput(sessionId: string, callback: (data: string) => void): () => void;
+  onAgentRequest(callback: (request: any) => void): () => void;
+  approveAgentCommand(id: string): Promise<boolean>;
+  rejectAgentCommand(id: string): Promise<boolean>;
 }
 
 export interface IMemoryBridge {
@@ -396,6 +399,9 @@ export const TERMINAL_IPC_CHANNELS = {
   LIST: 'desktop:termList',
   OUTPUT: 'desktop:termOutput',
   EXIT: 'desktop:termExit',
+  AGENT_REQUEST: 'desktop:termAgentRequest',
+  AGENT_APPROVE: 'desktop:termAgentApprove',
+  AGENT_REJECT: 'desktop:termAgentReject',
 } as const;
 
 export const MEMORY_IPC_CHANNELS = {

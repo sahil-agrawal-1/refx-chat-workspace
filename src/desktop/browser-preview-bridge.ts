@@ -325,6 +325,9 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       }, 50);
     },
     killSession: async (_sessionId: string): Promise<void> => {},
+    onAgentRequest: (_callback: (request: any) => void): (() => void) => () => {},
+    approveAgentCommand: async (_id: string) => false,
+    rejectAgentCommand: async (_id: string) => false,
     onOutput: (sessionId: string, callback: (data: string) => void): (() => void) => {
       const list = this.terminalOutputs.get(sessionId) || [];
       list.push(callback);

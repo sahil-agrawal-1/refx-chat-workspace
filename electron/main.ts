@@ -68,6 +68,12 @@ interface TerminalSession {
 }
 const terminalSessions = new Map<string, TerminalSession>();
 
+interface PendingTerminalApproval {
+  resolve: (approved: boolean) => void;
+  timeout: NodeJS.Timeout;
+}
+const pendingTerminalApprovals = new Map<string, PendingTerminalApproval>();
+
 interface PendingFileChange {
   id: string;
   filePath: string;
@@ -425,6 +431,84 @@ function restoreFileBackup(id: string): boolean {
   if (!fs.existsSync(change.backupPath)) return false;
   fs.writeFileSync(change.filePath, fs.readFileSync(change.backupPath, 'utf8'), 'utf8');
   return true;
+}
+
+async function executeTerminalTool(args: any, sender: Electron.WebContents | null): Promise<string> {
+  const command = String(args?.command || '').trim();
+  if (!command) {
+    return JSON.stringify({ error: 'command is required' });
+  }
+  const cwd = args?.cwd && fs.existsSync(args.cwd) ? args.cwd : (authorizedWorkspaceRoot || process.cwd());
+  const timeoutMs = Math.min(Math.max(Number(args?.timeout) || 30000, 1000), 120000);
+  const id = `term-agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  if (!sender || sender.isDestroyed()) {
+    return JSON.stringify({ error: 'No renderer available for approval.' });
+  }
+
+  const approvedPromise = new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      pendingTerminalApprovals.delete(id);
+      resolve(false);
+    }, 60000);
+    pendingTerminalApprovals.set(id, { resolve, timeout });
+    sender.send(TERMINAL_IPC_CHANNELS.AGENT_REQUEST, {
+      id,
+      command,
+      args: args?.args || [],
+      cwd,
+      reason: args?.reason || '',
+      timeout: timeoutMs,
+    });
+  });
+
+  const approved = await approvedPromise;
+  if (!approved) {
+    return JSON.stringify({ approved: false, error: 'Command rejected or timed out.' });
+  }
+
+  // Execute using child_process (capturing output) with timeout
+  const { spawn } = await import('node:child_process');
+  return await new Promise<string>((resolve) => {
+    const fullCommand = args?.args?.length ? `${command} ${args.args.join(' ')}` : command;
+    const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+    const shellArgs = process.platform === 'win32' ? ['/c', fullCommand] : ['-c', fullCommand];
+    const child = spawn(shell, shellArgs, { cwd, env: process.env, windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    let killed = false;
+
+    const timer = setTimeout(() => {
+      killed = true;
+      try { child.kill(); } catch {}
+    }, timeoutMs);
+
+    child.stdout?.on('data', (d: Buffer) => {
+      const chunk = d.toString();
+      stdout += chunk;
+      if (stdout.length > 50000) stdout = stdout.slice(-50000);
+    });
+    child.stderr?.on('data', (d: Buffer) => {
+      const chunk = d.toString();
+      stderr += chunk;
+      if (stderr.length > 50000) stderr = stderr.slice(-50000);
+    });
+    child.on('close', (code: number | null) => {
+      clearTimeout(timer);
+      resolve(JSON.stringify({
+        approved: true,
+        command: fullCommand,
+        exitCode: code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        timedOut: killed,
+      }));
+    });
+    child.on('error', (err: any) => {
+      clearTimeout(timer);
+      resolve(JSON.stringify({ approved: true, command: fullCommand, error: err?.message || String(err) }));
+    });
+  });
 }
 
 function registerIpcHandlers(): void {
@@ -1190,6 +1274,24 @@ function registerIpcHandlers(): void {
       exitCode: null,
       history: [],
     }));
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_APPROVE, async (_event, id: string) => {
+    const pending = pendingTerminalApprovals.get(id);
+    if (!pending) return false;
+    clearTimeout(pending.timeout);
+    pending.resolve(true);
+    pendingTerminalApprovals.delete(id);
+    return true;
+  });
+
+  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_REJECT, async (_event, id: string) => {
+    const pending = pendingTerminalApprovals.get(id);
+    if (!pending) return false;
+    clearTimeout(pending.timeout);
+    pending.resolve(false);
+    pendingTerminalApprovals.delete(id);
+    return true;
   });
 }
 
@@ -1999,7 +2101,7 @@ async function startProviderChatGemini(
           });
         }
         const cleanName = (name || '').replace(/^default_api:/, '');
-        const result = await executeWorkspaceTool(cleanName, args);
+        const result = await executeWorkspaceTool(cleanName, args, sender);
         formatted.push({
           role: 'user',
           parts: [{ functionResponse: { name, response: { result } } }],
@@ -2143,7 +2245,7 @@ async function startProviderChatAnthropic(
 
         conversation.push({ role: 'assistant', content: response.content as any });
         for (const tu of toolUses as any[]) {
-          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {});
+          const result = await executeWorkspaceTool((tu as any).name, (tu as any).input || {}, sender);
           conversation.push({
             role: 'user',
             content: [{ type: 'tool_result', tool_use_id: (tu as any).id, content: result }] as any,
@@ -2458,7 +2560,7 @@ app.on('before-quit', () => {
   terminalSessions.clear();
   db.closeDatabase();
 });
-async function executeWorkspaceTool(name: string, args: any): Promise<string> {
+async function executeWorkspaceTool(name: string, args: any, sender: Electron.WebContents | null = null): Promise<string> {
   try {
     switch (name) {
       case 'get_workspace_info': {
@@ -2562,6 +2664,10 @@ async function executeWorkspaceTool(name: string, args: any): Promise<string> {
       case 'delete_file': {
         const change = proposeFileChange({ type: 'delete', path: args?.path });
         return JSON.stringify({ proposed: true, id: change.id, path: change.filePath });
+      }
+
+      case 'run_terminal_command': {
+        return await executeTerminalTool(args, sender);
       }
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -2699,6 +2805,24 @@ const WORKSPACE_TOOLS_OPENAI = [
           path: { type: 'string', description: 'Absolute file path.' },
         },
         required: ['path'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_terminal_command',
+      description: 'Request execution of a terminal command (requires user approval).',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Command to execute.' },
+          args: { type: 'array', items: { type: 'string' }, description: 'Arguments.' },
+          cwd: { type: 'string', description: 'Working directory.' },
+          reason: { type: 'string', description: 'Reason for running.' },
+          timeout: { type: 'number', description: 'Timeout in ms.' },
+        },
+        required: ['command'],
       },
     },
   },
@@ -2875,7 +2999,7 @@ async function startProviderChatWithTools(
           toolActions.push(`*Searched workspace for:* "${args?.query || ''}"`);
         }
 
-        const result = await executeWorkspaceTool(name || '', args);
+        const result = await executeWorkspaceTool(name || '', args, sender);
         activities.push({ id: `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: name || 'tool', detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'completed', outputPreview: String(result).slice(0, 500) });
         messages.push({
           role: 'tool',
