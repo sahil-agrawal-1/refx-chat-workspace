@@ -235,4 +235,31 @@ See `security.md` for full security documentation including:
 | 11/3/2026 | P1: Chat-state repair (conversation creation, stale history, generation state, error handling, stop generation) | Cline (AI coding agent) |
 | 11/3/2026 | P2: Security hardening (safeStorage DPAPI, XSS prevention, credential migration, audit pipeline) | Cline (AI coding agent) |
 | 11/3/2026 | P3: Real provider verification (all 8 providers, 9 connection states, browser preview fixes) | Cline (AI coding agent) |
-| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |
+| 11/3/2026 | Bug fixes: API key cross-provider leak, credential persistence across restarts, model validation, improved Gemini 404 / OpenRouter 503 error messages | Cline (AI coding agent) |## P4-P6 Update Summary
+
+### P4: SQLite Persistence
+- Local SQLite database (better-sqlite3) in %APPDATA%\refx\data\refx.sqlite.
+- Versioned migrations, WAL mode, foreign keys, prepared statements.
+- Conversations, messages, settings, operation history, task/app memories.
+- Legacy localStorage migration (idempotent, transactional, backup-preserving).
+- Backup/restore with integrity validation.
+
+### P5-A: Read-Only Workspace Filesystem
+- Secure path validation, containment, symlink/junction protection.
+- Real nested directory listing, file reading, search.
+- Exclusions for sensitive files and large/binary handling.
+
+### P5-B: File Modification Engine
+- Create/edit/rename/move/delete with user approval.
+- Backups, restore, trash deletion, rollback.
+- Agent tools propose changes; approval enforced in Main Process.
+
+### P6: Workspace Tool Integration
+- Models can list/read/search/propose changes via tool loop.
+- OpenAI-compatible, Ollama, OpenRouter, Gemini, Anthropic supported.
+- Sanitized chat history to prevent duplicate turns.
+
+### Security
+- No plaintext API keys in SQLite or localStorage.
+- Credentials remain in Electron safeStorage (DPAPI).
+- CI scanner validates absence of illegal localStorage API key persistence.

@@ -204,3 +204,35 @@ If `safeStorage.isEncryptionAvailable()` returns false or the credential file ca
 | Memory stored in `localStorage`, not SQLite | LocalStorage is accessible to renderer scripts | Memory entries do not contain credentials; planned migration to SQLite |
 | `pnpm-workspace.yaml` lists `electron-winstaller` and `protobufjs` not in dependencies | Stale config, not a security risk | Harmless; can be cleaned up |
 | TypeScript `^7.0.2` may not resolve | Build risk, not a security risk | Version may need adjustment |
+
+## 10. Workspace Filesystem Security (P5-A / P5-B / P6)
+
+### Authorization Boundary
+- Selected workspace folder is the default authorization boundary.
+- All filesystem operations validate canonical paths with `fs.realpathSync`.
+- Symlink, junction, and reparse-point escapes are rejected.
+- Path traversal (`..`) is blocked via containment checks.
+- Windows paths are compared case-insensitively but traversal sequences are never weakened.
+
+### Exclusions
+- `node_modules`, `.git`, `dist`, `build`, `.next`, `coverage`, `.cache`, `.turbo`, `out`, `release` are excluded.
+- `.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.crt`, `*.cer` are excluded.
+- Reading excluded or external files requires explicit permission.
+
+### File Modification Safety (P5-B)
+- All modifications require explicit user approval enforced in the Main Process.
+- Models cannot approve their own changes.
+- Pending operations include unique IDs, canonical paths, original content hash, timestamps, and status.
+- Original file hash is revalidated before applying to prevent overwriting unexpected edits.
+- Backups are created and verified before modification; restore is supported.
+- Deletion prefers `shell.trashItem` (Recycle Bin).
+- Failed operations trigger rollback when a backup exists.
+
+### AI Tool Access (P6)
+- Workspace tools are exposed to the model only through validated Main Process IPC.
+- File contents are treated as untrusted data and never override system rules.
+- Only relevant, user-authorized file context is sent to providers.
+
+### CI Scanner
+- `security.yml` scans for `localStorage.setItem(...apiKey)` patterns in source.
+- No plaintext API keys are persisted to localStorage or browser preview storage.
