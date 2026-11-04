@@ -1903,6 +1903,14 @@ async function startProviderChatGemini(
         const name = fc?.name;
         const args = fc?.args || {};
         formatted.push({ role: 'model', parts: [{ functionCall: fc }] });
+        const activityId = `act-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+        if (!sender.isDestroyed()) {
+          sender.send(MODEL_CHANNELS.PROVIDER_STREAM, {
+            requestId: request.requestId,
+            type: 'activity',
+            activities: [{ id: activityId, type: name?.includes('read') || name === 'list_directory' || name === 'search_files' || name === 'search_text' || name === 'get_workspace_info' ? 'file_read' : 'file_write', title: `${name === 'read_file' ? 'Reading' : name === 'list_directory' ? 'Listing' : 'Running'} ${args?.path || args?.query || ''}`.trim(), detail: args?.path || args?.query || '', timestamp: Date.now(), status: 'running' }],
+          });
+        }
         const result = await executeWorkspaceTool(name || '', args);
         formatted.push({
           role: 'function',

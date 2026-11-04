@@ -1169,7 +1169,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const unsubscribe = window.desktop.onProviderStream((event) => {
           if (event.requestId !== requestId) return;
 
-          if (event.type === "chunk" && event.fullText !== undefined) {
+           if (event.type === "activity" && Array.isArray(event.activities)) {
+             setConversations((prev) =>
+               prev.map((c) =>
+                 c.id === targetConvId
+                   ? {
+                       ...c,
+                       messages: c.messages.map((m) =>
+                         m.id === assistantMsgId ? { ...m, activities: [...(m.activities || []), ...event.activities!] } : m
+                       ),
+                     }
+                   : c
+               )
+             );
+           } else if (event.type === "chunk" && event.fullText !== undefined) {
             // Update the assistant message content incrementally
             setConversations((prev) =>
               prev.map((c) =>

@@ -322,6 +322,9 @@ export const ChatMessageList: React.FC = () => {
             {/* Text content */}
             <div className="bg-[#18181b] border border-[#242428] rounded-xl p-3.5 leading-relaxed">
               <MarkdownContent content={msg.content || (isGenerating ? '' : 'No response generated.')} />
+              {isGenerating && msg.id === messages[messages.length - 1]?.id && (
+                <span className="inline-block w-1.5 h-3 bg-white ml-0.5 align-middle animate-pulse" />
+              )}
             </div>
           </div>
         );
