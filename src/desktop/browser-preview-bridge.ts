@@ -347,6 +347,14 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       return { ...this.memoryConfig };
     },
     getTaskMemories: async (_taskId: string): Promise<TaskMemoryEntry[]> => [...this.taskMemories],
+    getTaskMemory: async (conversationId: string) => this.taskMemories.find((m) => m.taskId === conversationId) || null,
+    updateTaskMemory: async (conversationId: string, id: string, changes: any) => {
+      const idx = this.taskMemories.findIndex((m) => m.id === id);
+      if (idx < 0) return null;
+      this.taskMemories[idx] = { ...this.taskMemories[idx], ...changes, updatedAt: Date.now() };
+      this.saveToStorage('refx_task_memories', this.taskMemories);
+      return this.taskMemories[idx];
+    },
     saveTaskMemory: async (entry): Promise<TaskMemoryEntry> => {
       const newEntry: TaskMemoryEntry = {
         ...entry,

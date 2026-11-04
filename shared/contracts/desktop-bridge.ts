@@ -213,7 +213,10 @@ export interface IMemoryBridge {
   getMemoryConfig(): Promise<MemoryConfig>;
   updateMemoryConfig(config: Partial<MemoryConfig>): Promise<MemoryConfig>;
   getTaskMemories(taskId: string): Promise<TaskMemoryEntry[]>;
+  getTaskMemory(conversationId: string): Promise<TaskMemoryEntry | null>;
   saveTaskMemory(entry: Omit<TaskMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<TaskMemoryEntry>;
+  updateTaskMemory(conversationId: string, id: string, changes: any): Promise<TaskMemoryEntry | null>;
+  deleteTaskMemory(id: string): Promise<boolean>;
   deleteTaskMemory(id: string): Promise<boolean>;
   getAppMemories(): Promise<AppMemoryEntry[]>;
   saveAppMemory(entry: Omit<AppMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<AppMemoryEntry>;
@@ -410,7 +413,9 @@ export const MEMORY_IPC_CHANNELS = {
   GET_CONFIG: 'desktop:memGetConfig',
   UPDATE_CONFIG: 'desktop:memUpdateConfig',
   GET_TASK_MEMORIES: 'desktop:memGetTaskMemories',
+  GET_TASK_MEMORY: 'desktop:memGetTaskMemory',
   SAVE_TASK_MEMORY: 'desktop:memSaveTaskMemory',
+  UPDATE_TASK_MEMORY: 'desktop:memUpdateTaskMemory',
   DELETE_TASK_MEMORY: 'desktop:memDeleteTaskMemory',
   GET_APP_MEMORIES: 'desktop:memGetAppMemories',
   SAVE_APP_MEMORY: 'desktop:memSaveAppMemory',

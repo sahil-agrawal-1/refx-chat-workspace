@@ -1301,7 +1301,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => memory.getMemoryConfig());
   ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) => memory.updateMemoryConfig(config));
   ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) => memory.getTaskMemories(taskId));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORY, async (_event, conversationId: string) => memory.getTaskMemory(conversationId));
   ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) => memory.saveTaskMemory(entry));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_TASK_MEMORY, async (_event, conversationId: string, id: string, changes: any) => memory.updateTaskMemory(conversationId, id, changes));
   ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) => memory.deleteTaskMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => memory.getAppMemories());
   ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => memory.saveAppMemory(entry));

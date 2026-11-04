@@ -36,9 +36,79 @@ function getConfig(): any {
   };
 }
 
+function copyDir(src: string, dest: string): void {
+  if (!fs.existsSync(src)) return;
+  ensureDir(dest);
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDir(srcPath, destPath);
+    else fs.copyFileSync(srcPath, destPath);
+  }
+}
+
+function verifyDirIntegrity(src: string, dest: string): boolean {
+  if (!fs.existsSync(src)) return true;
+  const srcFiles: string[] = [];
+  const destFiles: string[] = [];
+  const walk = (dir: string, base: string, list: string[]) => {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      const rel = path.relative(base, full);
+      if (entry.isDirectory()) walk(full, base, list);
+      else list.push(rel);
+    }
+  };
+  walk(src, src, srcFiles);
+  walk(dest, dest, destFiles);
+  if (srcFiles.length !== destFiles.length) return false;
+  for (const rel of srcFiles) {
+    const s = fs.readFileSync(path.join(src, rel));
+    const d = fs.readFileSync(path.join(dest, rel));
+    if (!s.equals(d)) return false;
+  }
+  return true;
+}
+
+function migrateMemoryDirectory(newDirRaw: string): { success: boolean; error?: string } {
+  const oldDir = memoryRoot();
+  const newDir = expandPath(newDirRaw);
+  if (path.resolve(oldDir).toLowerCase() === path.resolve(newDir).toLowerCase()) {
+    return { success: true };
+  }
+  try {
+    ensureDir(newDir);
+    const testFile = path.join(newDir, '.write-test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Destination not writable.' };
+  }
+  if (newDir.toLowerCase().startsWith(oldDir.toLowerCase() + path.sep.toLowerCase())) {
+    return { success: false, error: 'Destination cannot be inside source directory.' };
+  }
+  try {
+    const backupDir = path.join(oldDir, 'backups', 'pre-migration-' + Date.now());
+    ensureDir(backupDir);
+    copyDir(oldDir, backupDir);
+    copyDir(oldDir, newDir);
+    if (!verifyDirIntegrity(oldDir, newDir)) {
+      return { success: false, error: 'Migration verification failed.' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Migration failed.' };
+  }
+}
+
 function updateConfig(config: any): any {
   const current = getConfig();
   const updated = { ...current, ...config };
+  if (config.globalMemoryDirectory && expandPath(config.globalMemoryDirectory) !== expandPath(current.globalMemoryDirectory)) {
+    const result = migrateMemoryDirectory(config.globalMemoryDirectory);
+    if (!result.success) throw new Error(result.error || 'Migration failed.');
+  }
   db.saveAppSetting('memory_config', updated);
   return updated;
 }
@@ -82,6 +152,11 @@ export function getMemoryConfig(): any {
 
 export function updateMemoryConfig(config: any): any {
   return updateConfig(config);
+}
+
+export function getTaskMemory(conversationId: string): any {
+  const entries = readTaskEntries(conversationId);
+  return entries.length ? entries[0] : null;
 }
 
 export function getTaskMemories(taskId: string): any[] {
