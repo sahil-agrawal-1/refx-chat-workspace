@@ -251,3 +251,8 @@ MIT
 | 11/4/2026 | P5-A: Real workspace filesystem integration (read-only) | Refx (AI coding agent) |
 | 11/4/2026 | P5-B: Real file modification engine (approval, backups, undo) | Refx (AI coding agent) |
 | 11/4/2026 | P6: Workspace tool integration for AI chat | Refx (AI coding agent) |
+| 11/4/2026 | Phase 1-3: Gemini/Anthropic resilience, chat history sanitization, provider parity | Refx (AI coding agent) |
+| 11/4/2026 | Phase 4: Diff IDs, SQLite memory store, file viewer | Refx (AI coding agent) |
+| 11/4/2026 | Phase 5-7: Tool argument fix, OpenRouter tools, Gemini/Anthropic tools, directory listing, system prompt, feedback | Refx (AI coding agent) |
+| 11/4/2026 | Security CI scanner hardening | Refx (AI coding agent) |
+| 11/4/2026 | Splash screen with fade transition | Refx (AI coding agent) |
