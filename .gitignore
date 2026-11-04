@@ -7,4 +7,5 @@ release/
 .DS_Store
 *.log
 .env*
+modelchatmemory.md
 !.env.example

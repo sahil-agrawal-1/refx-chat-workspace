@@ -18,6 +18,8 @@ import {
   Cpu,
   Layers,
   Wand2,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
@@ -340,10 +342,15 @@ export const ChatMessageList: React.FC = () => {
                 <div className="mt-2.5 space-y-1.5 pl-2 border-t border-border pt-2">
                   {msg.activities.map((step: ActivityStep) => (
                     <div key={step.id} className="flex items-center gap-2 text-[11px] text-foreground-muted">
-                      {step.type === 'file_read' && <FileCode size={12} className="text-indigo-400" />}
-                      {step.type === 'file_write' && <FileEdit size={12} className="text-amber-400" />}
+                      {step.type === 'file_read' && <FileCode size={12} className="text-indigo-400 shrink-0" />}
+                      {step.type === 'file_write' && <FileEdit size={12} className="text-amber-400 shrink-0" />}
+                      {step.type === 'web_search' && <Globe size={12} className="text-blue-400 shrink-0" />}
+                      {step.type === 'web_browse' && <ExternalLink size={12} className="text-purple-400 shrink-0" />}
+                      {step.type === 'terminal_run' && <Terminal size={12} className="text-emerald-400 shrink-0" />}
                       <span className="truncate">{step.title}</span>
-                      {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400 ml-auto" />}
+                      {step.detail && <span className="text-[10px] text-foreground-muted/70 truncate max-w-[240px]">({step.detail})</span>}
+                      {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400 ml-auto shrink-0" />}
+                      {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-auto shrink-0" />}
                     </div>
                   ))}
                 </div>
