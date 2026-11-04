@@ -234,7 +234,7 @@ export const SettingsModal: React.FC = () => {
                     Extend your AI assistant with prompt instructions and custom tool skills.
                   </p>
                 </div>
-                /* New Skill button removed */
+
               </div>
 
               <div
