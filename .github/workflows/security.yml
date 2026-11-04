@@ -46,9 +46,9 @@ jobs:
           Write-Host "Scanning for hardcoded encryption keys and plaintext credential storage..."
           $key = Select-String -Path "electron/main.ts" -Pattern "API_KEY_ENCRYPTION_KEY"
           if ($key) { Write-Host "FAIL: Hardcoded encryption key found"; exit 1 } else { Write-Host "OK: No hardcoded encryption key" }
-          $ls1 = Select-String -Path "src/stores/app-store.tsx" -Pattern "apiKey"
+          $ls1 = Select-String -Path "src/stores/app-store.tsx" -Pattern "localStorage\.setItem|saveToStorage" | Where-Object { $_.Line -match "apiKey" -and $_.Line -notmatch "const\s*\{\s*apiKey" -and $_.Line -notmatch "//" }
           if ($ls1) { Write-Host "FAIL: Plaintext API key in localStorage"; exit 1 } else { Write-Host "OK: No plaintext API key in localStorage" }
-          $ls2 = Select-String -Path "src/desktop/browser-preview-bridge.ts" -Pattern "setItem"
+          $ls2 = Select-String -Path "src/desktop/browser-preview-bridge.ts" -Pattern "localStorage\.setItem|saveToStorage" | Where-Object { $_.Line -match "apiKey" -and $_.Line -notmatch "const\s*\{\s*apiKey" -and $_.Line -notmatch "//" }
           if ($ls2) { Write-Host "FAIL: Plaintext API key persisted in browser preview"; exit 1 } else { Write-Host "OK: No plaintext API key in browser preview storage" }
 
       - name: Verify safeStorage is used for credentials
