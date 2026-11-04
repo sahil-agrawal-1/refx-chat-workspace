@@ -31,7 +31,7 @@ export const OnboardingModal: React.FC = () => {
     <Modal
       isOpen={activeModal === 'onboarding'}
       onClose={closeModal}
-      title="Antigravity Setup"
+      title="Refx Setup"
       subtitle="Initial configuration for local-first Windows AI."
       maxWidth="max-w-lg"
     >

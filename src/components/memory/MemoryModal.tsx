@@ -384,7 +384,7 @@ export const MemoryModal: React.FC = () => {
                 type="button"
                 onClick={() =>
                   updateMemoryConfig({
-                    globalMemoryDirectory: '%APPDATA%\\Antigravity\\memory',
+                    globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
                   })
                 }
                 className="px-3 py-1.5 bg-[#202024] hover:bg-[#28282d] text-white rounded-md transition-colors cursor-pointer text-xs border border-[#2c2c31]"

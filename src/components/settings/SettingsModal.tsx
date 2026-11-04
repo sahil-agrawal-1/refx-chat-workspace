@@ -37,7 +37,7 @@ export const SettingsModal: React.FC = () => {
       isOpen={activeModal === 'settings'}
       onClose={closeModal}
       title="Application Settings"
-      subtitle="Antigravity Desktop configuration, native bridges, and execution policies."
+      subtitle="Refx Desktop configuration, native bridges, and execution policies."
       maxWidth="max-w-3xl"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 min-h-[380px]">

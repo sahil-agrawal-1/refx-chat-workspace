@@ -95,7 +95,7 @@ export const ExportChatModal: React.FC = () => {
     }
 
     let md = `# ${safeTitle}\n\n`;
-    md += `*Exported from Antigravity on ${new Date().toLocaleString()}*\n\n`;
+    md += `*Exported from Refx on ${new Date().toLocaleString()}*\n\n`;
 
     currentConversation.messages.forEach((m) => {
       md += `### ${m.role === 'user' ? 'User' : 'Assistant'}\n\n${m.content}\n\n---\n\n`;

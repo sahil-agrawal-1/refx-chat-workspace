@@ -193,7 +193,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [appMemories, setAppMemories] = useState<AppMemoryEntry[]>([]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
     autoMemoryEnabled: false,
-    globalMemoryDirectory: '%APPDATA%\\Antigravity\\memory',
+    globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
     storageBackend: 'sqlite',
     maxEntries: 1000,
   });

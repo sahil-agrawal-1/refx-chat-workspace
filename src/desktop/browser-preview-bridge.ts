@@ -123,7 +123,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   private memoryConfig: MemoryConfig = {
     autoMemoryEnabled: false,
-    globalMemoryDirectory: '%APPDATA%\\Antigravity\\memory',
+    globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
     storageBackend: 'sqlite',
     maxEntries: 1000,
   };
