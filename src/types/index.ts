@@ -59,6 +59,7 @@ export interface ChatMessage {
   activities?: ActivityStep[];
   fileChanges?: FileChange[];
   hasMemorySaved?: boolean;
+  durationMs?: number;
 }
 
 export interface Conversation {
