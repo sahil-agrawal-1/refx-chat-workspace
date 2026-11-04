@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowRight,
+  Square,
   Plus,
   Mic,
   MicOff,
@@ -42,6 +43,7 @@ export const ChatPromptInput: React.FC = () => {
 
   const {
     sendMessage,
+    stopGeneration,
     isGenerating,
     saveMemoryActive,
     setSaveMemoryActive,
@@ -390,16 +392,18 @@ export const ChatPromptInput: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => handleSubmit()}
-              disabled={!prompt.trim() || isGenerating}
+              onClick={() => (isGenerating ? stopGeneration() : handleSubmit())}
+              disabled={!isGenerating && !prompt.trim()}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                prompt.trim() && !isGenerating
+                isGenerating
+                  ? 'bg-[#26262a] text-white hover:bg-[#2c2c31]'
+                  : prompt.trim()
                   ? 'bg-white text-black hover:bg-zinc-200'
                   : 'bg-[#26262a] text-[#55555c] cursor-not-allowed'
               }`}
-              aria-label="Send message"
+              aria-label={isGenerating ? 'Stop generation' : 'Send message'}
             >
-              <ArrowRight size={14} strokeWidth={2} />
+              {isGenerating ? <Square size={12} strokeWidth={2} className="fill-current" /> : <ArrowRight size={14} strokeWidth={2} />}
             </button>
           </div>
         </div>
