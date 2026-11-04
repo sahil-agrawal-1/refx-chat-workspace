@@ -240,6 +240,11 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       }
       return null;
     },
+    setActiveWorkspace: async (workspacePath: string | null) => {
+      if (typeof window !== 'undefined' && window.desktop?.fs?.setActiveWorkspace) {
+        return window.desktop.fs.setActiveWorkspace(workspacePath);
+      }
+    },
     proposeFileChange: async (request: any) => {
       if (typeof window !== 'undefined' && window.desktop?.fs?.proposeFileChange) {
         return window.desktop.fs.proposeFileChange(request);

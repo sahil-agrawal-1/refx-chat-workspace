@@ -22,18 +22,27 @@ import { Logo } from '@/components/ui/Logo';
 
 const renderInline = (text: string): React.ReactNode[] => {
   const parts: React.ReactNode[] = [];
-  const regex = /`([^`]+)`/g;
+  // Combined regex for code, bold, italic, links
+  const regex = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]+)\]\(([^)]+)\)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    parts.push(
-      <code key={match.index} className="px-1 py-0.5 rounded bg-[#0f0f11] border border-[#2a2a2e] text-[#c4c4cc] text-[11px] font-mono">
-        {match[1]}
-      </code>
-    );
+    if (match[1] !== undefined) {
+      parts.push(
+        <code key={match.index} className="px-1 py-0.5 rounded bg-[#0f0f11] border border-[#2a2a2e] text-[#c4c4cc] text-[11px] font-mono">
+          {match[1]}
+        </code>
+      );
+    } else if (match[2] !== undefined) {
+      parts.push(<strong key={match.index} className="font-semibold text-white">{match[2]}</strong>);
+    } else if (match[3] !== undefined) {
+      parts.push(<em key={match.index} className="italic text-[#c4c4cc]">{match[3]}</em>);
+    } else if (match[4] !== undefined) {
+      parts.push(<a key={match.index} href={match[5]} className="text-blue-400 underline" target="_blank" rel="noreferrer">{match[4]}</a>);
+    }
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) {
@@ -270,7 +279,7 @@ export const ChatMessageList: React.FC = () => {
               <details className="bg-[#18181b] border border-[#242428] rounded-xl p-2.5 text-xs group">
                 <summary className="cursor-pointer select-none text-[11px] text-[#71717a] flex items-center gap-1.5">
                   <ChevronRight size={12} strokeWidth={1.8} className="group-open:rotate-90 transition-transform" />
-                  {msg.activities.length} workspace action{msg.activities.length > 1 ? 's' : ''} performed
+                  Worked for {msg.durationMs ? (msg.durationMs / 1000).toFixed(0) : '?'}s \u25BE  \u2022  Explored {msg.activities.length} action{msg.activities.length > 1 ? 's' : ''}
                 </summary>
                 <div className="mt-2 space-y-1">
                   {msg.activities.map((step: ActivityStep) => (

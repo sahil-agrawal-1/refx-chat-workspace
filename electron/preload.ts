@@ -158,6 +158,7 @@ const desktopAPI: IDesktopAPI = {
     searchFiles: (workspacePath: string, query: string) => ipcRenderer.invoke(FS_CHANNELS.SEARCH_FILES, workspacePath, query),
     searchText: (workspacePath: string, query: string) => ipcRenderer.invoke(FS_CHANNELS.SEARCH_TEXT, workspacePath, query),
     getFileMetadata: (filePath: string) => ipcRenderer.invoke(FS_CHANNELS.GET_FILE_METADATA, filePath),
+    setActiveWorkspace: (workspacePath: string | null) => ipcRenderer.invoke(FS_CHANNELS.SET_ACTIVE_WORKSPACE, workspacePath),
     proposeFileChange: (request: any) => ipcRenderer.invoke(FS_CHANNELS.PROPOSE_CHANGE, request),
     getPendingChanges: () => ipcRenderer.invoke(FS_CHANNELS.GET_PENDING_CHANGES),
     approveFileChange: (id: string) => ipcRenderer.invoke(FS_CHANNELS.APPROVE_CHANGE, id),

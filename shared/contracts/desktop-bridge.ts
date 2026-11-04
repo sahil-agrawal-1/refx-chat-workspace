@@ -189,6 +189,7 @@ export interface IFileSystemBridge {
   searchFiles(workspacePath: string, query: string): Promise<FileSearchResult[]>;
   searchText(workspacePath: string, query: string): Promise<TextSearchResult[]>;
   getFileMetadata(filePath: string): Promise<FileMetadata | null>;
+  setActiveWorkspace(workspacePath: string | null): Promise<void>;
   proposeFileChange(request: any): Promise<any>;
   getPendingChanges(): Promise<any[]>;
   approveFileChange(id: string): Promise<boolean>;
@@ -312,6 +313,7 @@ export interface ModelInferenceRequest {
   stream?: boolean;
   apiKey?: string;
   baseUrl?: string;
+  workspacePath?: string | null;
 }
 
 /**
@@ -382,6 +384,7 @@ export const FILESYSTEM_IPC_CHANNELS = {
   SEARCH_FILES: 'desktop:fsSearchFiles',
   SEARCH_TEXT: 'desktop:fsSearchText',
   GET_FILE_METADATA: 'desktop:fsGetFileMetadata',
+  SET_ACTIVE_WORKSPACE: 'desktop:fsSetActiveWorkspace',
   PROPOSE_CHANGE: 'desktop:fsProposeChange',
   GET_PENDING_CHANGES: 'desktop:fsGetPendingChanges',
   APPROVE_CHANGE: 'desktop:fsApproveChange',

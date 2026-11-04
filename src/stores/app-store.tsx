@@ -769,6 +769,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // Ignored
     }
+    desktopBridge.database.saveAppSetting('selectedWorkspacePath', ws?.path || null).catch(() => {});
+    desktopBridge.fs.setActiveWorkspace(ws?.path || null).catch(() => {});
   };
 
   const selectFile = (path: string | null) => {
@@ -1452,6 +1454,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           effort: effort,
           approvalMode: approvalMode,
           baseUrl: selectedProvider?.baseUrl ?? undefined,
+          workspacePath: selectedWorkspace?.path ?? null,
         });
 
         if (!startResult.success) {
