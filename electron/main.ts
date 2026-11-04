@@ -505,9 +505,34 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
     let stderr = '';
     let killed = false;
 
+    let resolved = false;
+    const finish = (code: number | null) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      resolve(JSON.stringify({
+        approved: true,
+        command: fullCommand,
+        exitCode: code,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        timedOut: killed,
+      }));
+    };
+
     const timer = setTimeout(() => {
       killed = true;
-      try { child.kill(); } catch {}
+      if (process.platform === 'win32' && child.pid) {
+        try {
+          const { execSync } = require('node:child_process');
+          execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: 'ignore' });
+        } catch {
+          try { child.kill(); } catch {}
+        }
+      } else {
+        try { child.kill(); } catch {}
+      }
+      finish(null);
     }, timeoutMs);
 
     child.stdout?.on('data', (d: Buffer) => {
@@ -521,17 +546,11 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
       if (stderr.length > 50000) stderr = stderr.slice(-50000);
     });
     child.on('close', (code: number | null) => {
-      clearTimeout(timer);
-      resolve(JSON.stringify({
-        approved: true,
-        command: fullCommand,
-        exitCode: code,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        timedOut: killed,
-      }));
+      finish(code);
     });
     child.on('error', (err: any) => {
+      if (resolved) return;
+      resolved = true;
       clearTimeout(timer);
       resolve(JSON.stringify({ approved: true, command: fullCommand, error: err?.message || String(err) }));
     });
