@@ -1613,7 +1613,6 @@ async function startProviderChatOllama(
   return { requestId: request.requestId, success: true };
 }
 
-
 async function verifyOpenAICompatibleConnection(
   config: ProviderConfig,
   apiKey: string | null,
@@ -2435,6 +2434,8 @@ if (!hasLock) {
     } else {
       showMain();
     }
+
+    // TEMP smoke test
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
