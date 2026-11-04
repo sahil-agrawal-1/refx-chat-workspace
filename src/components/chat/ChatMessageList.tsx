@@ -193,7 +193,7 @@ export const ChatMessageList: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 custom-scrollbar space-y-5 max-w-3xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 max-w-3xl mx-auto w-full [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
       {messages.map((msg: ChatMessage) => {
         if (msg.role === 'system') {
           return (
