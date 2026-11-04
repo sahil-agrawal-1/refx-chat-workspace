@@ -21,6 +21,7 @@ import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS
 import * as pty from 'node-pty';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isWithinRootShared, resolveWithinWorkspace as resolveWithinWorkspaceShared } from '../shared/utils/workspace-path';
 import * as db from './database';
+import * as memory from './memory';
 
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
@@ -1297,15 +1298,15 @@ function registerIpcHandlers(): void {
   });
 
   // Memory IPC handlers
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => db.getMemoryConfig());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) => db.updateMemoryConfig(config));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) => db.getTaskMemories(taskId));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) => db.saveTaskMemory(entry));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) => db.deleteTaskMemory(id));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => db.getAppMemories());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => db.saveAppMemory(entry));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => db.deleteAppMemory(id));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => db.clearAppMemories());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => memory.getMemoryConfig());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) => memory.updateMemoryConfig(config));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) => memory.getTaskMemories(taskId));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) => memory.saveTaskMemory(entry));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) => memory.deleteTaskMemory(id));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => memory.getAppMemories());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => memory.saveAppMemory(entry));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => memory.deleteAppMemory(id));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
 
   // Terminal IPC handlers
   ipcMain.handle(TERMINAL_IPC_CHANNELS.CREATE, async (event, shell?: string, cwd?: string) => {
