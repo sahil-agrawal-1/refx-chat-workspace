@@ -12,18 +12,32 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Toggle } from '@/components/common/Toggle';
-import { ModelSelectorDropdown } from '@/components/chat/ModelSelectorDropdown';
+// Model selection is handled via slash commands
 
 export const ChatPromptInput: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
+  const commandMenuRef = useRef<HTMLDivElement>(null);
+
+  const SLASH_COMMANDS = [
+    { cmd: '/model', desc: 'Select a model' },
+    { cmd: '/models', desc: 'List connected models' },
+    { cmd: '/effort', desc: 'Set reasoning effort' },
+    { cmd: '/approval', desc: 'Set approval mode' },
+    { cmd: '/new', desc: 'New conversation' },
+    { cmd: '/workspace', desc: 'Select workspace' },
+    { cmd: '/memory', desc: 'Toggle save memory' },
+    { cmd: '/clear', desc: 'Clear chat input' },
+    { cmd: '/help', desc: 'Show commands' },
+  ];
 
   const {
     sendMessage,
@@ -38,6 +52,10 @@ export const ChatPromptInput: React.FC = () => {
     setEffort,
     approvalMode,
     setApprovalMode,
+    startNewConversation,
+    setSelectedModel,
+    selectedModel,
+    providers,
   } = useAppStore();
 
   useEffect(() => {
@@ -45,6 +63,7 @@ export const ChatPromptInput: React.FC = () => {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
     }
+    setShowCommandMenu(prompt.startsWith('/') && !prompt.includes(' '));
   }, [prompt]);
 
   useEffect(() => {
@@ -60,9 +79,65 @@ export const ChatPromptInput: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
+  const runCommand = async (text: string) => {
+    const trimmed = text.trim();
+    const [cmd, ...args] = trimmed.split(/\s+/);
+    switch (cmd) {
+      case '/new':
+        startNewConversation();
+        return true;
+      case '/workspace':
+        openWorkspaceDialog();
+        return true;
+      case '/clear':
+        setPrompt('');
+        return true;
+      case '/memory':
+        setSaveMemoryActive(!saveMemoryActive);
+        return true;
+      case '/help':
+        setPrompt('/commands: ' + SLASH_COMMANDS.map((c) => c.cmd).join(', '));
+        return true;
+      case '/model': {
+        if (args[0]) {
+          const found = providers.flatMap((p) => p.discoveredModels.map((m) => ({ p, m }))).find((x) => x.m === args[0]);
+          if (found) {
+            setSelectedModel(found.m, found.p.id);
+            setPrompt(`Model set to ${found.m}`);
+          } else {
+            setPrompt(`Model not found: ${args[0]}`);
+          }
+        } else {
+          setPrompt('/model <model-id>');
+        }
+        return true;
+      }
+      case '/models': {
+        const list = providers.filter((p) => p.status === 'connected').flatMap((p) => p.discoveredModels.map((m) => `${p.id}:${m}`));
+        setPrompt(list.length ? list.join(', ') : 'No connected models.');
+        return true;
+      }
+      case '/effort':
+        if (args[0]) { setEffort(args[0]); setPrompt(`Effort set to ${args[0]}`); }
+        else setPrompt('/effort <auto|low|medium|high|extra high|max>');
+        return true;
+      case '/approval':
+        if (args[0]) { setApprovalMode(args[0] as any); setPrompt(`Approval set to ${args[0]}`); }
+        else setPrompt('/approval <ask|turbo|auto_preview>');
+        return true;
+      default:
+        return false;
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
+
+    if (prompt.trim().startsWith('/')) {
+      const handled = await runCommand(prompt.trim());
+      if (handled) return;
+    }
 
     const text = prompt;
     setPrompt('');
@@ -151,6 +226,20 @@ export const ChatPromptInput: React.FC = () => {
 
       {/* Main Prompt Box */}
       <div className="bg-[#1b1b1e] border border-[#2a2a30] rounded-xl p-3 shadow-lg transition-colors focus-within:border-[#3c3c44]">
+        {showCommandMenu && (
+          <div ref={commandMenuRef} className="mb-2 bg-[#18181b] border border-[#2a2a30] rounded-lg shadow-xl py-1 text-xs">
+            {SLASH_COMMANDS.filter((c) => c.cmd.startsWith(prompt.trim())).map((c) => (
+              <button
+                key={c.cmd}
+                type="button"
+                onClick={() => { setPrompt(c.cmd + ' '); setShowCommandMenu(false); }}
+                className="w-full text-left px-3 py-1.5 text-[#9c9ca4] hover:text-white hover:bg-[#202023] cursor-pointer"
+              >
+                <span className="font-mono text-white">{c.cmd}</span> <span className="text-[#6c6c74]">{c.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <textarea
           ref={textareaRef}
           value={prompt}
@@ -216,8 +305,7 @@ export const ChatPromptInput: React.FC = () => {
               )}
             </div>
 
-            <ModelSelectorDropdown />
-
+            {/* Model selection moved to /model command */}
             {/* Effort selector */}
             <div className="relative">
               <button
