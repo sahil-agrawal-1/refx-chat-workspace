@@ -13,6 +13,8 @@ import {
   Zap,
   Sparkles,
   Shield,
+  ShieldCheck,
+  Eye,
   Folder,
   X,
   FileText,
@@ -51,6 +53,8 @@ function formatFileSize(bytes: number): string {
 export const ChatPromptInput: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [liveCaption, setLiveCaption] = useState('');
+  const recognitionRef = useRef<any>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -109,15 +113,23 @@ export const ChatPromptInput: React.FC = () => {
       if (typeof window !== 'undefined' && window.desktop?.checkEffortSupport) {
         try {
           const res = await window.desktop.checkEffortSupport(selectedProvider?.type || '', selectedModel || '');
-          if (!cancelled) setEffortSupport(res);
+          if (!cancelled) {
+            setEffortSupport(res);
+            if (!res.supported) {
+              setEffort('Auto');
+            }
+          }
         } catch {
-          if (!cancelled) setEffortSupport({ supported: false, levels: ['Auto'] });
+          if (!cancelled) {
+            setEffortSupport({ supported: false, levels: ['Auto'] });
+            setEffort('Auto');
+          }
         }
       }
     }
     check();
     return () => { cancelled = true; };
-  }, [selectedModel, selectedProvider]);
+  }, [selectedModel, selectedProvider, setEffort]);
 
   // Cleanup object URLs on unmount
   useEffect(() => {
@@ -283,8 +295,88 @@ export const ChatPromptInput: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let interim = '';
+        let final = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0]?.transcript || '';
+          if (event.results[i].isFinal) {
+            final += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+
+        if (final.trim()) {
+          setPrompt((prev) => {
+            const trimmed = prev.trim();
+            return trimmed ? `${trimmed} ${final.trim()}` : final.trim();
+          });
+          setLiveCaption('');
+        } else {
+          setLiveCaption(interim.trim());
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          setIsListening(false);
+          setLiveCaption('');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setLiveCaption('');
+      };
+
+      recognitionRef.current = recognition;
+    } catch (err) {
+      console.warn('Speech recognition init failed:', err);
+    }
+
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
+    };
+  }, []);
+
   const toggleMic = () => {
-    setIsListening((prev) => !prev);
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert('Voice dictation is not supported by your current browser/platform environment.');
+      return;
+    }
+
+    if (isListening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
+      setIsListening(false);
+      setLiveCaption('');
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+        setLiveCaption('');
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        setIsListening(false);
+      }
+    }
   };
 
   return (
@@ -481,6 +573,24 @@ export const ChatPromptInput: React.FC = () => {
             </div>
           )}
 
+          {/* Live Voice Caption Banner */}
+          {isListening && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-300 animate-in fade-in duration-150 select-none">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
+              <span className="font-semibold text-red-400 shrink-0">Live Voice:</span>
+              <span className="truncate italic text-foreground-muted flex-1">
+                {liveCaption || 'Listening... Speak into your microphone, text will update live.'}
+              </span>
+              <button
+                type="button"
+                onClick={toggleMic}
+                className="text-[10px] text-red-400 hover:text-red-300 font-medium px-2 py-0.5 rounded bg-red-500/20 cursor-pointer shrink-0"
+              >
+                Finish
+              </button>
+            </div>
+          )}
+
           {/* Auto-growing Textarea */}
           <textarea
             ref={textareaRef}
@@ -585,16 +695,27 @@ export const ChatPromptInput: React.FC = () => {
               <div className="relative" ref={effortMenuRef}>
                 <button
                   type="button"
-                  onClick={() => setShowEffortMenu(!showEffortMenu)}
-                  className="px-3 py-1.5 rounded-full text-xs bg-surface hover:bg-surface-raised border border-border text-foreground transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                  title="Reasoning effort"
+                  disabled={!effortSupport.supported}
+                  onClick={() => {
+                    if (effortSupport.supported) setShowEffortMenu(!showEffortMenu);
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 shadow-xs ${
+                    !effortSupport.supported
+                      ? 'bg-surface/40 border-border/40 text-foreground-muted/40 cursor-not-allowed opacity-60'
+                      : 'bg-surface hover:bg-surface-raised border-border text-foreground cursor-pointer active:scale-95'
+                  }`}
+                  title={
+                    effortSupport.supported
+                      ? `Reasoning effort (${effort})`
+                      : `${selectedModel || 'Current model'} does not support reasoning effort`
+                  }
                 >
-                  <Zap size={13} strokeWidth={2} className="text-amber-400" />
-                  <span>Effort: {effort}</span>
-                  <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
+                  <Zap size={13} strokeWidth={2} className={effortSupport.supported ? 'text-amber-400' : 'text-foreground-muted/30'} />
+                  <span>Effort: {effortSupport.supported ? effort : 'N/A'}</span>
+                  {effortSupport.supported && <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />}
                 </button>
 
-                {showEffortMenu && (
+                {showEffortMenu && effortSupport.supported && (
                   <div className="absolute bottom-full mb-2 left-0 bg-surface-raised border border-border rounded-2xl shadow-2xl p-3.5 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
                     <EffortSlider
                       value={effort}
@@ -611,41 +732,63 @@ export const ChatPromptInput: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowApprovalMenu(!showApprovalMenu)}
-                  className="px-2.5 py-1.5 rounded-full text-xs bg-surface hover:bg-surface-raised border border-border text-foreground-muted hover:text-foreground transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                  title="Approval mode"
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs ${
+                    approvalMode === 'turbo'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-medium'
+                      : approvalMode === 'auto_preview'
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 font-medium'
+                      : 'bg-surface hover:bg-surface-raised border-border text-foreground-muted hover:text-foreground'
+                  }`}
+                  title={`Execution mode: ${approvalMode === 'auto_preview' ? 'Auto Preview' : approvalMode === 'turbo' ? 'Turbo' : 'Ask'}`}
                 >
-                  <Shield size={12} strokeWidth={2} className="text-foreground-muted" />
-                  <span className="capitalize">{approvalMode}</span>
+                  {approvalMode === 'turbo' ? (
+                    <Zap size={12} strokeWidth={2} className="text-amber-400" />
+                  ) : approvalMode === 'auto_preview' ? (
+                    <Eye size={12} strokeWidth={2} className="text-blue-400" />
+                  ) : (
+                    <ShieldCheck size={12} strokeWidth={2} className="text-emerald-400" />
+                  )}
+                  <span>{approvalMode === 'auto_preview' ? 'Auto Preview' : approvalMode === 'turbo' ? 'Turbo' : 'Ask'}</span>
                   <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
                 </button>
 
                 {showApprovalMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 w-64 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
-                    <div className="px-3 py-1 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
+                  <div className="absolute bottom-full mb-2 left-0 w-64 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
                       Execution Approval Mode
                     </div>
                     {[
-                      { id: 'ask', label: 'Ask', desc: 'Require approval for edits and commands.' },
-                      { id: 'turbo', label: 'Turbo', desc: 'Auto-apply edits with undo; ask for destructive ops.' },
-                      { id: 'auto_preview', label: 'Auto Preview', desc: 'Prepare diffs without auto-applying.' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          setApprovalMode(opt.id as any);
-                          setShowApprovalMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 transition-colors cursor-pointer ${
-                          approvalMode === opt.id
-                            ? 'bg-surface text-foreground font-medium'
-                            : 'text-foreground-muted hover:text-foreground hover:bg-surface'
-                        }`}
-                      >
-                        <div className="font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-foreground-muted mt-0.5">{opt.desc}</div>
-                      </button>
-                    ))}
+                      { id: 'ask', label: 'Ask', desc: 'Require manual approval for edits & commands.', icon: ShieldCheck, color: 'text-emerald-400' },
+                      { id: 'turbo', label: 'Turbo', desc: 'Auto-apply edits with undo; ask for destructive ops.', icon: Zap, color: 'text-amber-400' },
+                      { id: 'auto_preview', label: 'Auto Preview', desc: 'Prepare diffs & auto-open review panel.', icon: Eye, color: 'text-blue-400' },
+                    ].map((opt) => {
+                      const OptIcon = opt.icon;
+                      const isSelected = approvalMode === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setApprovalMode(opt.id as any);
+                            setShowApprovalMenu(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 transition-colors cursor-pointer flex items-start gap-2.5 ${
+                            isSelected
+                              ? 'bg-surface text-foreground font-medium'
+                              : 'text-foreground-muted hover:text-foreground hover:bg-surface'
+                          }`}
+                        >
+                          <OptIcon size={14} strokeWidth={2} className={`${opt.color} mt-0.5 shrink-0`} />
+                          <div className="min-w-0">
+                            <div className="font-medium text-foreground flex items-center gap-1.5">
+                              <span>{opt.label}</span>
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                            </div>
+                            <div className="text-[10px] text-foreground-muted/80 mt-0.5 leading-snug">{opt.desc}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

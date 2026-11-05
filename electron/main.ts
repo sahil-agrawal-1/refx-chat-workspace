@@ -617,22 +617,41 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
 function supportsReasoningEffort(providerType: string, model: string): { supported: boolean; levels: string[] } {
   const m = (model || '').toLowerCase();
   if (!m) return { supported: false, levels: ['Auto'] };
-  if (providerType === 'openai' || providerType === 'openai_compatible' || providerType === 'custom_local' || providerType === 'openrouter') {
-    const ok = /^o[134]/.test(m) || m.includes('gpt-5') || m.includes('reasoning') || m.includes('deepseek-r1') || m.includes('qwen3') || m.includes('magistral') || m.includes('gpt-oss');
+
+  // Local engines (Ollama, LM Studio, Custom Local) do NOT support OpenAI-style reasoning_effort
+  if (providerType === 'ollama' || providerType === 'lm_studio' || providerType === 'custom_local') {
+    return { supported: false, levels: ['Auto'] };
+  }
+
+  // OpenAI: Only explicit reasoning models (o1, o3, o4, gpt-5)
+  if (providerType === 'openai') {
+    const ok = /^o[134]/.test(m) || m.includes('o1-') || m.includes('o3-') || m.includes('gpt-5');
     return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
   }
+
+  // OpenRouter: Only models that natively expose reasoning/thinking budget
+  if (providerType === 'openrouter') {
+    const ok =
+      m.includes('openai/o1') ||
+      m.includes('openai/o3') ||
+      m.includes('deepseek-r1') ||
+      m.includes('deepseek/deepseek-r1') ||
+      m.includes('claude-3-7-sonnet:thinking');
+    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
+  }
+
+  // Anthropic: Only Claude 3.7+ with extended thinking
   if (providerType === 'anthropic') {
-    const ok = m.includes('claude-3-7') || m.includes('claude-4') || m.includes('sonnet-4') || m.includes('opus-4') || m.includes('haiku-4');
+    const ok = m.includes('claude-3-7') || m.includes('claude-4');
     return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High', 'Max'] } : { supported: false, levels: ['Auto'] };
   }
+
+  // Gemini: Only 2.5 with thinking budget
   if (providerType === 'gemini') {
     const ok = m.includes('2.5') || m.includes('thinking');
     return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
   }
-  if (providerType === 'ollama' || providerType === 'lm_studio') {
-    const ok = m.includes('deepseek-r1') || m.includes('qwen3') || m.includes('magistral') || m.includes('gpt-oss');
-    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
-  }
+
   return { supported: false, levels: ['Auto'] };
 }
 
@@ -3368,6 +3387,16 @@ async function callProviderNonStreamingOpenAICompatible(
   if (!forceNoTools) {
     body.tools = request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI;
     body.tool_choice = 'auto';
+  }
+  if (
+    request.effort &&
+    request.effort.toLowerCase() !== 'auto' &&
+    supportsReasoningEffort(request.providerType || '', request.model || '').supported
+  ) {
+    body.reasoning_effort =
+      request.effort.toLowerCase() === 'extra high' || request.effort.toLowerCase() === 'max'
+        ? 'high'
+        : request.effort.toLowerCase();
   }
 
   const res = await fetch(endpoint, {

@@ -259,6 +259,156 @@ const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
+interface GroupedActivity {
+  id: string;
+  type: string;
+  title: string;
+  detail?: string;
+  status: 'running' | 'completed' | 'failed';
+  count: number;
+}
+
+const ThinkingProcessCard: React.FC<{
+  activities: ActivityStep[];
+  durationMs?: number;
+  timestamp: number;
+  isGenerating: boolean;
+}> = ({ activities, durationMs, timestamp, isGenerating }) => {
+  const [elapsed, setElapsed] = useState<number>(() => {
+    if (durationMs) return Math.max(1, Math.round(durationMs / 1000));
+    return Math.max(1, Math.round((Date.now() - timestamp) / 1000));
+  });
+
+  useEffect(() => {
+    if (durationMs || !isGenerating) return;
+    const timer = setInterval(() => {
+      setElapsed(Math.max(1, Math.round((Date.now() - timestamp) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isGenerating, durationMs, timestamp]);
+
+  const durationStr = durationMs
+    ? `${(durationMs / 1000).toFixed(1)}s`
+    : `${elapsed}s`;
+
+  // Deduplicate and group consecutive or duplicate actions
+  const grouped: GroupedActivity[] = [];
+  for (const act of activities) {
+    const key = `${act.type}:${act.title}:${act.detail || ''}`;
+    const prev = grouped[grouped.length - 1];
+    if (prev && `${prev.type}:${prev.title}:${prev.detail || ''}` === key) {
+      prev.count += 1;
+      prev.status = act.status;
+    } else {
+      grouped.push({
+        id: act.id,
+        type: act.type,
+        title: act.title,
+        detail: act.detail,
+        status: act.status,
+        count: 1,
+      });
+    }
+  }
+
+  const reads = activities.filter((a) => a.type === 'file_read').length;
+  const writes = activities.filter((a) => a.type === 'file_write').length;
+  const web = activities.filter((a) => a.type === 'web_search' || a.type === 'web_browse').length;
+  const commands = activities.filter((a) => a.type === 'terminal_run').length;
+
+  return (
+    <details
+      className="bg-surface-raised/80 hover:bg-surface-raised border border-border/80 rounded-2xl p-3 text-xs transition-all shadow-xs group"
+      open={isGenerating}
+    >
+      <summary className="cursor-pointer select-none text-[11px] text-foreground flex items-center justify-between font-medium">
+        <div className="flex items-center gap-2 min-w-0">
+          <ChevronRight size={12} strokeWidth={2} className="group-open:rotate-90 transition-transform text-foreground-muted shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            {isGenerating ? (
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping shrink-0" />
+            ) : (
+              <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+            )}
+            <span className="font-semibold text-foreground truncate">
+              {isGenerating ? `Working for ${durationStr}...` : `Worked for ${durationStr}`}
+            </span>
+            <span className="text-foreground-muted font-normal">•</span>
+            <span className="text-foreground-muted font-normal">
+              {grouped.length} step{grouped.length > 1 ? 's' : ''} taken
+            </span>
+          </div>
+        </div>
+
+        {/* Quick summary badges */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {reads > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-mono text-[10px] border border-indigo-500/20">
+              {reads} read{reads > 1 ? 's' : ''}
+            </span>
+          )}
+          {writes > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-mono text-[10px] border border-amber-500/20">
+              {writes} edit{writes > 1 ? 's' : ''}
+            </span>
+          )}
+          {web > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-mono text-[10px] border border-blue-500/20">
+              {web} web
+            </span>
+          )}
+          {commands > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] border border-emerald-500/20">
+              {commands} run
+            </span>
+          )}
+        </div>
+      </summary>
+
+      {/* Steps List */}
+      <div className="mt-3 pl-3 ml-1.5 border-l-2 border-border/60 space-y-2 pt-1">
+        {grouped.map((step) => {
+          const detailClean = (step.detail || '').replace(/\\/g, '/');
+          const fileName = detailClean.split('/').pop() || detailClean;
+
+          return (
+            <div key={step.id} className="flex items-center justify-between gap-2 text-[11px] text-foreground-muted py-0.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="shrink-0 p-1 rounded-md bg-surface border border-border">
+                  {step.type === 'file_read' && <FileCode size={12} className="text-indigo-400" />}
+                  {step.type === 'file_write' && <FileEdit size={12} className="text-amber-400" />}
+                  {step.type === 'web_search' && <Globe size={12} className="text-blue-400" />}
+                  {step.type === 'web_browse' && <ExternalLink size={12} className="text-purple-400" />}
+                  {step.type === 'terminal_run' && <Terminal size={12} className="text-emerald-400" />}
+                </span>
+                <span className="font-medium text-foreground truncate">{step.title}</span>
+                {step.detail && (
+                  <span
+                    className="font-mono text-[10px] text-foreground-muted/80 truncate max-w-[280px] sm:max-w-[400px] bg-surface px-1.5 py-0.5 rounded border border-border/50"
+                    title={step.detail}
+                  >
+                    {fileName !== detailClean ? `.../${fileName}` : step.detail}
+                  </span>
+                )}
+                {step.count > 1 && (
+                  <span className="px-1.5 py-0.5 rounded bg-surface-raised border border-border text-[9px] font-mono text-indigo-400 font-semibold">
+                    {step.count}x
+                  </span>
+                )}
+              </div>
+
+              <div className="shrink-0 ml-2">
+                {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400" />}
+                {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse block" />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </details>
+  );
+};
+
 export const ChatMessageList: React.FC = () => {
   const { currentConversation, isGenerating, setActiveDiffFile, toggleBottomPanel, sendMessage, addTaskMemory } = useAppStore();
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -444,28 +594,12 @@ export const ChatMessageList: React.FC = () => {
 
             {/* Activities Timeline */}
             {msg.activities && msg.activities.length > 0 && (
-              <details className="bg-surface-raised border border-border rounded-2xl p-3 text-xs group">
-                <summary className="cursor-pointer select-none text-[11px] text-foreground-muted flex items-center gap-1.5 font-medium">
-                  <ChevronRight size={12} strokeWidth={1.8} className="group-open:rotate-90 transition-transform" />
-                  Worked for {msg.durationMs ? (msg.durationMs / 1000).toFixed(0) : '?'}s • Explored{' '}
-                  {msg.activities.length} action{msg.activities.length > 1 ? 's' : ''}
-                </summary>
-                <div className="mt-2.5 space-y-1.5 pl-2 border-t border-border pt-2">
-                  {msg.activities.map((step: ActivityStep) => (
-                    <div key={step.id} className="flex items-center gap-2 text-[11px] text-foreground-muted">
-                      {step.type === 'file_read' && <FileCode size={12} className="text-indigo-400 shrink-0" />}
-                      {step.type === 'file_write' && <FileEdit size={12} className="text-amber-400 shrink-0" />}
-                      {step.type === 'web_search' && <Globe size={12} className="text-blue-400 shrink-0" />}
-                      {step.type === 'web_browse' && <ExternalLink size={12} className="text-purple-400 shrink-0" />}
-                      {step.type === 'terminal_run' && <Terminal size={12} className="text-emerald-400 shrink-0" />}
-                      <span className="truncate">{step.title}</span>
-                      {step.detail && <span className="text-[10px] text-foreground-muted/70 truncate max-w-[240px]">({step.detail})</span>}
-                      {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400 ml-auto shrink-0" />}
-                      {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-auto shrink-0" />}
-                    </div>
-                  ))}
-                </div>
-              </details>
+              <ThinkingProcessCard
+                activities={msg.activities}
+                durationMs={msg.durationMs}
+                timestamp={msg.timestamp}
+                isGenerating={isGenerating && msg.id === messages[messages.length - 1]?.id}
+              />
             )}
 
             {/* File Modification Proposal Banner */}

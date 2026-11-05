@@ -362,6 +362,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 activities: m.metadata?.activities,
                 fileChanges: m.metadata?.fileChanges,
                 hasMemorySaved: m.metadata?.hasMemorySaved,
+                durationMs: m.metadata?.durationMs,
               })),
               saveMemoryDefault: c.metadata?.saveMemoryDefault ?? false,
             };
@@ -566,6 +567,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     activities: m.metadata?.activities,
                     fileChanges: m.metadata?.fileChanges,
                     hasMemorySaved: m.metadata?.hasMemorySaved,
+                    durationMs: m.metadata?.durationMs,
                   })),
                 }
               : c
@@ -1428,14 +1430,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                  c.id === targetConvId
                    ? {
                        ...c,
-                       messages: c.messages.map((m) =>
-                         m.id === assistantMsgId ? { ...m, activities: [...(m.activities || []), ...event.activities!] } : m
-                       ),
+                       messages: c.messages.map((m) => {
+                         if (m.id !== assistantMsgId) return m;
+                         const existing = m.activities || [];
+                         const incoming = event.activities || [];
+                         const map = new Map(existing.map((a: any) => [a.id, a]));
+                         for (const inc of incoming) {
+                           map.set(inc.id, { ...(map.get(inc.id) || {}), ...inc });
+                         }
+                         return { ...m, activities: Array.from(map.values()) };
+                       }),
                      }
                    : c
                )
              );
            } else if (event.type === "chunk" && event.fullText !== undefined) {
+            const elapsed = Date.now() - placeholderMsg.timestamp;
             // Update the assistant message content incrementally
             setConversations((prev) =>
               prev.map((c) =>
@@ -1443,7 +1453,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   ? {
                       ...c,
                       messages: c.messages.map((m) =>
-                        m.id === assistantMsgId ? { ...m, content: event.fullText!, activities: event.activities as any } : m
+                        m.id === assistantMsgId ? { ...m, content: event.fullText!, durationMs: elapsed } : m
                       ),
                     }
                   : c
@@ -1453,30 +1463,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (__now - lastPersistRef.current > 1500) {
               lastPersistRef.current = __now;
               desktopBridge.database
-                .updateMessage(assistantMsgId, { content: event.fullText!, updatedAt: __now, metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "streaming" } })
+                .updateMessage(assistantMsgId, { content: event.fullText!, updatedAt: __now, metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "streaming", durationMs: elapsed } })
                 .catch(() => {});
             }
           } else if (event.type === "done") {
+            const finalDurationMs = Date.now() - placeholderMsg.timestamp;
             // Finalize the message
-            if (event.fullText) {
-              setConversations((prev) =>
-                prev.map((c) =>
-                  c.id === targetConvId
-                    ? {
-                        ...c,
-                        messages: c.messages.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: event.fullText! } : m
-                        ),
-                      }
-                    : c
-                )
-              );
-            }
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === targetConvId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m) =>
+                        m.id === assistantMsgId ? { ...m, content: event.fullText ?? m.content, durationMs: finalDurationMs } : m
+                      ),
+                    }
+                  : c
+              )
+            );
             desktopBridge.database
-              .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed", activities: event.activities } })
+              .updateMessage(assistantMsgId, { content: event.fullText || "", updatedAt: Date.now(), metadata: { model: selectedModel, providerId: selectedProviderId, generationStatus: "completed", activities: event.activities, durationMs: finalDurationMs } })
               .catch(() => {});
             desktopBridge.fs.getPendingChanges().then((pending) => {
-              if (Array.isArray(pending)) setPendingChanges(pending);
+              if (Array.isArray(pending)) {
+                setPendingChanges(pending);
+                if (approvalMode === 'auto_preview' && pending.length > 0) {
+                  setActiveDiffFile(pending[0]);
+                  toggleBottomPanel('diff');
+                }
+              }
             }).catch(() => {});
             setIsGenerating(false);
             activeAssistantMsgIdRef.current = null;
