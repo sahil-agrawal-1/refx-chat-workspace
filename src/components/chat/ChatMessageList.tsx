@@ -25,34 +25,415 @@ import {
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
 
+const HtmlIcon = ({ size = 11, color = '#E34F26' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="20" x="2" y="2" rx="3" stroke={color} strokeWidth="2" />
+    <path d="M12 2l5 7M7 9l5 7M17 9l-5 7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const CssIcon = ({ size = 11, color = '#1572B6' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const ScssIcon = ({ size = 11, color = '#CC6699' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const VueIcon = ({ size = 11, color = '#4FC08D' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 7h10M7 17h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const PhpIcon = ({ size = 11, color = '#777BB4' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="20" x="2" y="2" rx="3" stroke={color} strokeWidth="2" />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const JavaIcon = ({ size = 11, color = '#007396' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const GoIcon = ({ size = 11, color = '#00ADD8' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+    <path d="M7 12l2.5 2.5M12 7l2.5 2.5M17 12l-2.5 2.5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const RustIcon = ({ size = 11, color = '#DEA584' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M12 7v10M7 12h10" stroke="#2B2B2B" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const CppIcon = ({ size = 11, color = '#00599C' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="20" x="2" y="2" rx="2" stroke={color} strokeWidth="2" />
+    <path d="M8 8h8M8 12h8M8 16h4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const CsIcon = ({ size = 11, color = '#68217A' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+    <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const SwiftIcon = ({ size = 11, color = '#F05138' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 7h10M7 17h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const KotlinIcon = ({ size = 11, color = '#7F52FF' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 7h10M7 17h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const RubyIcon = ({ size = 11, color = '#CC342D' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+    <path d="M7 7h10M7 17h10M12 7v10" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const ShIcon = ({ size = 11, color = '#4EAA25' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const DockerIcon = ({ size = 11, color = '#0DB9ED' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const JsonIcon = ({ size = 11, color = '#F7DF1E' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M12 7v10M7 12h10" stroke="#333" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const YamlIcon = ({ size = 11, color = '#CB171E' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const MdIcon = ({ size = 11, color = '#000000' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="20" x="2" y="2" rx="2" stroke={color} strokeWidth="2" />
+    <path d="M7 8h10M7 12h10M7 16h6" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const ImageIcon = ({ size = 11, color = '#4A90E2' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="18" height="14" x="3" y="3" rx="2" stroke={color} strokeWidth="2" />
+    <circle cx="12" cy="10" r="3" stroke={color} strokeWidth="1.6" />
+    <path d="M3 17l4-4 4 4 8-8" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const VideoIcon = ({ size = 11, color = '#E91E63' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="14" x="2" y="5" rx="2" stroke={color} strokeWidth="2" />
+    <path d="M8 8l4 2.5-4 2.5z" fill={color} />
+  </svg>
+);
+
+const AudioIcon = ({ size = 11, color = '#9C27B0' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 3v6M12 15v6M3.5 12a8.5 8.5 0 0117 0z" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+const ArchiveIcon = ({ size = 11, color = '#795548' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="16" height="16" x="4" y="4" rx="1" stroke={color} strokeWidth="2" />
+    <path d="M12 8v4M8 12l4-4 4 4" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const PdfIcon = ({ size = 11, color = '#D32323' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="20" height="24" x="2" y="0" rx="2" stroke={color} strokeWidth="2" />
+    <path d="M7 8h10M7 12h10M7 16h6" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const FontIcon = ({ size = 11, color = '#9E9E9E' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2L2 12l10 10 10-10L12 2z" fill={color} />
+    <path d="M7 12h10M12 7v10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const GitIcon = ({ size = 11, color = '#F05032' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+    <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
+const DefaultIcon = ({ size = 11, color = '#6366f1' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <rect width="18" height="18" x="3" y="3" rx="2" stroke={color} strokeWidth="2" />
+    <path d="M9 12h6M12 9l3 3-3 3" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const PyIcon = ({ size = 11, color = '#3776AB' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z" fill={color} />
+    <path d="M8 8h8M8 12h8M8 16h4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+// Inline brand icons for common file extensions (keeps bundle lean, no extra deps)
+const ReactIcon = ({ size = 11, color = '#61DAFB' }: { size?: number; color?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    className="shrink-0"
+  >
+    <circle cx="12" cy="12" r="4" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <path
+      d="M12 2c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"
+      fill={color}
+    />
+    <ellipse cx="12" cy="12" rx="4" ry="7" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+const JsIcon = ({ size = 11, color = '#F7DF1E' }: { size?: number; color?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    className="shrink-0"
+  >
+    <path
+      d="M12 2L2 12l10 10 10-10L12 2z"
+      fill={color}
+    />
+    <path d="M12 6.5v11M7.5 12h9" stroke="#333" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const TsIcon = ({ size = 11, color = '#3178C6' }: { size?: number; color?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    className="shrink-0"
+  >
+    <path
+      d="M12 2L2 12l10 10 10-10L12 2z"
+      fill={color}
+    />
+    <path d="M12 6.5v11M7.5 12h9" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
 // Helper: select icon & color based on file extension
 const getFileIcon = (fileName: string): React.ReactElement => {
   const ext = (fileName.split('.').pop() || '').toLowerCase();
   switch (ext) {
+    // React / frontend frameworks
     case 'jsx':
     case 'tsx':
-      return <Code2 size={11} className="text-cyan-400 shrink-0" />;
+      return <ReactIcon size={11} color="#61DAFB" />;
+    // JavaScript
     case 'js':
     case 'mjs':
     case 'cjs':
-      return <FileCode size={11} className="text-amber-400 shrink-0" />;
+      return <JsIcon size={11} color="#F7DF1E" />;
+    // TypeScript
     case 'ts':
-      return <FileCode size={11} className="text-blue-400 shrink-0" />;
-    case 'css':
-    case 'scss':
-    case 'less':
-      return <Palette size={11} className="text-teal-400 shrink-0" />;
-    case 'json':
-      return <FileCode size={11} className="text-yellow-400 shrink-0" />;
+      return <TsIcon size={11} color="#3178C6" />;
+    // Web
     case 'html':
-      return <Globe size={11} className="text-orange-400 shrink-0" />;
+    case 'htm':
+      return <HtmlIcon size={11} color="#E34F26" />;
+    case 'css':
+      return <CssIcon size={11} color="#1572B6" />;
+    case 'scss':
+    case 'sass':
+      return <ScssIcon size={11} color="#CC6699" />;
+    case 'less':
+      return <CssIcon size={11} color="#1D365D" />;
+    case 'vue':
+      return <VueIcon size={11} color="#4FC08D" />;
+    // Python
+    case 'py':
+    case 'pyw':
+      return <PyIcon size={11} color="#3776AB" />;
+    // Backend / languages
+    case 'php':
+      return <PhpIcon size={11} color="#777BB4" />;
+    case 'java':
+      return <JavaIcon size={11} color="#007396" />;
+    case 'go':
+      return <GoIcon size={11} color="#00ADD8" />;
+    case 'rs':
+      return <RustIcon size={11} color="#DEA584" />;
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+    case 'h':
+    case 'hpp':
+    case 'c':
+      return <CppIcon size={11} color="#00599C" />;
+    case 'cs':
+      return <CsIcon size={11} color="#68217A" />;
+    case 'swift':
+      return <SwiftIcon size={11} color="#F05138" />;
+    case 'kt':
+    case 'kts':
+      return <KotlinIcon size={11} color="#7F52FF" />;
+    case 'rb':
+      return <RubyIcon size={11} color="#CC342D" />;
+    // Shell / scripts
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'fish':
+      return <ShIcon size={11} color="#4EAA25" />;
+    case 'ps1':
+    case 'psm1':
+    case 'psd1':
+      return <ShIcon size={11} color="#5391FE" />;
+    // Data / config
+    case 'json':
+      return <JsonIcon size={11} color="#F7DF1E" />;
+    case 'yaml':
+    case 'yml':
+      return <YamlIcon size={11} color="#CB171E" />;
+    case 'toml':
+      return <YamlIcon size={11} color="#9C27B0" />;
+    case 'xml':
+      return <HtmlIcon size={11} color="#E34F26" />;
+    case 'ini':
+    case 'cfg':
+    case 'conf':
+      return <YamlIcon size={11} color="#616161" />;
+    case 'env':
+    case 'env.local':
+    case 'env.development':
+    case 'env.production':
+      return <GitIcon size={11} color="#F05032" />;
+    case 'lock':
+      return <DefaultIcon size={11} color="#9E9E9E" />;
+    // Markdown / docs
     case 'md':
     case 'mdx':
-      return <FileCode size={11} className="text-purple-400 shrink-0" />;
-    case 'py':
+      return <MdIcon size={11} color="#000000" />;
+    case 'txt':
+      return <FileCode size={11} className="text-gray-400 shrink-0" />;
+    case 'pdf':
+      return <PdfIcon size={11} color="#D32323" />;
+    case 'doc':
+    case 'docx':
+      return <FileEdit size={11} className="text-blue-400 shrink-0" />;
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
       return <FileCode size={11} className="text-emerald-400 shrink-0" />;
+    case 'ppt':
+    case 'pptx':
+      return <FileEdit size={11} className="text-orange-400 shrink-0" />;
+    // Images
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+    case 'webp':
+    case 'ico':
+    case 'bmp':
+      return <ImageIcon size={11} color="#4A90E2" />;
+    // Video
+    case 'mp4':
+    case 'webm':
+    case 'mov':
+    case 'avi':
+    case 'mkv':
+      return <VideoIcon size={11} color="#E91E63" />;
+    // Audio
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+    case 'flac':
+    case 'aac':
+      return <AudioIcon size={11} color="#9C27B0" />;
+    // Archives
+    case 'zip':
+    case 'rar':
+    case '7z':
+    case 'tar':
+    case 'gz':
+    case 'bz2':
+      return <ArchiveIcon size={11} color="#795548" />;
+    // Fonts
+    case 'ttf':
+    case 'otf':
+    case 'woff':
+    case 'woff2':
+      return <FontIcon size={11} color="#9E9E9E" />;
+    // Database
+    case 'sql':
+    case 'db':
+    case 'sqlite':
+    case 'sqlite3':
+      return <ArchiveIcon size={11} color="#336791" />;
+    // Docker
+    case 'dockerfile':
+    case 'dockerignore':
+      return <DockerIcon size={11} color="#0DB9ED" />;
+    // Git
+    case 'gitignore':
+    case 'gitattributes':
+    case 'gitmodules':
+    case 'gitkeep':
+      return <GitIcon size={11} color="#F05032" />;
+    // Make / build
+    case 'makefile':
+    case 'mk':
+      return <ArchiveIcon size={11} color="#616161" />;
+    case 'cmake':
+      return <CppIcon size={11} color="#00599C" />;
+    // Default fallback
     default:
-      return <FileCode size={11} className="text-indigo-400 shrink-0" />;
+      return <DefaultIcon size={11} color="#6366f1" />;
   }
 };
 
@@ -373,9 +754,9 @@ const ThinkingProcessCard: React.FC<{
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-surface border border-border/70 shrink-0">
             {isGenerating ? (
-              currentActive && (currentActive.type === 'file_read' || currentActive.type === 'file_write')
+              currentActive
                 ? getFileIcon((currentActive.detail || '').split('/').pop() || 'file')
-                : <span className="w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                : <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
             ) : (
               <CheckCircle2 size={13} className="text-emerald-400" />
             )}
