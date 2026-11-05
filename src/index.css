@@ -2,55 +2,39 @@
 
 @layer base {
   :root {
-    --surface: #141416;
-    --surface-raised: #18181b;
-    --surface-input: #1b1b1e;
-    --border: #242427;
-    --text: #e4e4e7;
-    --text-muted: #7c7c85;
-    --accent: #3c3c44;
+    --surface: #000000;
+    --surface-raised: #0c0c0e;
+    --surface-card: #141416;
+    --surface-input: #141416;
+    --border: #222226;
+    --border-subtle: #18181b;
+    --text: #f4f4f5;
+    --text-muted: #71717a;
+    --accent: #27272a;
   }
   :root[data-theme="Dark" i],
   :root[data-theme="dark" i] {
-    --surface: #141416;
-    --surface-raised: #18181b;
-    --surface-input: #1b1b1e;
-    --border: #242427;
-    --text: #e4e4e7;
-    --text-muted: #7c7c85;
-    --accent: #3c3c44;
+    --surface: #000000;
+    --surface-raised: #0c0c0e;
+    --surface-card: #141416;
+    --surface-input: #141416;
+    --border: #222226;
+    --border-subtle: #18181b;
+    --text: #f4f4f5;
+    --text-muted: #71717a;
+    --accent: #27272a;
   }
   :root[data-theme="Light" i],
   :root[data-theme="light" i] {
     --surface: #f4f4f5;
     --surface-raised: #ffffff;
+    --surface-card: #ffffff;
     --surface-input: #ffffff;
     --border: #e4e4e7;
+    --border-subtle: #f4f4f5;
     --text: #18181b;
     --text-muted: #6b7280;
     --accent: #d4d4d8;
-  }
-  :root[data-theme="System" i],
-  :root[data-theme="system" i] {
-    --surface: #141416;
-    --surface-raised: #18181b;
-    --surface-input: #1b1b1e;
-    --border: #242427;
-    --text: #e4e4e7;
-    --text-muted: #7c7c85;
-    --accent: #3c3c44;
-  }
-  @media (prefers-color-scheme: light) {
-    :root[data-theme="System" i],
-    :root[data-theme="system" i] {
-      --surface: #f4f4f5;
-      --surface-raised: #ffffff;
-      --surface-input: #ffffff;
-      --border: #e4e4e7;
-      --text: #18181b;
-      --text-muted: #6b7280;
-      --accent: #d4d4d8;
-    }
   }
 
   body {
@@ -61,10 +45,15 @@
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  button {
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 150ms ease, opacity 150ms ease;
+  }
 }
 
 .bg-surface { background-color: var(--surface); }
 .bg-surface-raised { background-color: var(--surface-raised); }
+.bg-surface-card { background-color: var(--surface-card); }
 .bg-surface-input { background-color: var(--surface-input); }
 .border-border { border-color: var(--border); }
 .text-foreground { color: var(--text); }
@@ -74,10 +63,10 @@
 .bg-foreground { background-color: var(--text); }
 .divide-border > :not([hidden]) ~ :not([hidden]) { border-color: var(--border); }
 
-/* Custom minimal scrollbar */
+/* Minimal sleek scrollbars */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -85,20 +74,59 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #2b2b32;
+  background: #232328;
   border-radius: 9999px;
 }
 
-:root[data-theme="Light" i] .custom-scrollbar::-webkit-scrollbar-thumb,
-:root[data-theme="light" i] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
-}
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #3c3c46;
+  background: #32323a;
 }
 
-:root[data-theme="Light" i] .custom-scrollbar::-webkit-scrollbar-thumb:hover,
-:root[data-theme="light" i] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Refx styling tokens */
+.refx-sidebar {
+  background: #0c0c0e;
+  border-right: 1px solid #1a1a1d;
+}
+
+.refx-card {
+  background: #141416;
+  border: 1px solid #222226;
+  border-radius: 14px;
+}
+
+.refx-pill-btn {
+  border-radius: 10px;
+  border: 1px solid #242428;
+  background: #121214;
+  color: #f4f4f5;
+  transition: all 160ms ease;
+}
+.refx-pill-btn:hover {
+  background: #19191d;
+  border-color: #333339;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-smooth-in {
+    animation: smooth-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes smooth-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
 }

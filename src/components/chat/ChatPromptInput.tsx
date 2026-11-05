@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
+  ArrowRight,
   ArrowUp,
   Square,
   Mic,
@@ -20,6 +21,7 @@ import {
   FileText,
   File as FileIcon,
   Image as ImageIcon,
+  Hand,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Toggle } from '@/components/common/Toggle';
@@ -381,84 +383,10 @@ export const ChatPromptInput: React.FC = () => {
 
   return (
     <>
-      <div className="w-full max-w-3xl mx-auto px-4 pb-6 pt-2 select-none relative">
-        {/* Workspace indicator chip directly above composer */}
-        <div className="relative mb-2 inline-flex items-center gap-2" ref={projectPickerRef}>
-          <button
-            type="button"
-            onClick={() => setShowProjectPicker(!showProjectPicker)}
-            className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground px-2.5 py-1 rounded-full bg-surface-raised/90 border border-border hover:border-accent transition-all cursor-pointer backdrop-blur-sm shadow-xs"
-          >
-            <Folder size={12} className="text-foreground-muted" />
-            <span className="truncate max-w-[200px]">
-              {selectedWorkspace ? selectedWorkspace.name : 'No workspace selected'}
-            </span>
-            <ChevronDown size={12} strokeWidth={1.8} className="text-foreground-muted" />
-          </button>
-
-          {showProjectPicker && (
-            <div className="absolute left-0 bottom-full mb-2 w-72 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border flex items-center justify-between">
-                <span>Workspace Directory</span>
-                <span className="font-mono text-[9px] text-foreground-muted">{recentWorkspaces.length} recent</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkspace(null);
-                  setShowProjectPicker(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                  !selectedWorkspace
-                    ? 'bg-surface text-foreground font-medium'
-                    : 'text-foreground-muted hover:text-foreground hover:bg-surface'
-                }`}
-              >
-                <span>No workspace (global mode)</span>
-                {!selectedWorkspace && <Check size={14} strokeWidth={2} className="text-emerald-400" />}
-              </button>
-              {recentWorkspaces.map((ws) => (
-                <button
-                  key={ws.id}
-                  type="button"
-                  onClick={() => {
-                    setWorkspace(ws);
-                    setShowProjectPicker(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                    selectedWorkspace?.id === ws.id
-                      ? 'bg-surface text-foreground font-medium'
-                      : 'text-foreground-muted hover:text-foreground hover:bg-surface'
-                  }`}
-                >
-                  <div className="truncate pr-2">
-                    <div className="truncate font-medium text-foreground">{ws.name}</div>
-                    <div className="text-[10px] text-foreground-muted font-mono truncate">{ws.path}</div>
-                  </div>
-                  {selectedWorkspace?.id === ws.id && (
-                    <Check size={14} strokeWidth={2} className="text-emerald-400 shrink-0" />
-                  )}
-                </button>
-              ))}
-              <div className="border-t border-border mt-1 pt-1.5 px-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowProjectPicker(false);
-                    openWorkspaceDialog();
-                  }}
-                  className="w-full text-center py-1.5 text-xs text-foreground hover:bg-surface rounded-xl transition-colors cursor-pointer font-medium"
-                >
-                  + Open workspace folder...
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Main Floating Chat Capsule */}
+      <div className="w-full max-w-3xl mx-auto px-4 pb-4 select-none relative z-10">
+        {/* Main Floating Chat Capsule matching Figma design */}
         <div
-          className="bg-surface-raised/95 backdrop-blur-xl border border-border focus-within:border-accent rounded-[28px] p-4 sm:p-5 shadow-2xl transition-all"
+          className="bg-[#141416]/95 border border-zinc-800/90 focus-within:border-zinc-700/90 rounded-2xl p-4 shadow-2xl backdrop-blur-md transition-all"
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -471,22 +399,13 @@ export const ChatPromptInput: React.FC = () => {
             }
           }}
         >
-          {/* Top subtle hint banner */}
-          <div className="flex items-center gap-2 pb-2 text-xs font-normal text-foreground select-none">
-            <Sparkles size={14} className="text-indigo-400 shrink-0" />
-            <span className="truncate">
-              Ask me anything -{' '}
-
-            </span>
-          </div>
-
           {/* Slash command suggestions menu */}
           {showCommandMenu && (
             <div
               ref={commandMenuRef}
-              className="mb-3 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 text-xs backdrop-blur-md max-h-48 overflow-y-auto custom-scrollbar"
+              className="mb-3 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 text-xs backdrop-blur-md max-h-48 overflow-y-auto custom-scrollbar"
             >
-              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted border-b border-border">
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
                 Commands
               </div>
               {SLASH_COMMANDS.filter((c) => c.cmd.startsWith(prompt.trim())).map((c) => (
@@ -497,10 +416,10 @@ export const ChatPromptInput: React.FC = () => {
                     setPrompt(c.cmd + ' ');
                     setShowCommandMenu(false);
                   }}
-                  className="w-full flex items-center justify-between px-3.5 py-1.5 text-left text-foreground hover:bg-surface cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1.5 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
                 >
                   <span className="font-mono text-indigo-400">{c.cmd}</span>
-                  <span className="text-foreground-muted text-[11px]">{c.desc}</span>
+                  <span className="text-zinc-500 text-[11px]">{c.desc}</span>
                 </button>
               ))}
             </div>
@@ -510,61 +429,31 @@ export const ChatPromptInput: React.FC = () => {
           {attachedFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 pb-2">
               {attachedFiles.map((af) => (
-                <div
-                  key={af.id}
-                  className="group relative flex-shrink-0"
-                >
+                <div key={af.id} className="group relative flex-shrink-0">
                   {af.type === 'image' && af.previewUrl ? (
-                    /* Image thumbnail */
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border bg-surface shadow-sm">
-                      <img
-                        src={af.previewUrl}
-                        alt={af.name}
-                        className="w-full h-full object-cover"
-                        draggable={false}
-                      />
-                      {/* Hover overlay with X */}
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900 shadow-sm">
+                      <img src={af.previewUrl} alt={af.name} className="w-full h-full object-cover" draggable={false} />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button
                           type="button"
                           onClick={() => removeFile(af.id)}
-                          className="w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer shadow-md transition-colors"
+                          className="w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center cursor-pointer shadow-md"
                           aria-label={`Remove ${af.name}`}
                         >
                           <X size={11} strokeWidth={3} />
                         </button>
                       </div>
-                      {/* File size label */}
-                      <span className="absolute bottom-0.5 right-0.5 text-[8px] text-white/80 bg-black/50 px-1 rounded-md font-mono">
-                        {formatFileSize(af.size)}
-                      </span>
                     </div>
                   ) : (
-                    /* Document / PDF card */
-                    <div className="relative flex items-center gap-2 px-2.5 py-2 rounded-xl border border-border bg-surface shadow-sm max-w-[160px]">
-                      <div className="w-8 h-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center shrink-0">
-                        {af.name.toLowerCase().endsWith('.pdf') ? (
-                          <FileText size={16} className="text-red-400" />
-                        ) : af.name.match(/\.(doc|docx)$/i) ? (
-                          <FileText size={16} className="text-blue-400" />
-                        ) : af.name.match(/\.(xls|xlsx|csv)$/i) ? (
-                          <FileText size={16} className="text-emerald-400" />
-                        ) : (
-                          <FileIcon size={16} className="text-foreground-muted" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] font-medium text-foreground truncate">{af.name}</div>
-                        <div className="text-[9px] text-foreground-muted font-mono">{formatFileSize(af.size)}</div>
-                      </div>
-                      {/* Hover X button */}
+                    <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-zinc-700 bg-zinc-900 shadow-sm max-w-[160px]">
+                      <FileText size={14} className="text-zinc-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-zinc-200 truncate">{af.name}</span>
                       <button
                         type="button"
                         onClick={() => removeFile(af.id)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center cursor-pointer shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-label={`Remove ${af.name}`}
+                        className="text-zinc-500 hover:text-rose-400 ml-1 cursor-pointer"
                       >
-                        <X size={10} strokeWidth={3} />
+                        <X size={12} strokeWidth={2} />
                       </button>
                     </div>
                   )}
@@ -575,11 +464,11 @@ export const ChatPromptInput: React.FC = () => {
 
           {/* Live Voice Caption Banner */}
           {isListening && (
-            <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-300 animate-in fade-in duration-150 select-none">
+            <div className="flex items-center gap-2 px-3 py-1.5 mb-2 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-300 animate-in fade-in duration-150 select-none">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
               <span className="font-semibold text-red-400 shrink-0">Live Voice:</span>
-              <span className="truncate italic text-foreground-muted flex-1">
-                {liveCaption || 'Listening... Speak into your microphone, text will update live.'}
+              <span className="truncate italic text-zinc-400 flex-1">
+                {liveCaption || 'Listening... Speak into your microphone'}
               </span>
               <button
                 type="button"
@@ -591,255 +480,262 @@ export const ChatPromptInput: React.FC = () => {
             </div>
           )}
 
-          {/* Auto-growing Textarea */}
+          {/* Textarea matching Figma */}
           <textarea
             ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message, query or instructions here..."
+            placeholder="Describe what you want to build..."
             rows={1}
-            className="w-full bg-transparent text-foreground placeholder-foreground-muted text-sm resize-none focus:outline-none custom-scrollbar min-h-[44px] max-h-[180px] leading-relaxed select-text"
+            className="w-full bg-transparent text-zinc-100 placeholder:text-zinc-500 text-[14.5px] resize-none focus:outline-none min-h-[44px] max-h-[160px] leading-relaxed select-text font-normal"
           />
 
-          {/* Bottom Action Bar inside Composer */}
-          <div className="flex items-center justify-between pt-3 mt-1 border-t border-border">
-            {/* Left Tools: Attach, Web Search, Effort */}
-            <div className="flex items-center gap-2 flex-wrap">
+          {/* Bottom Action Bar inside Card */}
+          <div className="flex items-center justify-between pt-2">
+            {/* Left Tools: Attach, Mention, Web Search, Ask for approval */}
+            <div className="flex items-center gap-1">
               {/* Attach Pill Button */}
               <div className="relative" ref={attachMenuRef}>
                 <button
                   type="button"
                   onClick={() => setShowAttachMenu(!showAttachMenu)}
-                  className="px-3 py-1.5 rounded-full text-xs bg-surface hover:bg-surface-raised border border-border text-foreground transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                  aria-label="Add attachments or context"
+                  className="p-1.5 text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg cursor-pointer"
                   title="Add attachment"
                 >
-                  <Paperclip size={13} strokeWidth={2} className="text-foreground-muted" />
-                  <span>Attach</span>
+                  <Paperclip size={16} strokeWidth={1.8} />
                 </button>
 
                 {showAttachMenu && (
-                  <div className="absolute left-0 bottom-full mb-2 w-56 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
-                    <div className="px-3 py-1 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
+                  <div className="absolute left-0 bottom-full mb-2 w-52 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
+                    <div className="px-3 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
                       Add Context
                     </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.multiple = true;
-                          input.accept = 'image/*,.txt,.md,.json,.csv,.pdf,.doc,.docx';
-                          input.onchange = (ev) => {
-                            const files = Array.from((ev.target as HTMLInputElement).files || []);
-                            if (files.length) {
-                              addFiles(files);
-                            }
-                            setShowAttachMenu(false);
-                          };
-                          input.click();
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                      >
-                        <FileCode size={14} className="text-foreground-muted" />
-                        <span>Files</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { openWorkspaceDialog(); setShowAttachMenu(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                      >
-                        <Folder size={14} className="text-foreground-muted" />
-                        <span>Folder</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setPrompt((prev) => prev + '@'); setShowAttachMenu(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                      >
-                        <span className="text-foreground-muted font-mono">@</span>
-                        <span>Mention</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowCommandMenu(true); setShowAttachMenu(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface cursor-pointer"
-                      >
-                        <Terminal size={14} className="text-foreground-muted" />
-                        <span>Commands</span>
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.multiple = true;
+                        input.accept = 'image/*,.txt,.md,.json,.csv,.pdf,.doc,.docx';
+                        input.onchange = (ev) => {
+                          const files = Array.from((ev.target as HTMLInputElement).files || []);
+                          if (files.length) addFiles(files);
+                          setShowAttachMenu(false);
+                        };
+                        input.click();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <FileCode size={14} className="text-zinc-400" />
+                      <span>Files</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openWorkspaceDialog();
+                        setShowAttachMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Folder size={14} className="text-zinc-400" />
+                      <span>Folder</span>
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Web Search Pill Button (Web icon + text "Search") */}
+              {/* Mention button (@) */}
+              <button
+                type="button"
+                onClick={() => setPrompt((prev) => prev + '@')}
+                className="p-1.5 text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg cursor-pointer font-mono text-sm leading-none"
+                title="Mention context"
+              >
+                @
+              </button>
+
+              {/* Web Search icon button (Globe) */}
               <button
                 type="button"
                 onClick={() => setWebSearchActive(!webSearchActive)}
-                className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs ${
-                  webSearchActive
-                    ? 'bg-blue-500/15 border-blue-500/40 text-blue-500 font-medium shadow-xs'
-                    : 'bg-surface hover:bg-surface-raised border-border text-foreground-muted hover:text-foreground'
+                className={`p-1.5 transition-colors rounded-lg cursor-pointer ${
+                  webSearchActive ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
                 title={webSearchActive ? 'Web search enabled' : 'Enable web search'}
               >
-                <Globe size={13} strokeWidth={2} className={webSearchActive ? 'text-blue-500' : 'text-foreground-muted'} />
-                <span>Search</span>
-                {webSearchActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse ml-0.5" />
-                )}
+                <Globe size={16} strokeWidth={1.8} />
               </button>
 
-              {/* Effort Pill Button */}
-              <div className="relative" ref={effortMenuRef}>
-                <button
-                  type="button"
-                  disabled={!effortSupport.supported}
-                  onClick={() => {
-                    if (effortSupport.supported) setShowEffortMenu(!showEffortMenu);
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 shadow-xs ${
-                    !effortSupport.supported
-                      ? 'bg-surface/40 border-border/40 text-foreground-muted/40 cursor-not-allowed opacity-60'
-                      : 'bg-surface hover:bg-surface-raised border-border text-foreground cursor-pointer active:scale-95'
-                  }`}
-                  title={
-                    effortSupport.supported
-                      ? `Reasoning effort (${effort})`
-                      : `${selectedModel || 'Current model'} does not support reasoning effort`
-                  }
-                >
-                  <Zap size={13} strokeWidth={2} className={effortSupport.supported ? 'text-amber-400' : 'text-foreground-muted/30'} />
-                  <span>Effort: {effortSupport.supported ? effort : 'N/A'}</span>
-                  {effortSupport.supported && <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />}
-                </button>
-
-                {showEffortMenu && effortSupport.supported && (
-                  <div className="absolute bottom-full mb-2 left-0 bg-surface-raised border border-border rounded-2xl shadow-2xl p-3.5 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
-                    <EffortSlider
-                      value={effort}
-                      onChange={(newEffort) => {
-                        setEffort(newEffort);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Approval Mode Pill Button */}
+              {/* Ask for approval pill button matching Figma */}
               <div className="relative" ref={approvalMenuRef}>
                 <button
                   type="button"
                   onClick={() => setShowApprovalMenu(!showApprovalMenu)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer ${
                     approvalMode === 'turbo'
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-medium'
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                       : approvalMode === 'auto_preview'
-                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-300 font-medium'
-                      : 'bg-surface hover:bg-surface-raised border-border text-foreground-muted hover:text-foreground'
+                      ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                      : 'text-zinc-400 hover:text-zinc-200 bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800'
                   }`}
-                  title={`Execution mode: ${approvalMode === 'auto_preview' ? 'Auto Preview' : approvalMode === 'turbo' ? 'Turbo' : 'Ask'}`}
+                  title="Execution approval mode"
                 >
-                  {approvalMode === 'turbo' ? (
-                    <Zap size={12} strokeWidth={2} className="text-amber-400" />
-                  ) : approvalMode === 'auto_preview' ? (
-                    <Eye size={12} strokeWidth={2} className="text-blue-400" />
-                  ) : (
-                    <ShieldCheck size={12} strokeWidth={2} className="text-emerald-400" />
-                  )}
-                  <span>{approvalMode === 'auto_preview' ? 'Auto Preview' : approvalMode === 'turbo' ? 'Turbo' : 'Ask'}</span>
-                  <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
+                  <Hand size={13} strokeWidth={1.8} className="text-zinc-400" />
+                  <span>
+                    {approvalMode === 'turbo' ? 'Turbo' : approvalMode === 'auto_preview' ? 'Auto Preview' : 'Ask for approval'}
+                  </span>
                 </button>
 
                 {showApprovalMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 w-64 bg-surface-raised border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
-                      Execution Approval Mode
+                  <div className="absolute bottom-full mb-2 left-0 w-60 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
+                      Approval Mode
                     </div>
                     {[
-                      { id: 'ask', label: 'Ask', desc: 'Require manual approval for edits & commands.', icon: ShieldCheck, color: 'text-emerald-400' },
-                      { id: 'turbo', label: 'Turbo', desc: 'Auto-apply edits with undo; ask for destructive ops.', icon: Zap, color: 'text-amber-400' },
-                      { id: 'auto_preview', label: 'Auto Preview', desc: 'Prepare diffs & auto-open review panel.', icon: Eye, color: 'text-blue-400' },
-                    ].map((opt) => {
-                      const OptIcon = opt.icon;
-                      const isSelected = approvalMode === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            setApprovalMode(opt.id as any);
-                            setShowApprovalMenu(false);
-                          }}
-                          className={`w-full text-left px-3 py-2.5 transition-colors cursor-pointer flex items-start gap-2.5 ${
-                            isSelected
-                              ? 'bg-surface text-foreground font-medium'
-                              : 'text-foreground-muted hover:text-foreground hover:bg-surface'
-                          }`}
-                        >
-                          <OptIcon size={14} strokeWidth={2} className={`${opt.color} mt-0.5 shrink-0`} />
-                          <div className="min-w-0">
-                            <div className="font-medium text-foreground flex items-center gap-1.5">
-                              <span>{opt.label}</span>
-                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-                            </div>
-                            <div className="text-[10px] text-foreground-muted/80 mt-0.5 leading-snug">{opt.desc}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
+                      { id: 'ask', label: 'Ask for approval', desc: 'Confirm each file modification.' },
+                      { id: 'turbo', label: 'Turbo', desc: 'Auto-apply edits with quick undo.' },
+                      { id: 'auto_preview', label: 'Auto Preview', desc: 'Prepare diffs & open review.' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setApprovalMode(opt.id as any);
+                          setShowApprovalMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 transition-colors cursor-pointer ${
+                          approvalMode === opt.id
+                            ? 'bg-zinc-800 text-white font-medium'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                        }`}
+                      >
+                        <div className="font-medium">{opt.label}</div>
+                        <div className="text-[10px] text-zinc-500">{opt.desc}</div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Right Tools: Save Memory, Voice Mic, Send Button */}
+            {/* Right Tools: Save Memory toggle, Model selector pill, Mic, Circular Send */}
             <div className="flex items-center gap-3">
-              {/* Save Memory toggle */}
+              {/* Save Memory Toggle */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-foreground-muted font-normal hidden sm:inline">Save Memory</span>
+                <span className="text-xs text-zinc-400 font-normal">Save Memory</span>
                 <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
               </div>
 
-              {/* Voice Input Mic Button */}
+              {/* Model Selector Pill matching Figma: "Ollama qwen-coder 1.1 Medium v" */}
+              <button
+                type="button"
+                onClick={() => setShowModelPicker(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-zinc-300 hover:text-white bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800 transition-colors cursor-pointer font-mono"
+                title="Select active model"
+              >
+                <span className="truncate max-w-[130px]">
+                  {selectedModel || 'Ollama qwen-coder 1.1'}
+                </span>
+                <span className="text-zinc-500 font-sans text-[11px]">{effort || 'Medium'}</span>
+                <ChevronDown size={11} strokeWidth={2} className="text-zinc-400" />
+              </button>
+
+              {/* Mic Button */}
               <button
                 type="button"
                 onClick={toggleMic}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer border border-border ${
+                className={`p-1.5 transition-colors rounded-lg cursor-pointer ${
                   isListening
-                    ? 'text-red-400 bg-red-500/20 ring-2 ring-red-500/40 animate-pulse'
-                    : 'text-foreground-muted hover:text-foreground bg-surface hover:bg-surface-raised'
+                    ? 'text-rose-400 bg-rose-500/20 animate-pulse'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
-                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
                 title={isListening ? 'Listening...' : 'Voice dictation'}
               >
-                {isListening ? <MicOff size={15} strokeWidth={2} /> : <Mic size={15} strokeWidth={2} />}
+                {isListening ? <MicOff size={16} strokeWidth={1.8} /> : <Mic size={16} strokeWidth={1.8} />}
               </button>
 
-              {/* Circular Send / Stop Button */}
+              {/* Circular Send / Stop Button with ArrowRight */}
               <button
                 type="button"
                 onClick={() => (isGenerating ? stopGeneration() : handleSubmit())}
                 disabled={!isGenerating && !prompt.trim() && attachedFiles.length === 0}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm ${
                   isGenerating
-                    ? 'bg-red-500 hover:bg-red-600 text-white active:scale-95'
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white active:scale-95'
                     : prompt.trim() || attachedFiles.length > 0
-                    ? 'bg-foreground text-surface hover:opacity-90 active:scale-95 font-bold'
-                    : 'bg-surface border border-border text-foreground-muted cursor-not-allowed opacity-40'
+                    ? 'bg-zinc-800 hover:bg-zinc-700 text-white active:scale-95'
+                    : 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed opacity-50'
                 }`}
-                aria-label={isGenerating ? 'Stop generation' : 'Send message'}
                 title={isGenerating ? 'Stop generation' : 'Send'}
               >
                 {isGenerating ? (
-                  <Square size={12} strokeWidth={2.5} className="fill-current text-white" />
+                  <Square size={11} strokeWidth={2.5} className="fill-current text-white" />
                 ) : (
-                  <ArrowUp size={16} strokeWidth={2.5} />
+                  <ArrowRight size={15} strokeWidth={2} />
                 )}
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Project Selector Underneath Card on the Left: "No Project v" matching Figma */}
+        <div className="pt-2 px-1 flex items-center" ref={projectPickerRef}>
+          <button
+            type="button"
+            onClick={() => setShowProjectPicker(!showProjectPicker)}
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+          >
+            <span>{selectedWorkspace ? selectedWorkspace.name : 'No Project'}</span>
+            <ChevronDown size={12} strokeWidth={1.8} className="text-zinc-500" />
+          </button>
+
+          {showProjectPicker && (
+            <div className="absolute left-4 bottom-full mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 flex items-center justify-between">
+                <span>Projects</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProjectPicker(false);
+                    openWorkspaceDialog();
+                  }}
+                  className="text-indigo-400 hover:text-indigo-300"
+                >
+                  + Add
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWorkspace(null);
+                  setShowProjectPicker(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
+                  !selectedWorkspace ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                }`}
+              >
+                <span>No Project</span>
+                {!selectedWorkspace && <Check size={13} className="text-emerald-400" />}
+              </button>
+              {recentWorkspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  type="button"
+                  onClick={() => {
+                    setWorkspace(ws);
+                    setShowProjectPicker(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
+                    selectedWorkspace?.id === ws.id ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                  }`}
+                >
+                  <span className="truncate">{ws.name}</span>
+                  {selectedWorkspace?.id === ws.id && <Check size={13} className="text-emerald-400" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

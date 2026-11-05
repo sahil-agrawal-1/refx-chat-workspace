@@ -1,16 +1,15 @@
 import React from 'react';
 import {
-  Plus,
-  History,
   Clock,
-  FolderPlus,
-  Settings,
   Folder,
-  Layers,
+  FolderPlus,
+  History,
+  SquarePen,
+  Settings,
   Trash2,
-  Cpu,
-  Brain,
-  PanelLeftClose,
+  PanelLeft,
+  ListFilter,
+  Pin,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Logo } from '@/components/ui/Logo';
@@ -30,241 +29,274 @@ export const Sidebar: React.FC = () => {
     setWorkspace,
     removeRecentWorkspace,
     openWorkspaceDialog,
-    taskMemories,
-    appMemories,
-    providers,
   } = useAppStore();
 
-  if (isSidebarCollapsed) {
-    return null;
-  }
+  if (isSidebarCollapsed) return null;
 
-  const connectedProvidersCount = providers.filter((p) => p.status === 'connected').length;
+  const otherConversations = conversations.filter(
+    (c) => c.id !== currentConversation?.id
+  );
 
   return (
-    <aside className="w-64 shrink-0 h-screen bg-surface-raised border-r border-border flex flex-col select-none text-foreground z-20">
-      {/* Top Header */}
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5">
-        <div className="flex items-center">
-          <Logo width={36} height={48} className="w-6 h-6" />
-        </div>
+    <aside className="refx-sidebar w-[280px] shrink-0 h-screen flex flex-col text-foreground z-20 select-none">
+      {/* Top Header: Logo + Collapse Sidebar Button */}
+      <div className="h-16 px-5 flex items-center justify-between pt-2">
+        <Logo width={26} height={26} className="text-white" />
         <button
           type="button"
           onClick={toggleSidebar}
-          className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
-          aria-label="Collapse sidebar"
+          className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
           title="Collapse sidebar"
+          aria-label="Collapse sidebar"
         >
-          <PanelLeftClose size={18} strokeWidth={1.8} />
+          <PanelLeft size={18} strokeWidth={1.8} />
         </button>
       </div>
 
-      {/* Primary Actions */}
-      <div className="px-3 py-2 space-y-1">
-        {/* + New Conversation button */}
+      {/* Primary Actions: New Conversation, History, Schedule Tasks */}
+      <div className="px-4 pt-2 space-y-1.5">
         <button
           type="button"
           onClick={startNewConversation}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-surface hover:bg-surface text-foreground rounded-lg text-xs font-normal transition-colors text-left border border-border cursor-pointer"
+          className="w-full rounded-xl border border-zinc-800 bg-[#121215] hover:bg-[#18181c] text-white flex items-center gap-3 px-3.5 py-2.5 text-[14px] font-normal transition-all cursor-pointer shadow-xs"
         >
-          <Plus size={16} strokeWidth={2} className="text-foreground" />
+          <SquarePen size={16} strokeWidth={1.8} className="text-zinc-300" />
           <span>New Conversation</span>
         </button>
 
-        {/* Navigation items */}
-        <div className="pt-1 space-y-0.5">
-          <div className="flex items-center justify-between px-3 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer">
-            <div className="flex items-center gap-2">
-              <History size={16} strokeWidth={1.8} className="text-foreground-muted" />
-              <span>Conversation History</span>
-            </div>
-            <span className="text-[11px] text-foreground-muted font-mono">
-              {conversations.length}
-            </span>
-          </div>
+        <button
+          type="button"
+          onClick={() => {}}
+          className="w-full text-zinc-400 hover:text-zinc-200 flex items-center gap-3 px-3.5 py-2 text-[14px] font-normal transition-colors cursor-pointer rounded-lg hover:bg-white/[0.03]"
+        >
+          <History size={16} strokeWidth={1.8} className="text-zinc-400" />
+          <span>Conversation History</span>
+        </button>
 
-          <div
-            onClick={() => openModal('settings')}
-            className="flex items-center justify-between px-3 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:bg-surface rounded-md transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Clock size={16} strokeWidth={1.8} className="text-foreground-muted" />
-              <span>Schedule Tasks</span>
-            </div>
-            <span className="text-[10px] text-foreground-muted font-mono">
-              Stage 2
-            </span>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => openModal('settings')}
+          className="w-full text-zinc-400 hover:text-zinc-200 flex items-center gap-3 px-3.5 py-2 text-[14px] font-normal transition-colors cursor-pointer rounded-lg hover:bg-white/[0.03]"
+        >
+          <Clock size={16} strokeWidth={1.8} className="text-zinc-400" />
+          <span>Schedule Tasks</span>
+        </button>
       </div>
 
       {/* Projects Section */}
-      <div className="px-3 pt-3 pb-2 border-t border-border">
-        <div className="flex items-center justify-between px-2 text-xs font-medium text-foreground-muted">
+      <section className="px-4 pt-7">
+        <div className="flex items-center justify-between text-zinc-200 text-[14px] font-medium mb-2.5 px-1">
           <span>Projects</span>
           <button
             type="button"
             onClick={openWorkspaceDialog}
-            className="p-1 hover:text-foreground hover:bg-surface rounded transition-colors cursor-pointer"
-            aria-label="Select workspace folder"
-            title="Select workspace folder"
+            className="text-zinc-400 hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
+            title="Open project folder"
           >
             <FolderPlus size={16} strokeWidth={1.8} />
           </button>
         </div>
 
-        {/* Workspaces list or honest empty state */}
-        <div className="mt-1 space-y-0.5">
-          {recentWorkspaces.length === 0 && !selectedWorkspace ? (
-            <div className="px-2.5 py-2 text-[11px] text-foreground-muted italic">
-              No workspace selected
-            </div>
-          ) : (
-            <>
-              {selectedWorkspace && (
-                <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs bg-surface text-foreground font-medium border border-border">
-                  <div onClick={() => setWorkspace(selectedWorkspace)} className="flex items-center gap-2 truncate cursor-pointer flex-1">
-                    <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-                    <span className="truncate">{selectedWorkspace.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(selectedWorkspace.path); }}
-                    className="p-1 text-foreground-muted hover:text-red-400 cursor-pointer"
-                    title="Delete project"
-                  >
-                    <Trash2 size={12} strokeWidth={1.8} />
-                  </button>
-                </div>
-              )}
-              {recentWorkspaces
-                .filter((ws) => ws.path !== selectedWorkspace?.path)
-                .map((ws) => (
-                  <div
-                    key={ws.id}
-                    className="flex items-center justify-between px-2.5 py-1 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors"
-                  >
-                    <div onClick={() => setWorkspace(ws)} className="flex items-center gap-2 truncate cursor-pointer flex-1">
-                      <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-                      <span className="truncate">{ws.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(ws.path); }}
-                      className="p-1 text-foreground-muted hover:text-red-400 cursor-pointer"
-                      title="Delete project"
-                    >
-                      <Trash2 size={12} strokeWidth={1.8} />
-                    </button>
-                  </div>
-                ))}
-            </>
-          )}
-        </div>
-
-      </div>
-      {/* Recent Conversations List or honest empty state */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5 custom-scrollbar border-t border-border">
-        <div className="px-2 pb-1 text-[11px] font-medium text-foreground-muted uppercase tracking-wider">
-          Conversations
-        </div>
-        {conversations.length === 0 ? (
-          <div className="px-2 py-4 text-center text-[11px] text-foreground-muted">
-            No conversations yet.
-          </div>
-        ) : (
-          conversations.map((conv) => {
-            const isActive = currentConversation?.id === conv.id;
-            return (
-              <div
-                key={conv.id}
-                onClick={() => selectConversation(conv.id)}
-                className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
-                  isActive
-                    ? 'bg-surface text-foreground font-medium border border-border'
-                    : 'text-foreground-muted hover:text-foreground hover:bg-surface'
-                }`}
+        <div className="space-y-1.5">
+          {/* Active selected project */}
+          {selectedWorkspace ? (
+            <div className="rounded-xl border border-zinc-800/80 bg-[#141416] px-3.5 py-2.5 flex items-center justify-between text-[13px] text-zinc-200 group">
+              <button
+                type="button"
+                onClick={() => setWorkspace(selectedWorkspace)}
+                className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
               >
-                <span className="truncate flex-1 pr-1">{conv.title}</span>
+                <Folder size={16} strokeWidth={1.8} className="text-zinc-400 shrink-0" />
+                <span className="truncate text-zinc-200 font-medium">{selectedWorkspace.name}</span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeRecentWorkspace(selectedWorkspace.path);
+                }}
+                className="p-1 text-zinc-500 hover:text-rose-400 transition-colors ml-2 shrink-0 cursor-pointer"
+                title="Delete project"
+              >
+                <Trash2 size={15} strokeWidth={1.8} />
+              </button>
+            </div>
+          ) : recentWorkspaces.length > 0 ? (
+            /* If no active workspace is selected, show recent workspaces as clickable cards with delete icon */
+            recentWorkspaces.slice(0, 3).map((ws) => (
+              <div
+                key={ws.id}
+                className="rounded-xl border border-zinc-800/80 bg-[#141416] px-3.5 py-2.5 flex items-center justify-between text-[13px] text-zinc-300 group hover:border-zinc-700 transition-colors"
+              >
+                <button
+                  type="button"
+                  onClick={() => setWorkspace(ws)}
+                  className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
+                >
+                  <Folder size={16} strokeWidth={1.8} className="text-zinc-400 shrink-0" />
+                  <span className="truncate text-zinc-200">{ws.name}</span>
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteConversation(conv.id);
+                    removeRecentWorkspace(ws.path);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-foreground-muted hover:text-red-400 rounded transition-opacity cursor-pointer"
-                  title="Delete chat"
-                  aria-label="Delete chat"
+                  className="p-1 text-zinc-500 hover:text-rose-400 transition-colors ml-2 shrink-0 cursor-pointer"
+                  title="Delete project"
                 >
-                  <Trash2 size={14} strokeWidth={1.8} />
+                  <Trash2 size={15} strokeWidth={1.8} />
                 </button>
               </div>
-            );
-          })
-        )}
-      </div>
+            ))
+          ) : (
+            /* Clean empty state when no workspace exists */
+            <button
+              type="button"
+              onClick={openWorkspaceDialog}
+              className="w-full rounded-xl border border-dashed border-zinc-800 hover:border-zinc-700 bg-transparent hover:bg-white/[0.02] px-3.5 py-2.5 flex items-center gap-2.5 text-[13px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+            >
+              <FolderPlus size={16} strokeWidth={1.8} className="text-zinc-500" />
+              <span>Open project folder</span>
+            </button>
+          )}
 
-      {/* Lower Navigation & Professional Status Indicators */}
-      <div className="p-3 border-t border-border space-y-1 bg-surface">
-        {/* Model Providers Button */}
-        <button
-          type="button"
-          onClick={() => openModal('providers')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <Cpu size={16} strokeWidth={1.8} className="text-foreground-muted" />
-            <span>Model Providers</span>
+          {/* Additional recent projects if one is already selected */}
+          {selectedWorkspace &&
+            recentWorkspaces
+              .filter((item) => item.path !== selectedWorkspace?.path)
+              .slice(0, 2)
+              .map((ws) => (
+                <div
+                  key={ws.id}
+                  className="px-3.5 py-1.5 text-[13px] text-zinc-500 hover:text-zinc-300 flex items-center justify-between group cursor-pointer transition-colors rounded-lg hover:bg-white/[0.02]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setWorkspace(ws)}
+                    className="min-w-0 flex-1 truncate text-left"
+                  >
+                    {ws.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRecentWorkspace(ws.path);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-rose-400 transition-opacity"
+                    title="Delete project"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+        </div>
+      </section>
+
+      {/* Conversation Section */}
+      <section className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 pt-7">
+        <div className="flex items-center justify-between text-zinc-200 text-[14px] font-medium mb-2.5 px-1">
+          <span>Conversation</span>
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <button
+              type="button"
+              className="hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
+              title="Filter conversations"
+            >
+              <ListFilter size={15} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              onClick={startNewConversation}
+              className="hover:text-zinc-200 p-1 rounded-md transition-colors cursor-pointer"
+              title="New conversation"
+            >
+              <SquarePen size={15} strokeWidth={1.8} />
+            </button>
           </div>
-          <span
-            className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-              connectedProvidersCount > 0
-                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                : 'text-foreground-muted'
-            }`}
-          >
-            {connectedProvidersCount > 0 ? `${connectedProvidersCount} connected` : 'None'}
-          </span>
-        </button>
+        </div>
 
-        {/* Memory Manager Button */}
-        <button
-          type="button"
-          onClick={() => openModal('memory')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <Brain size={16} strokeWidth={1.8} className="text-foreground-muted" />
-            <span>Memory Manager</span>
-          </div>
-          <span className="text-[10px] text-foreground-muted font-mono">
-            {taskMemories.length + appMemories.length}
-          </span>
-        </button>
+        <div className="space-y-1">
+          {/* Active conversation box */}
+          {currentConversation ? (
+            <div className="rounded-xl border border-zinc-800 bg-[#161619] px-3.5 py-2.5 flex items-center justify-between text-[13px] text-white shadow-xs group">
+              <span className="truncate text-zinc-100 font-normal">
+                {currentConversation.title || 'New conversation'}
+              </span>
+              <div className="flex items-center gap-1.5 text-zinc-400 shrink-0 ml-2">
+                <button
+                  type="button"
+                  onClick={() => deleteConversation(currentConversation.id)}
+                  className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-all cursor-pointer p-0.5"
+                  title="Delete conversation"
+                >
+                  <Trash2 size={13} strokeWidth={1.8} />
+                </button>
+                <button
+                  type="button"
+                  className="hover:text-white transition-colors cursor-pointer -rotate-45"
+                  title="Pin conversation"
+                >
+                  <Pin size={13} strokeWidth={1.8} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={startNewConversation}
+              className="w-full text-left px-3.5 py-2 text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              Start new conversation...
+            </button>
+          )}
 
-        {/* Settings Button */}
+          {/* Real other conversations - styled as unselected items */}
+          {otherConversations.map((c) => (
+            <div
+              key={c.id}
+              className="group flex items-center justify-between px-3.5 py-2 text-[13px] text-zinc-400 hover:text-white transition-colors cursor-pointer rounded-lg hover:bg-white/[0.03]"
+            >
+              <button
+                type="button"
+                onClick={() => selectConversation(c.id)}
+                className="min-w-0 flex-1 truncate text-left"
+              >
+                {c.title}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteConversation(c.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-rose-400 transition-opacity ml-2 shrink-0 p-0.5"
+                title="Delete conversation"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+
+          {conversations.length === 0 && (
+            <div className="px-3.5 py-3 text-xs text-zinc-600">
+              No conversations yet
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Bottom Pinned: Settings Button */}
+      <div className="p-4 pt-2 border-t border-zinc-900/60">
         <button
           type="button"
           onClick={() => openModal('settings')}
-          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs text-foreground-muted hover:text-foreground hover:bg-surface transition-colors cursor-pointer"
+          className="w-full text-zinc-400 hover:text-white flex items-center gap-3 px-3 py-2.5 text-[14px] transition-colors cursor-pointer rounded-xl hover:bg-white/[0.04]"
         >
-          <div className="flex items-center gap-2">
-            <Settings size={16} strokeWidth={1.8} className="text-foreground-muted" />
-            <span>Settings</span>
-          </div>
-          <span className="text-[10px] text-foreground-muted font-mono">v1.0</span>
+          <Settings size={17} strokeWidth={1.8} className="text-zinc-400" />
+          <span>Settings</span>
         </button>
-
-        {/* Stage Notice */}
-        <div className="pt-2 px-1">
-          <div className="flex items-center justify-between text-[10px] text-foreground-muted px-1 py-0.5">
-            <span className="flex items-center gap-1">
-              <Layers size={14} strokeWidth={1.8} />
-              Desktop Bridge
-            </span>
-            <span className="font-mono text-foreground-muted">Stage 1</span>
-          </div>
-        </div>
       </div>
     </aside>
   );

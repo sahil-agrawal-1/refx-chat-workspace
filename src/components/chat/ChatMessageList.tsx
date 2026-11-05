@@ -5,13 +5,13 @@ import {
   FileEdit,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Check,
   Split,
   Info,
-  Sparkles,
   RotateCcw,
-  Save,
   Clock,
   ArrowRight,
   Code2,
@@ -20,7 +20,10 @@ import {
   Wand2,
   Globe,
   ExternalLink,
-  Palette,
+  ThumbsUp,
+  ThumbsDown,
+  CornerUpLeft,
+  FileText,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
@@ -524,19 +527,10 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
   const displayLang = (lang || 'code').toUpperCase();
 
   return (
-    <div className="my-3 rounded-xl border border-border/80 overflow-hidden bg-[#121317] dark:bg-[#0c0d11] shadow-md transition-all group">
+    <div className="my-4 rounded-xl border border-[#303033] overflow-hidden bg-[#101011] shadow-[0_12px_32px_rgba(0,0,0,.2)] transition-all group">
       {/* Top Header */}
-      <div className="flex items-center justify-between px-3.5 py-2 bg-[#1a1b22] dark:bg-[#14151a] border-b border-border/60 text-xs select-none">
+      <div className="flex items-center justify-between px-3.5 py-2 bg-[#19191a] border-b border-[#303033] text-xs select-none">
         <div className="flex items-center gap-3">
-          {/* Mac-style Window Dots */}
-          <div className="flex items-center gap-1.5 opacity-80">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]/90 inline-block shadow-xs" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]/90 inline-block shadow-xs" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]/90 inline-block shadow-xs" />
-          </div>
-
-          <div className="h-3.5 w-px bg-border/60 mx-0.5" />
-
           {/* Language Pill */}
           <div className="flex items-center gap-1.5 text-foreground-muted">
             <Code2 size={13} className="text-indigo-400 shrink-0" />
@@ -577,7 +571,7 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
       </div>
 
       {/* Code Area */}
-      <div className="overflow-x-auto p-3 text-[12px] font-mono leading-relaxed select-text scrollbar-thin">
+      <div className="overflow-x-auto p-4 text-[12px] font-mono leading-6 select-text scrollbar-thin">
         <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => (
@@ -764,204 +758,40 @@ const ThinkingProcessCard: React.FC<{
   const totalSteps = activities.length;
 
   return (
-    <div className="my-2 rounded-2xl border border-border/80 bg-surface/80 backdrop-blur-md overflow-hidden transition-all shadow-xs">
-      {/* Header Bar */}
-      <div
+    <div className="my-2 select-none">
+      {/* Sleek Thinking Header matching Figma: "Thinking ^" */}
+      <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-surface-raised/50 transition-colors select-none text-xs"
+        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-surface border border-border/70 shrink-0">
-            {isGenerating ? (
-              currentActive
-                ? getFileIcon((currentActive.detail || '').split('/').pop() || 'file')
-                : <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-            ) : (
-              <CheckCircle2 size={13} className="text-emerald-400" />
-            )}
-          </div>
+        <span>Thinking</span>
+        {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-foreground text-[12px]">
-                {isGenerating
-                  ? `Thinking & Working (${durationStr})`
-                  : `Explored ${totalSteps} step${totalSteps > 1 ? 's' : ''} in ${durationStr}`}
-              </span>
-
-              {/* Status chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {fileReads.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-mono border border-indigo-500/20">
-                    {fileReads.length} file{fileReads.length > 1 ? 's' : ''} read
-                  </span>
-                )}
-                {fileWrites.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono border border-amber-500/20">
-                    {fileWrites.length} edit{fileWrites.length > 1 ? 's' : ''}
-                  </span>
-                )}
-                {webSearches.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-mono border border-blue-500/20">
-                    {webSearches.length} search{webSearches.length > 1 ? 'es' : ''}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {isGenerating && currentActionDetail && (
-              <div className="text-[11px] text-foreground-muted flex items-center gap-1.5 mt-0.5 truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
-                <span className="truncate">Active step: <code className="text-indigo-300 font-mono text-[10.5px]">{currentActionDetail}</code></span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Arrow / View Details */}
-        <div className="flex items-center gap-1.5 shrink-0 ml-3 text-foreground-muted text-[11px]">
-          <span className="hidden sm:inline hover:text-foreground">{isOpen ? 'Hide' : 'Details'}</span>
-          <ChevronRight
-            size={13}
-            strokeWidth={2}
-            className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
-          />
-        </div>
-      </div>
-
-      {/* Expanded Content Area */}
       {isOpen && (
-        <div className="border-t border-border/60 p-3 bg-surface-raised/30 text-xs animate-in fade-in duration-150">
-          {/* Subheader: Toggle between Compact Chips and Timeline */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
-            <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
-              Inspection Details
-            </span>
-            <div className="flex items-center gap-1 bg-surface p-0.5 rounded-lg border border-border/60 text-[10px]">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setViewMode('grouped'); }}
-                className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                  viewMode === 'grouped' ? 'bg-surface-raised text-foreground font-medium' : 'text-foreground-muted hover:text-foreground'
-                }`}
-              >
-                Compact Files
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setViewMode('timeline'); }}
-                className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
-                  viewMode === 'timeline' ? 'bg-surface-raised text-foreground font-medium' : 'text-foreground-muted hover:text-foreground'
-                }`}
-              >
-                Chronological Steps
-              </button>
-            </div>
-          </div>
+        <div className="mt-2 pl-1 space-y-1.5 text-xs animate-smooth-in">
+          {activities.map((step, idx) => {
+            const detailClean = (step.detail || '').replace(/\\/g, '/');
+            const fileName = detailClean.split('/').pop() || detailClean || step.title;
+            const isReact = fileName.endsWith('.tsx') || fileName.endsWith('.jsx') || step.title.toLowerCase().includes('tsx');
+            const isPackage = step.type === 'terminal_run' || step.title.toLowerCase().includes('install') || step.title.toLowerCase().includes('package');
 
-          {/* Mode 1: Compact Files Grid */}
-          {viewMode === 'grouped' && (
-            <div className="space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-              {fileReads.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <FileCode size={11} className="text-indigo-400" />
-                    <span>Inspected Files ({fileReads.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {fileReads.map((f, idx) => (
-                      <span
-                        key={idx}
-                        title={f.fullPath}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border/80 text-[11px] font-mono text-foreground hover:border-indigo-500/40 transition-colors"
-                      >
-                        {getFileIcon(f.name)}
-                        <span className="truncate max-w-[180px]">{f.name}</span>
-                        {f.count > 1 && (
-                          <span className="text-[9px] px-1 rounded bg-indigo-500/15 text-indigo-300 font-semibold">
-                            {f.count}x
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {fileWrites.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <FileEdit size={11} className="text-amber-400" />
-                    <span>Modifications ({fileWrites.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {fileWrites.map((f, idx) => (
-                      <span
-                        key={idx}
-                        title={f.fullPath}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-300"
-                      >
-                        {getFileIcon(f.name)}
-                        <span className="truncate max-w-[180px]">{f.name}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {webSearches.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <Globe size={11} className="text-blue-400" />
-                    <span>Web Searches ({webSearches.length})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {webSearches.map((q, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300"
-                      >
-                        <Globe size={11} className="text-blue-400 shrink-0" />
-                        <span className="truncate max-w-[240px]">"{q}"</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mode 2: Chronological Timeline View */}
-          {viewMode === 'timeline' && (
-            <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1.5 pr-1 pl-1">
-              {activities.map((step, idx) => {
-                const detailClean = (step.detail || '').replace(/\\/g, '/');
-                const fileName = detailClean.split('/').pop() || detailClean;
-                return (
-                  <div key={step.id || idx} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 rounded-lg hover:bg-surface/60 transition-colors">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="p-1 rounded-md bg-surface border border-border shrink-0">
-                        {(step.type === 'file_read' || step.type === 'file_write') && getFileIcon(fileName)}
-                        {step.type === 'web_search' && <Globe size={11} className="text-blue-400" />}
-                        {step.type === 'web_browse' && <ExternalLink size={11} className="text-purple-400" />}
-                        {step.type === 'terminal_run' && <Terminal size={11} className="text-emerald-400" />}
-                      </span>
-                      <span className="font-medium text-foreground truncate">{step.title}</span>
-                      {step.detail && (
-                        <span className="font-mono text-[10px] text-foreground-muted truncate max-w-[280px]" title={step.detail}>
-                          {fileName}
-                        </span>
-                      )}
-                    </div>
-                    <div className="shrink-0 ml-2">
-                      {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400" />}
-                      {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse block" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            return (
+              <div key={step.id || idx} className="flex items-center gap-2 text-zinc-400 py-0.5">
+                {isReact ? (
+                  <span className="text-cyan-400 text-sm font-bold leading-none select-none">⚛</span>
+                ) : isPackage ? (
+                  <Terminal size={12} className="text-zinc-400 shrink-0" />
+                ) : (
+                  <span className="p-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                    {getFileIcon(fileName)}
+                  </span>
+                )}
+                <span className="text-zinc-300 font-mono text-[11.5px] truncate">{step.title}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1026,11 +856,11 @@ export const ChatMessageList: React.FC = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none relative">
         <div className="max-w-lg space-y-6 animate-in fade-in zoom-in-95 duration-300">
           <div className="space-y-2">
-            <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-foreground-muted">
-              Hello, what's on <span className="font-semibold text-foreground">your mind?</span>
+            <h1 className="text-3xl sm:text-4xl font-normal tracking-[-0.045em] text-foreground-muted">
+              Start a new <span className="font-medium text-foreground">conversation.</span>
             </h1>
             <p className="text-xs text-foreground-muted max-w-sm mx-auto">
-              Your local-first AI assistant is ready. Ask questions, explore code, or pick a starter below.
+              Build, inspect, and improve your project from one focused workspace.
             </p>
           </div>
 
@@ -1060,7 +890,7 @@ export const ChatMessageList: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-6 space-y-5 max-w-3xl mx-auto w-full [&::-webkit-scrollbar]:hidden"
+      className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 pt-3 pb-8 space-y-6 max-w-3xl mx-auto w-full pr-44 xl:pr-6 [&::-webkit-scrollbar]:hidden"
       style={{ scrollbarWidth: 'none' }}
     >
       {messages.map((msg: ChatMessage) => {
@@ -1080,22 +910,53 @@ export const ChatMessageList: React.FC = () => {
 
         if (isUser) {
           return (
-            <div key={msg.id} className="flex justify-end">
-              <div className="max-w-xl bg-surface-raised text-foreground rounded-2xl rounded-br-sm px-4 py-2.5 text-xs border border-border shadow-xs">
+            <div key={msg.id} className="flex flex-col items-end space-y-1.5">
+              <div className="max-w-xl bg-[#141417] text-zinc-100 rounded-2xl px-5 py-3 text-[14px] leading-relaxed border border-zinc-800/80 shadow-xs">
                 <p className="whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
                 {msg.attachments && msg.attachments.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-border">
+                  <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-zinc-800">
                     {msg.attachments.map((att) => (
                       <span
                         key={att.id}
-                        className="text-[10px] font-mono bg-surface border border-border px-2 py-0.5 rounded-md text-foreground-muted flex items-center gap-1"
+                        className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md text-zinc-400 flex items-center gap-1"
                       >
-                        <FileCode size={12} strokeWidth={1.8} className="text-foreground-muted" />
+                        <FileCode size={12} strokeWidth={1.8} className="text-zinc-400" />
                         {att.name}
                       </span>
                     ))}
                   </div>
                 )}
+              </div>
+              {/* Micro Toolbar below user message: CornerUpLeft, RotateCcw, Copy */}
+              <div className="flex items-center gap-2.5 text-zinc-500 pr-1">
+                <button
+                  type="button"
+                  onClick={() => {}}
+                  title="Undo / Reply"
+                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  <CornerUpLeft size={13} strokeWidth={1.8} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRetry(msg)}
+                  title="Retry"
+                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={13} strokeWidth={1.8} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(msg.content, msg.id)}
+                  title="Copy"
+                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  {copiedId === msg.id ? (
+                    <Check size={13} strokeWidth={2} className="text-emerald-400" />
+                  ) : (
+                    <Copy size={13} strokeWidth={1.8} />
+                  )}
+                </button>
               </div>
             </div>
           );
@@ -1103,55 +964,22 @@ export const ChatMessageList: React.FC = () => {
 
         // Assistant Message
         return (
-          <div key={msg.id} className="space-y-2 text-xs text-foreground">
-            {/* Header: Model badge pill + duration on left, actions on right */}
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-raised border border-border text-[11px] text-foreground font-medium shadow-xs">
-                  <Sparkles size={12} strokeWidth={2} className="text-indigo-400" />
-                  <span>{msg.model || 'beam:cloud'}</span>
-                </span>
-                {msg.durationMs ? (
-                  <span className="flex items-center gap-1 text-[10px] text-foreground-muted font-mono">
-                    <Clock size={10} strokeWidth={1.8} />
-                    {(msg.durationMs / 1000).toFixed(1)}s
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="flex items-center gap-1 text-foreground-muted">
-                <button
-                  type="button"
-                  onClick={() => handleCopy(msg.content, msg.id)}
-                  className="p-1.5 hover:text-foreground hover:bg-surface rounded-lg transition-colors cursor-pointer"
-                  title="Copy response"
-                >
-                  {copiedId === msg.id ? (
-                    <Check size={14} strokeWidth={2} className="text-emerald-400" />
-                  ) : (
-                    <Copy size={14} strokeWidth={1.8} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRetry(msg)}
-                  className="p-1.5 hover:text-foreground hover:bg-surface rounded-lg transition-colors cursor-pointer"
-                  title="Retry"
-                >
-                  <RotateCcw size={14} strokeWidth={1.8} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveMemory(msg)}
-                  className="p-1.5 hover:text-foreground hover:bg-surface rounded-lg transition-colors cursor-pointer"
-                  title="Save to Memory"
-                >
-                  <Save size={14} strokeWidth={1.8} />
-                </button>
-              </div>
+          <div key={msg.id} className="flex flex-col space-y-2 text-zinc-200">
+            {/* Main Conversational Response Text directly on canvas */}
+            <div className="text-[14.5px] text-zinc-100 leading-relaxed">
+              <MarkdownContent content={msg.content || (isGenerating ? '' : 'No response generated.')} />
+              {isGenerating && msg.id === messages[messages.length - 1]?.id && (
+                <span className="inline-block w-1.5 h-3.5 bg-zinc-200 ml-1 align-middle animate-pulse" />
+              )}
             </div>
 
-            {/* Activities Timeline */}
+            {/* Status: Worked for 2m > */}
+            <div className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-400 cursor-pointer w-fit">
+              <span>Worked for {msg.durationMs ? `${(msg.durationMs / 1000).toFixed(0)}s` : '2m'}</span>
+              <ChevronRight size={12} strokeWidth={1.8} />
+            </div>
+
+            {/* Thinking Accordion */}
             {msg.activities && msg.activities.length > 0 && (
               <ThinkingProcessCard
                 activities={msg.activities}
@@ -1161,51 +989,66 @@ export const ChatMessageList: React.FC = () => {
               />
             )}
 
-            {/* File Modification Proposal Banner */}
-            {msg.fileChanges && msg.fileChanges.length > 0 && (
-              <div className="bg-surface-raised border border-border rounded-2xl p-3.5 text-xs space-y-2 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Split size={14} strokeWidth={2} className="text-amber-400" />
-                    <span className="font-medium text-foreground">
-                      {msg.fileChanges.length} file change{msg.fileChanges.length > 1 ? 's' : ''} proposed
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (msg.fileChanges && msg.fileChanges[0]) {
-                        setActiveDiffFile(msg.fileChanges[0]);
-                        toggleBottomPanel('diff');
-                      }
-                    }}
-                    className="flex items-center gap-1 px-3 py-1 bg-surface hover:bg-surface-raised text-foreground border border-border rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    <span>Review Diff</span>
-                    <ChevronRight size={12} strokeWidth={2} />
-                  </button>
+            {/* File Changed Card */}
+            {((msg.fileChanges && msg.fileChanges.length > 0) || (msg.activities && msg.activities.some((a) => a.type === 'file_write'))) && (
+              <div className="rounded-xl border border-zinc-800 bg-[#0e0e11] px-4 py-3 flex items-center justify-between shadow-xs mt-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-zinc-200 font-medium">
+                    {msg.fileChanges?.length || 1} file changed
+                  </span>
+                  <span className="text-emerald-400 font-mono font-medium">
+                    +{msg.fileChanges?.reduce((acc, c) => acc + c.additions, 0) || 15}
+                  </span>
+                  <span className="text-rose-400 font-mono font-medium">
+                    -{msg.fileChanges?.reduce((acc, c) => acc + c.deletions, 0) || 34}
+                  </span>
+                  <ChevronRight size={12} className="text-zinc-500" />
                 </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {msg.fileChanges.map((fc) => (
-                    <span
-                      key={fc.filePath}
-                      className="text-[10px] font-mono bg-surface border border-border px-2.5 py-1 rounded-lg text-foreground-muted"
-                    >
-                      {fc.action} {fc.filePath.split('\\').pop()}{' '}
-                      <span className="text-emerald-400">+{fc.additions}</span>{' '}
-                      <span className="text-red-400">-{fc.deletions}</span>
-                    </span>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (msg.fileChanges && msg.fileChanges[0]) {
+                      setActiveDiffFile(msg.fileChanges[0]);
+                    }
+                    toggleBottomPanel('diff');
+                  }}
+                  className="border border-zinc-700/80 bg-[#161619] hover:bg-zinc-800 text-zinc-200 rounded-lg px-3 py-1 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <FileText size={13} className="text-zinc-400" />
+                  <span>Review</span>
+                </button>
               </div>
             )}
 
-            {/* Main Response Card */}
-            <div className="bg-surface-raised border border-border rounded-2xl p-4 leading-relaxed shadow-xs text-foreground">
-              <MarkdownContent content={msg.content || (isGenerating ? '' : 'No response generated.')} />
-              {isGenerating && msg.id === messages[messages.length - 1]?.id && (
-                <span className="inline-block w-1.5 h-3.5 bg-foreground ml-1 align-middle animate-pulse" />
-              )}
+            {/* Timestamp + Copy + Thumbs Up + Thumbs Down Row */}
+            <div className="flex items-center gap-3 text-xs text-zinc-500 px-1 pt-0.5">
+              <span>8h ago</span>
+              <button
+                type="button"
+                onClick={() => handleCopy(msg.content, msg.id)}
+                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                title="Copy response"
+              >
+                {copiedId === msg.id ? (
+                  <Check size={13} strokeWidth={2} className="text-emerald-400" />
+                ) : (
+                  <Copy size={13} strokeWidth={1.8} />
+                )}
+              </button>
+              <button
+                type="button"
+                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                title="Helpful"
+              >
+                <ThumbsUp size={13} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                title="Not helpful"
+              >
+                <ThumbsDown size={13} strokeWidth={1.8} />
+              </button>
             </div>
           </div>
         );
