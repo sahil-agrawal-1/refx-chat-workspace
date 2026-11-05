@@ -31,6 +31,40 @@ let initialized = false;
 
 const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
   {
+    version: 8,
+    name: 'memory_versions',
+    sql: `
+      CREATE TABLE IF NOT EXISTS memory_versions (
+        id TEXT PRIMARY KEY,
+        memory_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        task_id TEXT,
+        snapshot TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_versions_memory
+        ON memory_versions(memory_id, created_at);
+    `,
+  },
+  {
+    version: 7,
+    name: 'memory_embeddings',
+    sql: `
+      CREATE TABLE IF NOT EXISTS memory_embeddings (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL,
+        task_id TEXT,
+        model TEXT NOT NULL,
+        vector TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_embeddings_scope
+        ON memory_embeddings(scope, task_id);
+    `,
+  },
+  {
     version: 5,
     name: 'memory_review_state',
     sql: `
@@ -1019,7 +1053,7 @@ export function clearAppMemories(): boolean {
 
 export function getMemoryConfig(): any {
   const database = getDatabase();
-  const defaultConfig = { autoMemoryEnabled: false, globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory', storageBackend: 'file_index', maxEntries: 1000, retrievalTokenBudget: 1200, retrievalMaxResults: 8 };
+  const defaultConfig = { autoMemoryEnabled: false, globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory', storageBackend: 'file_index', maxEntries: 1000, retrievalTokenBudget: 1200, retrievalMaxResults: 8, encryptionEnabled: false };
   if (!database) return defaultConfig;
   const row = database.prepare('SELECT value FROM app_settings WHERE key = ?').get('memory_config') as any;
   if (!row) return defaultConfig;
@@ -1521,4 +1555,126 @@ export function clearMemoryReviewState(pairKey: string): boolean {
   if (!database || !pairKey) return false;
   const result = database.prepare('DELETE FROM memory_review WHERE pair_key = ?').run(pairKey);
   return result.changes > 0;
+}
+
+// ---------------- Memory embeddings ----------------
+
+export function getMemoryEmbedding(id: string): { id: string; scope: string; taskId: string | null; model: string; vector: number[]; updatedAt: number } | null {
+  const database = getDatabase();
+  if (!database || !id) return null;
+  const row = database.prepare('SELECT * FROM memory_embeddings WHERE id = ?').get(id) as any;
+  if (!row) return null;
+  let vector: number[] = [];
+  try {
+    const parsed = JSON.parse(row.vector || '[]');
+    if (Array.isArray(parsed)) vector = parsed.map((value) => Number(value) || 0);
+  } catch {
+    return null;
+  }
+  return {
+    id: row.id,
+    scope: row.scope,
+    taskId: row.task_id,
+    model: row.model,
+    vector,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function saveMemoryEmbedding(id: string, scope: string, taskId: string | null, vector: number[], model: string): boolean {
+  const database = getDatabase();
+  if (!database || !id || !Array.isArray(vector) || vector.length === 0) return false;
+  const now = Date.now();
+  database
+    .prepare(
+      `INSERT INTO memory_embeddings (id, scope, task_id, model, vector, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         scope = excluded.scope,
+         task_id = excluded.task_id,
+         model = excluded.model,
+         vector = excluded.vector,
+         updated_at = excluded.updated_at`
+    )
+    .run(id, scope, taskId, model, JSON.stringify(vector), now);
+  return true;
+}
+
+export function deleteMemoryEmbedding(id: string): boolean {
+  const database = getDatabase();
+  if (!database || !id) return false;
+  const result = database.prepare('DELETE FROM memory_embeddings WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export function clearMemoryEmbeddings(): void {
+  const database = getDatabase();
+  if (!database) return;
+  database.prepare('DELETE FROM memory_embeddings').run();
+}
+
+// ---------------- Memory versions ----------------
+
+export function saveMemoryVersion(memoryId: string, scope: string, taskId: string | null, snapshot: any): boolean {
+  const database = getDatabase();
+  if (!database || !memoryId) return false;
+  database
+    .prepare(
+      `INSERT INTO memory_versions (id, memory_id, scope, task_id, snapshot, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      `mem-ver-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      memoryId,
+      scope,
+      taskId,
+      JSON.stringify(snapshot || {}),
+      Date.now()
+    );
+  return true;
+}
+
+export function getMemoryVersions(memoryId: string): Array<{ id: string; memoryId: string; scope: string; taskId: string | null; snapshot: any; createdAt: number }> {
+  const database = getDatabase();
+  if (!database || !memoryId) return [];
+  const rows = database
+    .prepare('SELECT * FROM memory_versions WHERE memory_id = ? ORDER BY created_at DESC LIMIT 50')
+    .all(memoryId) as any[];
+  return rows.map((row) => {
+    let snapshot: any = {};
+    try {
+      snapshot = JSON.parse(row.snapshot || '{}');
+    } catch {
+      snapshot = {};
+    }
+    return {
+      id: row.id,
+      memoryId: row.memory_id,
+      scope: row.scope,
+      taskId: row.task_id,
+      snapshot,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+export function getMemoryVersion(versionId: string): { id: string; memoryId: string; scope: string; taskId: string | null; snapshot: any; createdAt: number } | null {
+  const database = getDatabase();
+  if (!database || !versionId) return null;
+  const row = database.prepare('SELECT * FROM memory_versions WHERE id = ?').get(versionId) as any;
+  if (!row) return null;
+  let snapshot: any = {};
+  try {
+    snapshot = JSON.parse(row.snapshot || '{}');
+  } catch {
+    snapshot = {};
+  }
+  return {
+    id: row.id,
+    memoryId: row.memory_id,
+    scope: row.scope,
+    taskId: row.task_id,
+    snapshot,
+    createdAt: row.created_at,
+  };
 }

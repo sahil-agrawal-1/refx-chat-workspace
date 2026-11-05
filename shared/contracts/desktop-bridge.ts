@@ -151,6 +151,15 @@ export interface MemoryRetrievalResponse {
   totalCandidates: number;
 }
 
+export interface MemoryVersion {
+  id: string;
+  memoryId: string;
+  scope: "app" | "task";
+  taskId?: string | null;
+  snapshot: Record<string, unknown>;
+  createdAt: number;
+}
+
 export type {
   MemoryConflict,
   MemoryConflictSide,
@@ -166,6 +175,9 @@ export interface MemoryConfig {
   maxEntries: number;
   retrievalTokenBudget?: number;
   retrievalMaxResults?: number;
+  embeddingsEnabled?: boolean;
+  embeddingModel?: string;
+  embeddingEndpoint?: string;
 }
 
 export type ProviderConnectionStatus =
@@ -324,6 +336,8 @@ export interface IMemoryBridge {
   resolveMemoryConflict(pairKey: string, keepId: string): Promise<boolean>;
   confirmMemory(id: string, scope: 'app' | 'task', taskId?: string): Promise<boolean>;
   purgeExpiredMemories(): Promise<number>;
+  getMemoryVersions(memoryId: string): Promise<MemoryVersion[]>;
+  restoreMemoryVersion(memoryId: string, versionId: string): Promise<boolean>;
   rebuildMemoryIndex(): Promise<{ success: boolean; indexed: number; fts: boolean; rebuilt: boolean; error?: string }>;
 }
 
@@ -559,6 +573,8 @@ export const MEMORY_IPC_CHANNELS = {
   RESOLVE_CONFLICT: 'desktop:memResolveConflict',
   CONFIRM: 'desktop:memConfirm',
   PURGE_EXPIRED: 'desktop:memPurgeExpired',
+  GET_VERSIONS: 'desktop:memGetVersions',
+  RESTORE_VERSION: 'desktop:memRestoreVersion',
   REBUILD_INDEX: 'desktop:memRebuildIndex',
 } as const;
 

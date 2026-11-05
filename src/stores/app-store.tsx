@@ -11,6 +11,8 @@ import type {
   AppMemoryEntry,
   MemoryConfig,
   MemoryGovernanceSummary,
+  MemoryRetrievalResponse,
+  MemoryVersion,
   TerminalSessionInfo,
   PermissionRequest,
   ActiveModal,
@@ -98,6 +100,10 @@ interface AppContextValue {
   updateMemoryConfig: (config: Partial<MemoryConfig>) => Promise<void>;
   memoryGovernance: MemoryGovernanceSummary;
   refreshMemoryGovernance: () => Promise<void>;
+  lastMemoryRetrieval: MemoryRetrievalResponse | null;
+  memoryVersions: MemoryVersion[];
+  fetchMemoryVersions: (memoryId: string) => Promise<void>;
+  restoreMemoryVersion: (memoryId: string, versionId: string) => Promise<boolean>;
   dismissMemoryConflict: (pairKey: string) => Promise<void>;
   resolveMemoryConflict: (pairKey: string, keepId: string) => Promise<void>;
   confirmMemory: (id: string, scope: 'app' | 'task', taskId?: string) => Promise<void>;
@@ -247,6 +253,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     expired: [],
     counts: { conflicts: 0, lowConfidence: 0, expired: 0 },
   });
+  const [lastMemoryRetrieval, setLastMemoryRetrieval] = useState<MemoryRetrievalResponse | null>(null);
+  const [memoryVersions, setMemoryVersions] = useState<MemoryVersion[]>([]);
 
   // Terminal (Clean initial state)
   const [terminalSessions, setTerminalSessions] = useState<TerminalSessionInfo[]>([]);
@@ -1126,6 +1134,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return removed;
   };
 
+  const fetchMemoryVersions = async (memoryId: string) => {
+    try {
+      const versions = await desktopBridge.memory.getMemoryVersions(memoryId);
+      setMemoryVersions(versions);
+    } catch {
+      setMemoryVersions([]);
+    }
+  };
+
+  const restoreMemoryVersion = async (memoryId: string, versionId: string) => {
+    const ok = await desktopBridge.memory.restoreMemoryVersion(memoryId, versionId);
+    if (ok) {
+      const aMem = await desktopBridge.memory.getAppMemories();
+      setAppMemories(aMem);
+      void refreshMemoryGovernance();
+    }
+    return ok;
+  };
+
   const executeTerminalCommand = async (cmd: string) => {
     if (!activeTerminalId) return;
     await desktopBridge.terminal.sendInput(activeTerminalId, cmd + '\r');
@@ -1422,6 +1449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             includeTaskMemory: true,
             includeCrossTask: recallIntent,
           });
+          setLastMemoryRetrieval(retrieval);
           if (retrieval.context) {
             historyMessages.unshift({ role: 'system', content: retrieval.context });
           }
@@ -1799,6 +1827,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resolveMemoryConflict,
         confirmMemory,
         purgeExpiredMemories,
+         lastMemoryRetrieval,
+         memoryVersions,
+         fetchMemoryVersions,
+         restoreMemoryVersion,
         terminalSessions,
         activeTerminalId,
         setActiveTerminalId,

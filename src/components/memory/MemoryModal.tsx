@@ -36,9 +36,13 @@ export const MemoryModal: React.FC = () => {
     resolveMemoryConflict,
     confirmMemory,
     purgeExpiredMemories,
+    lastMemoryRetrieval,
+    memoryVersions,
+    fetchMemoryVersions,
+    restoreMemoryVersion,
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'task' | 'app' | 'settings' | 'review'>('task');
+  const [activeTab, setActiveTab] = useState<'task' | 'app' | 'settings' | 'review' | 'inspector'>('task');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
@@ -188,6 +192,14 @@ export const MemoryModal: React.FC = () => {
               )}
             </button>
           </div>
+             <button
+               type="button"
+               onClick={() => { setActiveTab('inspector'); setIsAdding(false); }}
+               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${activeTab === 'inspector' ? 'bg-surface text-foreground border border-border shadow-xs' : 'text-foreground-muted hover:text-foreground hover:bg-surface'}`}
+             >
+               <Search size={13} className="text-foreground-muted" />
+               <span>Inspector</span>
+             </button>
 
           {/* Search bar & Add Button */}
           {activeTab !== 'settings' && (
@@ -659,6 +671,87 @@ export const MemoryModal: React.FC = () => {
                 memoryGovernance.counts.expired === 0 && (
                 <div className="py-6 text-center text-foreground-muted text-xs">
                   No memory items need review.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'inspector' && (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-surface border border-border rounded-2xl space-y-3">
+              <h4 className="font-semibold text-sm text-foreground">Retrieval inspector</h4>
+              {!lastMemoryRetrieval ? (
+                <div className="text-foreground-muted">No retrieval has run yet. Send a message to populate this view.</div>
+              ) : (
+                <>
+                  <div className="text-[11px] text-foreground-muted">
+                    {lastMemoryRetrieval.results.length} selected · {lastMemoryRetrieval.usedTokens}/{lastMemoryRetrieval.budgetTokens} tokens · {lastMemoryRetrieval.totalCandidates} candidates
+                  </div>
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                    {lastMemoryRetrieval.results.map((r) => (
+                      <div key={r.id} className="p-2.5 bg-surface-raised border border-border rounded-xl space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-foreground text-xs truncate">{r.title}</span>
+                          <span className="text-[10px] font-mono text-amber-400">score {r.score}</span>
+                        </div>
+                        <div className="text-[11px] text-foreground-muted line-clamp-2">{r.text}</div>
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {r.reasons.map((reason, idx) => (
+                            <span key={idx} className="px-1.5 py-0.5 rounded-full bg-surface border border-border text-[10px] text-foreground-muted">
+                              {reason}
+                            </span>
+                          ))}
+                          {r.matchedTerms.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-surface border border-border text-[10px] text-foreground-muted">
+                              terms: {r.matchedTerms.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-4 bg-surface border border-border rounded-2xl space-y-3">
+              <h4 className="font-semibold text-sm text-foreground">Version restore</h4>
+              <div className="text-[11px] text-foreground-muted">Task memories with saved versions can be restored to an earlier snapshot.</div>
+              {taskMemories.length === 0 ? (
+                <div className="text-foreground-muted">No task memories.</div>
+              ) : (
+                <div className="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
+                  {taskMemories.map((mem) => (
+                    <div key={mem.id} className="p-2.5 bg-surface-raised border border-border rounded-xl space-y-1.5">
+                      <div className="font-medium text-foreground text-xs truncate">{mem.title}</div>
+                      <button
+                        type="button"
+                        onClick={() => void fetchMemoryVersions(mem.id)}
+                        className="text-[10px] text-foreground-muted hover:text-foreground cursor-pointer"
+                      >
+                        Load versions
+                      </button>
+                      {memoryVersions.length > 0 && memoryVersions[0]?.memoryId === mem.id && (
+                        <div className="space-y-1 pt-1 border-t border-border">
+                          {memoryVersions.map((version) => (
+                            <div key={version.id} className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-foreground-muted">
+                                {new Date(version.createdAt).toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => void restoreMemoryVersion(mem.id, version.id)}
+                                className="px-2 py-0.5 rounded-full bg-foreground text-surface text-[10px] font-semibold cursor-pointer"
+                              >
+                                Restore
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

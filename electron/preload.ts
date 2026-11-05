@@ -160,6 +160,8 @@ const desktopAPI: IDesktopAPI = {
     confirmMemory: (id: string, scope: 'app' | 'task', taskId?: string) =>
       ipcRenderer.invoke(MEM_CHANNELS.CONFIRM, id, scope, taskId),
     purgeExpiredMemories: () => ipcRenderer.invoke(MEM_CHANNELS.PURGE_EXPIRED),
+    getMemoryVersions: (memoryId: string) => ipcRenderer.invoke(MEM_CHANNELS.GET_VERSIONS, memoryId),
+    restoreMemoryVersion: (memoryId: string, versionId: string) => ipcRenderer.invoke(MEM_CHANNELS.RESTORE_VERSION, memoryId, versionId),
     rebuildMemoryIndex: () => ipcRenderer.invoke(MEM_CHANNELS.REBUILD_INDEX),
   },
   fs: {

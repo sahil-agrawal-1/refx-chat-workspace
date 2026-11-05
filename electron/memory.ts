@@ -9,6 +9,8 @@ import {
   redactSensitiveText,
   type MemoryCandidate,
 } from '../shared/utils/memory-retrieval';
+import * as embeddings from './embeddings';
+import * as encryption from './encryption';
 import type {
   MemoryRetrievalOptions,
   MemoryRetrievalResponse,
@@ -49,7 +51,8 @@ function atomicWrite(filePath: string, content: string): void {
   ensureDir(dir);
   const tmp = filePath + '.tmp';
   const bak = filePath + '.bak';
-  fs.writeFileSync(tmp, content, 'utf8');
+  const payload = encryption.encryptText(content);
+  fs.writeFileSync(tmp, payload, 'utf8');
   // Keep a latest-known-good recovery copy of exactly what we are about to
   // publish. If the primary file is later damaged, the backup still contains
   // the most recent successful write rather than an older generation.
@@ -71,7 +74,9 @@ function readJsonFile<T>(filePath: string, fallback: T): T {
     const candidate = candidates[index];
     if (!fs.existsSync(candidate)) continue;
     try {
-      const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8')) as T;
+      const raw = fs.readFileSync(candidate, 'utf8');
+      const decrypted = encryption.decryptText(raw);
+      const parsed = JSON.parse(decrypted) as T;
       if (index > 0) {
         // The primary file was corrupt. Restore it from the recovery copy so
         // the next read is fast and the store does not stay degraded.
@@ -505,6 +510,7 @@ export function deleteTaskMemory(id: string): boolean {
     writeTaskEntries(task.taskId, task.entries);
     indexTaskEntries(task.taskId, task.entries);
     db.logMemoryOperation(id, 'task', 'delete', 'deleteTaskMemory');
+    db.deleteMemoryEmbedding(id);
     return true;
   }
   return false;
@@ -514,6 +520,7 @@ export function updateTaskMemory(conversationId: string, id: string, changes: an
   const entries = readTaskEntries(conversationId);
   const idx = entries.findIndex((entry: any) => entry.id === id);
   if (idx < 0) return null;
+  const previous = { ...entries[idx] };
   const updated = { ...entries[idx], ...changes, updatedAt: Date.now() };
   updated.title = redactSensitiveText(updated.title || '');
   updated.content = redactSensitiveText(updated.content || '');
@@ -522,6 +529,8 @@ export function updateTaskMemory(conversationId: string, id: string, changes: an
   writeTaskEntries(conversationId, entries);
   indexTaskEntries(conversationId, entries);
   db.logMemoryOperation(id, 'task', 'update', 'updateTaskMemory');
+  db.saveMemoryVersion(id, 'task', safeId(conversationId), previous);
+  void embeddings.embedMemory(id, 'task', safeId(conversationId), `${updated.title}\n${updated.content}`);
   return updated;
 }
 
@@ -648,7 +657,7 @@ function markMemoriesUsed(results: MemoryRetrievalResult[]): void {
  * for the search_memory tool. The result carries retrieval reasons so the UI
  * can explain why a memory was selected.
  */
-export function retrieveMemories(options: MemoryRetrievalOptions): MemoryRetrievalResponse {
+export async function retrieveMemories(options: MemoryRetrievalOptions): Promise<MemoryRetrievalResponse> {
   const query = String(options?.query || '').trim();
   const config = getConfig();
   const tokenBudget = Math.min(
@@ -692,10 +701,40 @@ export function retrieveMemories(options: MemoryRetrievalOptions): MemoryRetriev
     }
   }
 
-  const ranked = rankMemoryCandidates([...candidates.values()], {
+  const embeddingEnabled = embeddings.isEmbeddingEnabled();
+  let queryEmbedding: number[] | null = null;
+  if (embeddingEnabled && query) {
+    try {
+      queryEmbedding = await Promise.race([
+        embeddings.getQueryEmbedding(query),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+      ]);
+    } catch {
+      queryEmbedding = null;
+    }
+  }
+
+  const candidateList = [...candidates.values()];
+  if (embeddingEnabled) {
+    for (const candidate of candidateList) {
+      const cached = db.getMemoryEmbedding(candidate.id);
+      if (cached && Array.isArray(cached.vector) && cached.vector.length > 0) {
+        candidate.embedding = cached.vector;
+      } else {
+        // Fire-and-forget compute for future retrievals.
+        const text = candidate.scope === 'task'
+          ? `${candidate.title || ''}\n${candidate.content || ''}`
+          : `${candidate.title || ''}\n${candidate.summary || ''}\n${candidate.details || ''}`;
+        void embeddings.embedMemory(candidate.id, candidate.scope, candidate.taskId || null, text);
+      }
+    }
+  }
+
+  const ranked = rankMemoryCandidates(candidateList, {
     query,
     currentTaskId,
     now: Date.now(),
+    queryEmbedding,
   }).slice(0, maxResults);
 
   const packed = buildMemoryContext(ranked, tokenBudget);
@@ -770,6 +809,24 @@ export function deleteAppMemory(id: string): boolean {
   indexAppEntries(entries);
   db.logMemoryOperation(id, 'app', 'delete', 'deleteAppMemory');
   return true;
+}
+
+export function updateAppMemory(id: string, changes: any): any {
+  const entries = readAppEntries();
+  const idx = entries.findIndex((entry: any) => entry.id === id);
+  if (idx < 0) return null;
+  const previous = { ...entries[idx] };
+  const updated = { ...entries[idx], ...changes, updatedAt: Date.now() };
+  if (typeof updated.title === 'string') updated.title = redactSensitiveText(updated.title);
+  if (typeof updated.summary === 'string') updated.summary = redactSensitiveText(updated.summary);
+  if (typeof updated.details === 'string') updated.details = redactSensitiveText(updated.details);
+  updated.contentHash = hashContent(updated.category || 'preference', updated.title || '', updated.summary || '', updated.details || '');
+  entries[idx] = updated;
+  writeAppEntries(entries);
+  indexAppEntries(entries);
+  db.logMemoryOperation(id, 'app', 'update', 'updateAppMemory');
+  db.saveMemoryVersion(id, 'app', null, previous);
+  return updated;
 }
 
 export function clearAppMemories(): boolean {
@@ -887,6 +944,23 @@ export function purgeExpiredMemories(): number {
   }
 
   return removed;
+}
+
+export function getMemoryVersions(memoryId: string): any[] {
+  return db.getMemoryVersions(memoryId);
+}
+
+export function restoreMemoryVersion(memoryId: string, versionId: string): boolean {
+  const version = db.getMemoryVersion(versionId);
+  if (!version || version.memoryId !== memoryId) return false;
+  const snapshot = version.snapshot || {};
+  if (version.scope === 'app') {
+    const updated = updateAppMemory(memoryId, snapshot);
+    return Boolean(updated);
+  }
+  if (!version.taskId) return false;
+  const updated = updateTaskMemory(version.taskId, memoryId, snapshot);
+  return Boolean(updated);
 }
 
 export function backupMemory(): boolean {

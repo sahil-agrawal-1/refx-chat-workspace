@@ -143,6 +143,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   private taskMemories: TaskMemoryEntry[] = [];
   private appMemories: AppMemoryEntry[] = [];
+  private memoryVersions: Map<string, any[]> = new Map();
   private dismissedMemoryConflicts: Set<string> = new Set();
   private providers: ProviderConfig[] = [...INITIAL_PROVIDERS];
   private terminalOutputs: Map<string, ((data: string) => void)[]> = new Map();
@@ -377,6 +378,10 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     updateTaskMemory: async (conversationId: string, id: string, changes: any) => {
       const idx = this.taskMemories.findIndex((m) => m.id === id);
       if (idx < 0) return null;
+      const previous = { ...this.taskMemories[idx] };
+      const versions = this.memoryVersions.get(id) || [];
+      versions.unshift({ id: "mem-ver-" + Date.now(), memoryId: id, scope: "task", taskId: this.taskMemories[idx].taskId, snapshot: previous, createdAt: Date.now() });
+      this.memoryVersions.set(id, versions.slice(0, 50));
       this.taskMemories[idx] = { ...this.taskMemories[idx], ...changes, updatedAt: Date.now() };
       this.saveToStorage('refx_task_memories', this.taskMemories);
       return this.taskMemories[idx];
@@ -544,6 +549,17 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.saveToStorage('refx_app_memories', this.appMemories);
       this.saveToStorage('refx_task_memories', this.taskMemories);
       return appBefore + taskBefore - this.appMemories.length - this.taskMemories.length;
+    },
+    getMemoryVersions: async (memoryId: string) => this.memoryVersions.get(memoryId) || [],
+    restoreMemoryVersion: async (memoryId: string, versionId: string) => {
+      const versions = this.memoryVersions.get(memoryId) || [];
+      const version = versions.find((item) => item.id === versionId);
+      if (!version) return false;
+      const idx = this.taskMemories.findIndex((memory) => memory.id === memoryId);
+      if (idx < 0) return false;
+      this.taskMemories[idx] = { ...this.taskMemories[idx], ...version.snapshot, updatedAt: Date.now() };
+      this.saveToStorage('refx_task_memories', this.taskMemories);
+      return true;
     },
     rebuildMemoryIndex: async () => ({
       success: true,

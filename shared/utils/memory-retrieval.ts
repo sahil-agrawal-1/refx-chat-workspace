@@ -18,12 +18,15 @@ export interface MemoryCandidate {
   expiresAt?: number;
   /** FTS5 bm25 rank when the candidate came from the search index. */
   rank?: number;
+  /** Optional embedding vector used for semantic similarity. */
+  embedding?: number[];
 }
 
 export interface RankMemoryOptions {
   query: string;
   currentTaskId?: string | null;
   now?: number;
+  queryEmbedding?: number[] | null;
 }
 
 const STOP_WORDS = new Set([
@@ -106,6 +109,23 @@ const SECRET_PATTERNS: Array<{
     replacement: (_match, prefix, quote) => `${prefix}${quote}[REDACTED]${quote}`,
   },
 ];
+
+/** Cosine similarity between two numeric vectors (0..1-ish, clamped by caller). */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = Number(a[i]) || 0;
+    const y = Number(b[i]) || 0;
+    dot += x * y;
+    na += x * x;
+    nb += y * y;
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
 
 /** Estimate tokens conservatively without shipping a tokenizer. */
 export function estimateTokens(text: string): number {
@@ -237,13 +257,23 @@ export function rankMemoryCandidates(
     const usageScore = usageCount > 0 ? Math.min(1, Math.log1p(usageCount) / Math.log(11)) : 0;
     const taskAffinity = isCurrentTask ? 0.2 : candidate.scope === 'task' ? 0.02 : 0.04;
     const titleBoost = titleMatched ? 0.1 : 0;
+    const embeddingAvailable =
+      Array.isArray(candidate.embedding) &&
+      Array.isArray(options.queryEmbedding) &&
+      candidate.embedding.length > 0 &&
+      candidate.embedding.length === options.queryEmbedding.length;
+    const embeddingScore = embeddingAvailable
+      ? Math.max(0, cosineSimilarity(candidate.embedding as number[], options.queryEmbedding as number[]))
+      : 0;
+    const hasEmbedding = embeddingAvailable;
 
     const score =
-      keywordScore * 0.4 +
-      ftsScore * 0.2 +
-      recency * 0.12 +
-      confidence * 0.1 +
-      usageScore * 0.06 +
+      keywordScore * (hasEmbedding ? 0.3 : 0.4) +
+      ftsScore * 0.15 +
+      recency * 0.1 +
+      confidence * 0.08 +
+      usageScore * 0.05 +
+      (hasEmbedding ? embeddingScore * 0.2 : 0) +
       categoryBoost(candidate.category) +
       taskAffinity +
       titleBoost;
@@ -251,6 +281,7 @@ export function rankMemoryCandidates(
     const reasons: string[] = [];
     if (titleMatched) reasons.push('title match');
     if (matchedTerms.length > 0) reasons.push(`keyword overlap ${matchedTerms.length}/${terms.length}`);
+    if (hasEmbedding) reasons.push(`semantic match ${Math.round(embeddingScore * 100)}%`);
     if (isCurrentTask) reasons.push('current task');
     if (isAppPreference) reasons.push(`category ${candidate.category}`);
     if (ageDays <= 7) reasons.push('recent');
