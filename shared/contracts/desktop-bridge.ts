@@ -45,6 +45,8 @@ export interface FileDiffChunk {
 
 export interface FileChange {
   id?: string;
+  /** Whether approval creates a new file or edits the reviewed file state. */
+  kind?: 'create' | 'edit';
   filePath: string;
   action: 'create' | 'modify' | 'delete';
   originalContent?: string;
@@ -178,6 +180,10 @@ export interface MemoryConfig {
   embeddingsEnabled?: boolean;
   embeddingModel?: string;
   embeddingEndpoint?: string;
+  /** Encrypt memory files at rest via Electron safeStorage. */
+  encryptionEnabled?: boolean;
+  /** Runtime capability flag; not a persisted user preference. */
+  encryptionAvailable?: boolean;
 }
 
 export type ProviderConnectionStatus =

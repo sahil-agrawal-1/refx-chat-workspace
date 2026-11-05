@@ -222,5 +222,19 @@ const desktopAPI: IDesktopAPI = {
   } as IDatabaseBridge,
 };
 
+/**
+ * Deep-freeze the exposed bridge so renderer scripts cannot replace methods
+ * (for example, redirecting `desktop.fs.readFile` to a different implementation).
+ */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      deepFreeze((value as Record<string, unknown>)[key]);
+    }
+  }
+  return value;
+}
+
 // Expose safe, allowlisted API to renderer window as window.desktop
-contextBridge.exposeInMainWorld('desktop', desktopAPI);
+contextBridge.exposeInMainWorld('desktop', deepFreeze(desktopAPI));

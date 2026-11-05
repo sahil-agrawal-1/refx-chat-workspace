@@ -17,6 +17,9 @@
 7. [CI/CD Security Pipeline](#7-cicd-security-pipeline)
 8. [Incident Response](#8-incident-response)
 9. [Known Limitations](#9-known-limitations)
+10. [Workspace Filesystem Security (P5-A / P5-B / P6)](#10-workspace-filesystem-security-p5-a--p5-b--p6)
+11. [Memory Encryption (Phase 3)](#11-memory-encryption-phase-3)
+12. [Renderer Defense in Depth (Phase 4)](#12-renderer-defense-in-depth-phase-4)
 
 ---
 
@@ -108,7 +111,7 @@ All user-controlled content is HTML-escaped before rendering:
 | Download filename | Sanitized (alphanumeric + dashes, max 64 chars) |
 
 ### URL Validation
-`isSafeUrl()` validates that URLs use only `http:` or `https:` schemes. `javascript:`, `data:`, `file:` and invalid URLs are rejected.
+`isSafeUrl()` validates that URLs use only `http:` or `https:` schemes. `javascript:`, `data:`, `file:` and invalid URLs are rejected. Phase 4 moves the same scheme check into `shared/security/url-policy.ts` and reuses it for chat markdown links, IPC `openExternal`, and dev/prod navigation guards.
 
 ### What Was Fixed
 - Conversation title interpolated directly into `<title>` and `<h2>` → now escaped
@@ -236,3 +239,92 @@ If `safeStorage.isEncryptionAvailable()` returns false or the credential file ca
 ### CI Scanner
 - `security.yml` scans for `localStorage.setItem(...apiKey)` patterns in source.
 - No plaintext API keys are persisted to localStorage or browser preview storage.
+
+## 11. Memory Encryption (Phase 3)
+
+Memory encryption is opt-in through `memory_config.encryptionEnabled`. When enabled, memory JSON and Markdown files are encoded with Electron `safeStorage` (Windows DPAPI) and prefixed with `enc:v1:`.
+
+### Fail-Secure Write Path
+- Encryption runs before any temp file, primary file, or `.bak` file is touched.
+- If secure storage is unavailable or `safeStorage.encryptString()` throws, the write aborts with a descriptive `MemoryEncryptionError`.
+- The original plaintext is never returned from the encryptor and is never written as a fallback.
+- Memory save/update IPC errors propagate to the renderer; the UI shows a warning notification and keeps forms populated for retry.
+- Task memory updates pre-encrypt both `metadata.json` and `memory.md` before writing either file.
+
+### Previously Written Plaintext
+- Files without the `enc:v1:` marker are treated as legacy plaintext and remain readable.
+- There is no destructive bulk migration. On the next successful write of that file, the new content (and refreshed `.bak`) is written encrypted.
+- Disabling encryption affects future writes only. Existing encrypted files remain readable while OS secure storage is available.
+
+### Undecryptable Data
+- Encrypted data is never treated as plaintext.
+- If the marker is present but decryption fails, or secure storage is unavailable, reads fail closed with a clear error.
+- The app does not fall back to empty data or to an older backup, because a subsequent save could overwrite newer memory. The file is left unchanged.
+- Recovery options are to restore the file from a user backup or re-open the app under the OS account that created the encryption key.
+
+### Tests
+`shared/utils/memory-encryption.test.ts` covers encryption success, unavailable/failed encryption, legacy plaintext reads, undecryptable ciphertext, file preservation on failure, encrypted backup writes, plaintext upgrade-on-save, and corrupt-primary recovery.
+
+## 12. Renderer Defense in Depth (Phase 4)
+
+### Content Security Policy
+Both an HTTP response header and an equivalent HTML `<meta>` tag carry the policy. The two documents are kept in sync through `shared/security/csp.ts`; the Vite transform generates the meta tag at build/dev time.
+
+Production policy:
+| Directive | Value | Reason |
+|-----------|-------|--------|
+| `default-src` | `'self'` | Only same-origin resources by default |
+| `script-src` | `'self'` | Blocks inline scripts, `eval`, and remote script hosts |
+| `script-src-attr` | `'none'` | Blocks inline event handlers |
+| `style-src` | `'self' 'unsafe-inline'` | Tailwind/React style attributes need inline CSS; script is still blocked |
+| `img-src` | `'self' data: blob:` | Attachment previews use object URLs |
+| `font-src` | `'self' data:` | System fonts only |
+| `connect-src` | `'self'` | Renderer does not make provider calls; they run in the main process |
+| `worker-src` | `'self' blob:` | Web Workers only from the app bundle |
+| `object-src` | `'none'` | No Flash/plugins |
+| `base-uri` | `'none'` | Prevents base-hijacking of relative URLs |
+| `form-action` | `'none'` | No form posts from the renderer |
+| `frame-ancestors` | `'none'` | Prevents framing of the app |
+| `frame-src` | `'none'` | No nested browsing contexts |
+
+Development keeps `script-src` on `'self' 'unsafe-inline'` (Vite's React Refresh preamble) and broadens `connect-src` to `http:`/`https:`/`ws:`/`wss:` so HMR and the browser-preview provider probe still work. The shipped build removes both concessions.
+
+### Link Handling
+- Markdown links in `ChatMessageList.renderInline` are passed through `sanitizeExternalUrl`.
+- Only absolute `http:` / `https:` URLs become anchors. Scheme obfuscation (`javascript:`, `data:`, `file:`, `vbscript:`, `java\tscript:`), whitespace, control characters, embedded credentials, and relative paths are rejected or rendered as plain text.
+- `ProviderModal` provider links additionally require `rel="noopener noreferrer"`.
+- `shell.openExternal` in the main process is gated by the same `sanitizeExternalUrl` helper and never receives `file:`, `javascript:` etc.
+- Main-process navigation is restricted to the dev origin or files under the packaged renderer directory; `will-redirect` and in-page navigations are also guarded, and `will-attach-webview` is denied.
+
+### IPC Sender Validation
+- `trustedHandle` wraps all `ipcMain.handle` registrations.
+- Each invocation requires the sender to be the top-level frame of the application window, and its URL to be the Vite dev origin (development) or a file inside the packaged renderer directory (`dist/index.html` and its assets).
+- `webview` attachment, new-window requests and unexpected permission requests are denied; only clipboard write is allowed.
+
+### IPC Argument Validation
+High-risk handlers validate arguments in the main process: `shared/security/ipc-validation.ts`
+- terminal shell allowlist (`powershell.exe`, `pwsh.exe`, `cmd.exe`, `bash*`, `wsl.exe`)
+- string length bounds, non-empty IDs, URL/cwd maxima
+- terminal dimensions clamped to 2-1000
+- credential, memory, skill and trash payloads are checked as plain objects with sane string fields; memory scopes are limited to `app`/`task`
+
+### Preload Scoping
+- `contextBridge.exposeInMainWorld` exposes a single allowlisted API surface (`window.desktop`).
+- No `ipcRenderer`, no `require`, `nodeIntegration`, `contextIsolation false`, or `nodeIntegrationInWorker` access is exposed.
+- The exported bridge is deep-frozen so renderer code cannot replace individual methods.
+
+### Tests
+`shared/utils/security-policy.test.ts` (13 tests) covers:
+- production CSP blocks inline/eval script, unexpected schemes and injection
+- CSP retains styles, blob, and data URLs needed for normal features
+- development CSP relaxations are present but production stays strict
+- meta fallback removes header-only directives
+- external URL sanitization
+- IPC sender-origin allow/deny
+- IPC argument validation
+- static scan: renderer contains no `dangerouslySetInnerHTML`, `innerHTML =`, `document.write`, `eval`, or `new Function`
+- chat links invoke the shared sanitizer instead of binding raw targets
+
+### Limitations
+- Development enables `'unsafe-inline'` for scripts because of Vite's React Refresh preamble and broad dev connect schemes for browser preview.
+- Electron devtools and remote debugging remain available in development; packaged builds retain the strict profile above.

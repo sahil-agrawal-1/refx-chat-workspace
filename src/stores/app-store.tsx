@@ -256,6 +256,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [lastMemoryRetrieval, setLastMemoryRetrieval] = useState<MemoryRetrievalResponse | null>(null);
   const [memoryVersions, setMemoryVersions] = useState<MemoryVersion[]>([]);
 
+  const notifyMemoryError = (err: unknown, title = 'Memory Operation Failed') => {
+    setNotification({
+      title,
+      message: err instanceof Error ? err.message : 'The memory operation could not be completed.',
+      type: 'warning',
+    });
+  };
+
   // Terminal (Clean initial state)
   const [terminalSessions, setTerminalSessions] = useState<TerminalSessionInfo[]>([]);
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(null);
@@ -436,13 +444,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Load memories
-      const tMem = await desktopBridge.memory.getTaskMemories('default-task');
-      setTaskMemories(tMem);
-      const aMem = await desktopBridge.memory.getAppMemories();
-      setAppMemories(aMem);
-      const mCfg = await desktopBridge.memory.getMemoryConfig();
-      setMemoryConfig(mCfg);
+      // Load memories. Undecryptable encrypted files fail closed and are
+      // surfaced as a notification rather than being replaced with empty data.
+      try {
+        const tMem = await desktopBridge.memory.getTaskMemories('default-task');
+        setTaskMemories(tMem);
+        const aMem = await desktopBridge.memory.getAppMemories();
+        setAppMemories(aMem);
+      } catch (err) {
+        notifyMemoryError(err, 'Memory Data Unreadable');
+      }
+      try {
+        const mCfg = await desktopBridge.memory.getMemoryConfig();
+        setMemoryConfig(mCfg);
+      } catch (err) {
+        notifyMemoryError(err, 'Memory Settings Unavailable');
+      }
       void refreshMemoryGovernance();
 
       // Create an initial session if workspace or requested
@@ -1071,20 +1088,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTaskMemory = async (title: string, content: string, tags: string[] = []) => {
-    const entry = await desktopBridge.memory.saveTaskMemory({
-      taskId: currentConversation?.id || 'default-task',
-      title,
-      content,
-      tags,
-    });
-    setTaskMemories((prev) => [entry, ...prev]);
-    void refreshMemoryGovernance();
+    try {
+      const entry = await desktopBridge.memory.saveTaskMemory({
+        taskId: currentConversation?.id || 'default-task',
+        title,
+        content,
+        tags,
+      });
+      setTaskMemories((prev) => [entry, ...prev]);
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Save Failed');
+      throw err;
+    }
   };
 
   const deleteTaskMemory = async (id: string) => {
-    await desktopBridge.memory.deleteTaskMemory(id);
-    setTaskMemories((prev) => prev.filter((m) => m.id !== id));
-    void refreshMemoryGovernance();
+    try {
+      await desktopBridge.memory.deleteTaskMemory(id);
+      setTaskMemories((prev) => prev.filter((m) => m.id !== id));
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Delete Failed');
+    }
   };
 
   const addAppMemory = async (
@@ -1094,22 +1120,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     details: string,
     confidence = 0.7
   ) => {
-    const entry = await desktopBridge.memory.saveAppMemory({
-      category,
-      title,
-      summary,
-      details,
-      enabled: true,
-      confidence,
-    });
-    setAppMemories((prev) => [entry, ...prev]);
-    void refreshMemoryGovernance();
+    try {
+      const entry = await desktopBridge.memory.saveAppMemory({
+        category,
+        title,
+        summary,
+        details,
+        enabled: true,
+        confidence,
+      });
+      setAppMemories((prev) => [entry, ...prev]);
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Save Failed');
+      throw err;
+    }
   };
 
   const deleteAppMemory = async (id: string) => {
-    await desktopBridge.memory.deleteAppMemory(id);
-    setAppMemories((prev) => prev.filter((m) => m.id !== id));
-    void refreshMemoryGovernance();
+    try {
+      await desktopBridge.memory.deleteAppMemory(id);
+      setAppMemories((prev) => prev.filter((m) => m.id !== id));
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Delete Failed');
+    }
   };
 
   const toggleAppMemory = async (id: string) => {
@@ -1126,23 +1161,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           prev.map((m) => (m.id === id ? { ...m, enabled: target.enabled } : m))
         );
       }
-    } catch {
+    } catch (err) {
       // Roll back the optimistic update if the write failed.
       setAppMemories((prev) =>
         prev.map((m) => (m.id === id ? { ...m, enabled: target.enabled } : m))
       );
+      notifyMemoryError(err, 'Memory Update Failed');
     }
   };
 
   const clearAppMemories = async () => {
-    await desktopBridge.memory.clearAppMemories();
-    setAppMemories([]);
-    void refreshMemoryGovernance();
+    try {
+      await desktopBridge.memory.clearAppMemories();
+      setAppMemories([]);
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Clear Failed');
+    }
   };
 
   const updateMemoryConfig = async (config: Partial<MemoryConfig>) => {
-    const updated = await desktopBridge.memory.updateMemoryConfig(config);
-    setMemoryConfig(updated);
+    try {
+      const updated = await desktopBridge.memory.updateMemoryConfig(config);
+      setMemoryConfig(updated);
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Settings Not Saved');
+      throw err;
+    }
   };
 
   const refreshMemoryGovernance = async () => {
@@ -1179,17 +1224,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const confirmMemory = async (id: string, scope: 'app' | 'task', taskId?: string) => {
-    await desktopBridge.memory.confirmMemory(id, scope, taskId);
-    if (scope === 'app') {
-      setAppMemories((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
-      );
-    } else {
-      setTaskMemories((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
-      );
+    try {
+      await desktopBridge.memory.confirmMemory(id, scope, taskId);
+      if (scope === 'app') {
+        setAppMemories((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
+        );
+      } else {
+        setTaskMemories((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
+        );
+      }
+      await refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Update Failed');
     }
-    await refreshMemoryGovernance();
   };
 
   const purgeExpiredMemories = async () => {
@@ -1212,13 +1261,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const restoreMemoryVersion = async (memoryId: string, versionId: string) => {
-    const ok = await desktopBridge.memory.restoreMemoryVersion(memoryId, versionId);
-    if (ok) {
-      const aMem = await desktopBridge.memory.getAppMemories();
-      setAppMemories(aMem);
-      void refreshMemoryGovernance();
+    try {
+      const ok = await desktopBridge.memory.restoreMemoryVersion(memoryId, versionId);
+      if (ok) {
+        const aMem = await desktopBridge.memory.getAppMemories();
+        setAppMemories(aMem);
+        void refreshMemoryGovernance();
+      }
+      return ok;
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Restore Failed');
+      return false;
     }
-    return ok;
   };
 
   const executeTerminalCommand = async (cmd: string) => {

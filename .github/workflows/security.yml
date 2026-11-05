@@ -29,6 +29,9 @@ jobs:
       - name: Lint (TypeScript type check)
         run: pnpm run lint
 
+      - name: Generate app icon
+        run: pnpm run build:icon
+
       - name: Build web
         run: pnpm run build
 
@@ -36,10 +39,7 @@ jobs:
         run: pnpm run build:electron
 
       - name: Run all tests
-        run: |
-          pnpm tsx src/stores/app-store.test.tsx
-          pnpm tsx src/stores/security.test.ts
-          pnpm tsx src/utils/diff.test.ts
+        run: pnpm run test
 
       - name: Verify no plaintext API keys in committed source
         run: |
@@ -61,5 +61,46 @@ jobs:
           $eh = Select-String -Path "src/components/dialogs/ExportChatModal.tsx" -Pattern "escapeHtml"
           if ($eh) { Write-Host "OK: HTML escaping function present in ExportChatModal" } else { Write-Host "FAIL: escapeHtml missing"; exit 1 }
 
-    outputs:
-      security-status: ${{ job.status }}
+  clean-checkout-package:
+    name: Clean-checkout Windows package
+    needs: security-checks
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint (TypeScript type check)
+        run: pnpm run lint
+
+      - name: Build and package
+        run: pnpm run electron:build
+
+      - name: Verify release assets
+        run: |
+          if (-not (Test-Path 'release')) {
+            Write-Host "FAIL: release directory was not created"
+            exit 1
+          }
+          $assets = Get-ChildItem 'release' -File | Where-Object {
+            $_.Name -like '*.exe' -or $_.Name -like '*.nsis' -or $_.Name -like '*.portable'
+          }
+          if (-not $assets -or $assets.Count -eq 0) {
+            Write-Host "FAIL: no installer/portable artifacts found"
+            Get-ChildItem 'release' -Recurse
+            exit 1
+          }
+          Write-Host ("OK: " + $assets.Count + " release asset(s) produced")
+          $assets | ForEach-Object { Write-Host ("  " + $_.FullName) }

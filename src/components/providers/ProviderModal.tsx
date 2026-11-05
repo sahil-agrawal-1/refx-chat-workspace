@@ -366,7 +366,7 @@ export const ProviderModal: React.FC = () => {
                       <a
                         href={currentBrand.link}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-[11px] text-indigo-500 hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <span>Get API Key</span>

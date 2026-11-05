@@ -1,39 +1,75 @@
 import { safeStorage } from 'electron';
 import * as db from './database';
+import {
+  decryptMemoryText,
+  encryptMemoryText,
+  type MemoryEncryptionOptions,
+  type TextEncryptor,
+} from '../shared/utils/memory-encryption';
 
-const MARKER = 'enc:v1:';
+export {
+  MEMORY_ENCRYPTION_MARKER,
+  MemoryEncryptionError,
+  isEncryptedMemoryPayload,
+} from '../shared/utils/memory-encryption';
+
+const safeStorageAdapter: TextEncryptor = {
+  isAvailable: () => {
+    try {
+      return safeStorage.isEncryptionAvailable();
+    } catch {
+      return false;
+    }
+  },
+  encryptString: (plaintext: string) => safeStorage.encryptString(plaintext),
+  decryptString: (encrypted: Buffer) => safeStorage.decryptString(encrypted),
+};
 
 export function isEncryptionAvailable(): boolean {
-  try {
-    return safeStorage.isEncryptionAvailable();
-  } catch {
-    return false;
-  }
+  return safeStorageAdapter.isAvailable();
 }
 
-export function isEncryptionEnabled(): boolean {
+/** True when the user has enabled memory encryption in configuration. */
+export function isEncryptionConfigured(): boolean {
   const config = (db.getMemoryConfig() as any) || {};
-  return config.encryptionEnabled === true && isEncryptionAvailable();
+  return config.encryptionEnabled === true;
 }
 
+/** True when encryption is requested and the platform can actually do it. */
+export function isEncryptionEnabled(): boolean {
+  return isEncryptionConfigured() && isEncryptionAvailable();
+}
+
+function encryptionOptions(): MemoryEncryptionOptions {
+  return {
+    enabled: isEncryptionConfigured(),
+    encryptor: safeStorageAdapter,
+  };
+}
+
+/**
+ * Encrypt memory content. Never returns plaintext when encryption is enabled:
+ * unavailable secure storage or an encryption failure throws instead.
+ */
 export function encryptText(plain: string): string {
-  if (!isEncryptionEnabled()) return plain;
-  try {
-    const buffer = safeStorage.encryptString(String(plain || ''));
-    return `${MARKER}${buffer.toString('base64')}`;
-  } catch {
-    return plain;
-  }
+  return encryptMemoryText(plain, encryptionOptions());
 }
 
+/**
+ * Decrypt memory content. Legacy plaintext is accepted; encrypted data that
+ * cannot be decrypted throws instead of being treated as plaintext.
+ */
 export function decryptText(stored: string): string {
-  const value = String(stored || '');
-  if (!value.startsWith(MARKER)) return value;
-  if (!isEncryptionAvailable()) return value;
-  try {
-    const buffer = Buffer.from(value.slice(MARKER.length), 'base64');
-    return safeStorage.decryptString(buffer);
-  } catch {
-    return value;
-  }
+  return decryptMemoryText(stored, { encryptor: safeStorageAdapter });
+}
+
+/** Codec used by the atomic memory-file helpers. */
+export function memoryFileCodec(): {
+  encode: (content: string) => string;
+  decode: (stored: string) => string;
+} {
+  return {
+    encode: encryptText,
+    decode: decryptText,
+  };
 }

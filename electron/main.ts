@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, session, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
@@ -20,8 +20,25 @@ import type {
 import { CREDENTIAL_IPC_CHANNELS, DATABASE_IPC_CHANNELS, FILESYSTEM_IPC_CHANNELS, MEMORY_IPC_CHANNELS, TERMINAL_IPC_CHANNELS, SKILLS_IPC_CHANNELS, TRASH_IPC_CHANNELS, SYSTEM_IPC_CHANNELS } from '../shared/contracts/desktop-bridge';
 import * as pty from 'node-pty';
 import { isExcludedRelative as isExcludedRelativeShared, isWithinRoot as isPathWithinRoot } from '../shared/utils/workspace-path';
+import {
+  FileChangeConflictError,
+  fileChangeKindFor,
+  hashContent,
+  writeFileChange,
+  type FileChangeKind,
+} from '../shared/utils/file-change';
 import { WorkspaceAuthorizationStore } from '../shared/utils/workspace-authorization';
 import { WorkspaceGuard } from '../shared/utils/workspace-guard';
+import { buildContentSecurityPolicy } from '../shared/security/csp';
+import { isTrustedRendererUrl } from '../shared/security/ipc-sender';
+import { sanitizeExternalUrl } from '../shared/security/url-policy';
+import {
+  IpcArgumentError,
+  assertFiniteInteger,
+  assertOptionalString,
+  assertPlainObject,
+  assertString,
+} from '../shared/security/ipc-validation';
 import * as db from './database';
 import * as memory from './memory';
 import * as skills from './skills';
@@ -87,6 +104,8 @@ const pendingTerminalApprovals = new Map<string, PendingTerminalApproval>();
 
 interface PendingFileChange {
   id: string;
+  /** Whether approval creates a new file or edits the reviewed file state. */
+  kind: FileChangeKind;
   filePath: string;
   operationType: 'create' | 'modify' | 'rename' | 'move' | 'delete' | 'patch';
   originalContent: string;
@@ -112,7 +131,15 @@ function loadPendingChanges(): void {
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) {
       for (const item of arr) {
-        if (item && item.id) pendingFileChanges.set(item.id, item);
+        if (item && item.id) {
+          // Older pending changes predate the explicit kind field. Infer it so
+          // revalidation remains strict after an upgrade.
+          const kind: FileChangeKind =
+            item.kind === 'create' || item.kind === 'edit'
+              ? item.kind
+              : fileChangeKindFor(item.operationType);
+          pendingFileChanges.set(item.id, { ...item, kind });
+        }
       }
     }
   } catch {
@@ -129,10 +156,6 @@ function savePendingChanges(): void {
   }
 }
 
-function hashContent(content: string): string {
-  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-}
-
 function computeFileChange(change: PendingFileChange): any {
   // compute additions/deletions roughly
   const originalLines = change.originalContent.split(/\r?\n/);
@@ -146,6 +169,7 @@ function computeFileChange(change: PendingFileChange): any {
   for (const l of originalLines) if (!newSet.has(l)) deletions++;
   return {
     id: change.id,
+    kind: change.kind,
     filePath: change.newPath || change.filePath,
     action: change.operationType === 'create' ? 'create' : change.operationType === 'delete' ? 'delete' : 'modify',
     originalContent: change.originalContent,
@@ -254,6 +278,105 @@ let mainWindow: BrowserWindow | null = null;
 // Determine environment
 const isDev = !app.isPackaged && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV);
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:3000';
+const RENDERER_DIST_ROOT = path.resolve(__dirname, '../dist');
+const ALLOWED_TERMINAL_SHELLS = new Set([
+  'powershell.exe',
+  'pwsh.exe',
+  'cmd.exe',
+  'bash.exe',
+  'bash',
+  'wsl.exe',
+]);
+
+function isTrustedRendererLocation(rawUrl: string): boolean {
+  return isTrustedRendererUrl(rawUrl, {
+    isDev,
+    devServerUrl,
+    prodRoot: RENDERER_DIST_ROOT,
+  });
+}
+
+/**
+ * Trust boundary for every renderer -> main IPC handler. Only the top-level
+ * frame of the application window may call IPC, and only while it is showing
+ * the Vite dev document or a file inside the packaged renderer directory.
+ */
+function assertTrustedIpcSender(event: IpcMainInvokeEvent): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error('IPC rejected: no active application window.');
+  }
+  if (event.sender.id !== mainWindow.webContents.id) {
+    throw new Error('IPC rejected: untrusted sender.');
+  }
+  const frame = event.senderFrame;
+  if (!frame || frame !== event.sender.mainFrame) {
+    throw new Error('IPC rejected: IPC must originate from the top-level frame.');
+  }
+  if (!isTrustedRendererLocation(frame.url)) {
+    throw new Error('IPC rejected: untrusted renderer origin.');
+  }
+}
+
+/**
+ * Register an IPC handler behind the sender/origin guard. Keeping the guard in
+ * one wrapper avoids relying on every handler author to remember it.
+ */
+function trustedHandle(
+  channel: string,
+  listener: (event: IpcMainInvokeEvent, ...args: any[]) => any,
+): void {
+  ipcMain.handle(channel, async (event, ...args) => {
+    assertTrustedIpcSender(event);
+    return listener(event, ...args);
+  });
+}
+
+/**
+ * Install the document CSP header and deny renderer permission requests the
+ * app does not need. The Vite transform also emits the same policy as a meta
+ * tag so packaged file:// documents keep the policy even when webRequest does
+ * not observe file loads on a given platform.
+ */
+function installRendererSecurity(): void {
+  const policy = buildContentSecurityPolicy({ isDev, devServerUrl });
+  const ses = session.defaultSession;
+
+  ses.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...(details.responseHeaders || {}) };
+    if (details.resourceType === 'mainFrame') {
+      for (const key of Object.keys(responseHeaders)) {
+        if (key.toLowerCase() === 'content-security-policy') delete responseHeaders[key];
+      }
+      responseHeaders['Content-Security-Policy'] = [policy];
+    }
+    callback({ responseHeaders });
+  });
+
+  // Clipboard writing is the only browser permission the app uses (copy
+  // buttons). Cameras, microphones, geolocation, notifications and device
+  // access are denied by default.
+  const allowedPermissions = new Set(['clipboard-sanitized-write']);
+  ses.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(allowedPermissions.has(permission));
+  });
+  ses.setPermissionCheckHandler((_contents, permission) => {
+    return allowedPermissions.has(permission);
+  });
+
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault();
+    });
+    contents.setWindowOpenHandler(({ url }) => {
+      const safeUrl = sanitizeExternalUrl(url);
+      if (safeUrl) {
+        void shell.openExternal(safeUrl).catch(() => {});
+      }
+      return { action: 'deny' };
+    });
+  });
+}
+
 
 const MAX_FILE_SIZE_BYTES = 1024 * 1024; // 1 MB
 function isExcludedRelative(relativePath: string): boolean {
@@ -313,8 +436,9 @@ function resolveDatabaseBackupInput(filePath: string): string {
 
 function proposeFileChange(request: any): any {
   const type = request?.type || 'modify';
+  const kind = fileChangeKindFor(type);
   const approvalMode = request?.approvalMode || 'ask';
-  const targetPath = resolveWithinWorkspace(request?.path, type === 'create');
+  const targetPath = resolveWithinWorkspace(request?.path, kind === 'create');
   const originalExists = fs.existsSync(targetPath);
   let originalContent = '';
   if (originalExists) {
@@ -353,6 +477,7 @@ function proposeFileChange(request: any): any {
   const id = `change-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const change: PendingFileChange = {
     id,
+    kind,
     filePath: targetPath,
     operationType: type,
     originalContent,
@@ -364,7 +489,7 @@ function proposeFileChange(request: any): any {
   };
 
   // Backup for existing files
-  if (originalExists && type !== 'create') {
+  if (originalExists && kind === 'edit') {
     const backupDir = path.join(app.getPath('userData'), 'backups', 'file-changes', id);
     fs.mkdirSync(backupDir, { recursive: true });
     const backupPath = path.join(backupDir, path.basename(targetPath) + '.bak');
@@ -416,8 +541,9 @@ function applyFileChange(id: string): boolean {
 
   // Recheck the workspace boundary at apply time. Pending changes are persisted
   // to disk and may be old, so the proposal-time check is not sufficient.
-  // A create targets a file that does not exist yet.
-  const targetPath = resolveWithinWorkspace(change.filePath, change.operationType === 'create');
+  // Missing targets are allowed here only so writeFileChange can distinguish a
+  // vanished edit from an ordinary create; it revalidates the state itself.
+  const targetPath = resolveWithinWorkspace(change.filePath, true);
   let newPath: string | undefined;
   if (change.operationType === 'rename' || change.operationType === 'move') {
     if (!change.newPath) throw new Error('Missing newPath.');
@@ -432,53 +558,30 @@ function applyFileChange(id: string): boolean {
     return false;
   }
 
-  // Revalidate hash
-  if (fs.existsSync(targetPath)) {
-    const stat = fs.statSync(targetPath);
-    if (stat.isDirectory()) throw new Error('Target is a directory.');
-    const buf = fs.readFileSync(targetPath);
-    const currentHash = hashContent(buf.toString('utf8'));
-    if (change.originalHash && currentHash !== change.originalHash) {
-      throw new Error('File changed since proposal; original hash mismatch.');
-    }
-  } else if (change.originalHash) {
-    throw new Error('Original file no longer exists.');
-  }
-
   try {
-    if (change.operationType === 'delete') {
-      if (fs.existsSync(targetPath)) {
-        // prefer trash
-        try {
-          shell.trashItem(targetPath);
-        } catch {
-          fs.renameSync(targetPath, targetPath + '.deleted-' + Date.now());
-        }
-      }
-    } else if (change.operationType === 'rename' || change.operationType === 'move') {
-      if (!newPath) throw new Error('Missing newPath.');
-      fs.renameSync(targetPath, newPath);
-    } else {
-      // create/modify/patch/write
-      const dir = path.dirname(targetPath);
-      fs.mkdirSync(dir, { recursive: true });
-      const tmp = targetPath + '.tmp-' + Date.now();
-      fs.writeFileSync(tmp, change.newContent, 'utf8');
-      fs.renameSync(tmp, targetPath);
-    }
+    // writeFileChange revalidates the exact file state immediately before it
+    // writes, so approval applies only to the content the user reviewed.
+    writeFileChange(change, targetPath, newPath, (filePath) => {
+      void shell.trashItem(filePath);
+    });
     change.status = 'applied';
     savePendingChanges();
     db.recordOperation(null, 'file_change', 'applied');
     return true;
   } catch (err) {
-    change.status = 'failed';
-    savePendingChanges();
-    // rollback if backup
-    if (backupPath && fs.existsSync(backupPath)) {
-      try {
-        fs.writeFileSync(targetPath, fs.readFileSync(backupPath, 'utf8'), 'utf8');
-      } catch {
-        // ignore
+    // A conflict means the target no longer matches the reviewed state. Leave
+    // it exactly as the user (or another process) left it, and leave the
+    // proposal pending so it can be retried if the reviewed state is restored.
+    if (!(err instanceof FileChangeConflictError)) {
+      change.status = 'failed';
+      savePendingChanges();
+      // Only roll back an operation that actually started mutating the file.
+      if (backupPath && fs.existsSync(backupPath)) {
+        try {
+          fs.writeFileSync(targetPath, fs.readFileSync(backupPath, 'utf8'), 'utf8');
+        } catch {
+          // ignore
+        }
       }
     }
     throw err;
@@ -727,7 +830,7 @@ function supportsReasoningEffort(providerType: string, model: string): { support
 
 function registerIpcHandlers(): void {
   // Native method: getAppInfo
-  ipcMain.handle(IPC_CHANNELS.GET_APP_INFO, async (): Promise<DesktopAppInfo> => {
+  trustedHandle(IPC_CHANNELS.GET_APP_INFO, async (): Promise<DesktopAppInfo> => {
     return {
       name: 'REFX',
       version: app.getVersion(),
@@ -740,14 +843,17 @@ function registerIpcHandlers(): void {
   });
 
   // Native method: selectWorkspace (native folder picker)
-  ipcMain.handle(
+  trustedHandle(
     IPC_CHANNELS.SELECT_WORKSPACE,
     async (_event, defaultPath?: string): Promise<string | null> => {
       if (!mainWindow) return null;
+      const safeDefaultPath = assertOptionalString(defaultPath, 'defaultPath', {
+        maxLength: 4096,
+      });
 
       const result = await dialog.showOpenDialog(mainWindow, {
         title: 'Select Project Workspace Folder',
-        defaultPath: typeof defaultPath === 'string' && defaultPath ? defaultPath : undefined,
+        defaultPath: safeDefaultPath,
         properties: ['openDirectory', 'createDirectory'],
       });
 
@@ -764,7 +870,7 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: checkOllama
-  ipcMain.handle(IPC_CHANNELS.CHECK_OLLAMA, async (): Promise<OllamaCheckResult> => {
+  trustedHandle(IPC_CHANNELS.CHECK_OLLAMA, async (): Promise<OllamaCheckResult> => {
     try {
       const res = await fetch(`${OLLAMA_HOST}/api/tags`, {
         method: 'GET',
@@ -789,7 +895,7 @@ function registerIpcHandlers(): void {
   });
 
   // Native method: listOllamaModels
-  ipcMain.handle(IPC_CHANNELS.LIST_OLLAMA_MODELS, async (): Promise<OllamaModelsResult> => {
+  trustedHandle(IPC_CHANNELS.LIST_OLLAMA_MODELS, async (): Promise<OllamaModelsResult> => {
     try {
       const res = await fetch(`${OLLAMA_HOST}/api/tags`, {
         method: 'GET',
@@ -824,7 +930,7 @@ function registerIpcHandlers(): void {
   });
 
   // Native method: startOllamaChat
-  ipcMain.handle(
+  trustedHandle(
     IPC_CHANNELS.START_OLLAMA_CHAT,
     async (
       event,
@@ -1006,7 +1112,7 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: cancelOllamaChat
-  ipcMain.handle(
+  trustedHandle(
     IPC_CHANNELS.CANCEL_OLLAMA_CHAT,
     async (_event, requestId: string): Promise<boolean> => {
       const controller = activeChatAborts.get(requestId);
@@ -1020,7 +1126,7 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: verifyProvider (multi-provider)
-  ipcMain.handle(
+  trustedHandle(
     MODEL_CHANNELS.VERIFY_PROVIDER,
     async (_event, config: ProviderConfig): Promise<{ success: boolean; models: string[]; message?: string }> => {
       return verifyProviderConnection(config);
@@ -1028,7 +1134,7 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: startProviderChat (multi-provider)
-  ipcMain.handle(
+  trustedHandle(
     MODEL_CHANNELS.START_PROVIDER_CHAT,
     async (event, request: ModelInferenceRequest): Promise<ModelInferenceResult> => {
       return startProviderChatStream(event, request);
@@ -1036,7 +1142,7 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: cancelProviderChat (multi-provider)
-  ipcMain.handle(
+  trustedHandle(
     MODEL_CHANNELS.CANCEL_PROVIDER_CHAT,
     async (_event, requestId: string): Promise<boolean> => {
       const controller = activeChatAborts.get(requestId);
@@ -1058,9 +1164,12 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: saveCredential (secure, renderer -> main only)
-  ipcMain.handle(
+  trustedHandle(
     CREDENTIAL_IPC_CHANNELS.SAVE_CREDENTIAL,
-    async (_event, { providerId, apiKey }: { providerId: string; apiKey: string }): Promise<boolean> => {
+    async (_event, payload: { providerId: string; apiKey: string }): Promise<boolean> => {
+      const input = assertPlainObject(payload, 'credential');
+      const providerId = assertString(input.providerId, 'providerId', { maxLength: 128 });
+      const apiKey = assertString(input.apiKey, 'apiKey', { maxLength: 8192 });
       if (!safeStorage.isEncryptionAvailable()) {
         console.error('[Security] Cannot save credential: encryption unavailable.');
         return false;
@@ -1078,9 +1187,11 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: deleteCredential (renderer -> main only)
-  ipcMain.handle(
+  trustedHandle(
     CREDENTIAL_IPC_CHANNELS.DELETE_CREDENTIAL,
-    async (_event, { providerId }: { providerId: string }): Promise<boolean> => {
+    async (_event, payload: { providerId: string }): Promise<boolean> => {
+      const input = assertPlainObject(payload, 'credential');
+      const providerId = assertString(input.providerId, 'providerId', { maxLength: 128 });
       const store = loadCredentialStore();
       const had = store.delete(providerId);
       saveCredentialStore(store); // throws if write fails
@@ -1090,9 +1201,11 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: hasCredential (renderer -> main only)
-  ipcMain.handle(
+  trustedHandle(
     CREDENTIAL_IPC_CHANNELS.HAS_CREDENTIAL,
-    async (_event, { providerId }: { providerId: string }): Promise<boolean> => {
+    async (_event, payload: { providerId: string }): Promise<boolean> => {
+      const input = assertPlainObject(payload, 'credential');
+      const providerId = assertString(input.providerId, 'providerId', { maxLength: 128 });
       if (credentialCache.has(providerId)) {
         return true;
       }
@@ -1102,9 +1215,12 @@ function registerIpcHandlers(): void {
   );
 
   // Native method: migrateCredential (renderer -> main, one-time migration from plaintext)
-  ipcMain.handle(
+  trustedHandle(
     CREDENTIAL_IPC_CHANNELS.MIGRATE_CREDENTIAL,
-    async (_event, { providerId, apiKey }: { providerId: string; apiKey: string }): Promise<{ success: boolean; error?: string }> => {
+    async (_event, payload: { providerId: string; apiKey: string }): Promise<{ success: boolean; error?: string }> => {
+      const input = assertPlainObject(payload, 'credential');
+      const providerId = assertString(input.providerId, 'providerId', { maxLength: 128 });
+      const apiKey = assertString(input.apiKey, 'apiKey', { maxLength: 8192 });
       if (!safeStorage.isEncryptionAvailable()) {
         return { success: false, error: 'Encryption is not available on this platform.' };
       }
@@ -1121,73 +1237,73 @@ function registerIpcHandlers(): void {
   );
 
   // Database IPC handlers
-  ipcMain.handle(DATABASE_IPC_CHANNELS.INITIALIZE, async () => {
+  trustedHandle(DATABASE_IPC_CHANNELS.INITIALIZE, async () => {
     return db.initDatabase();
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_CONVERSATIONS, async () => {
+  trustedHandle(DATABASE_IPC_CHANNELS.GET_CONVERSATIONS, async () => {
     return db.getConversations();
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_CONVERSATION, async (_event, id: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.GET_CONVERSATION, async (_event, id: string) => {
     if (typeof id !== 'string' || !id) return null;
     return db.getConversation(id);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.CREATE_CONVERSATION, async (_event, data: any) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.CREATE_CONVERSATION, async (_event, data: any) => {
     if (!data || typeof data.id !== 'string') return null;
     return db.createConversation(data);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.UPDATE_CONVERSATION, async (_event, id: string, changes: any) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.UPDATE_CONVERSATION, async (_event, id: string, changes: any) => {
     if (typeof id !== 'string' || !id) return null;
     return db.updateConversation(id, changes || {});
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.DELETE_CONVERSATION, async (_event, id: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.DELETE_CONVERSATION, async (_event, id: string) => {
     if (typeof id !== 'string' || !id) return false;
     return db.deleteConversation(id);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.SEARCH_CONVERSATIONS, async (_event, query: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.SEARCH_CONVERSATIONS, async (_event, query: string) => {
     if (typeof query !== 'string') return [];
     return db.searchConversations(query);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_MESSAGES, async (_event, conversationId: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.GET_MESSAGES, async (_event, conversationId: string) => {
     if (typeof conversationId !== 'string' || !conversationId) return [];
     return db.getMessages(conversationId);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.SAVE_MESSAGE, async (_event, message: any) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.SAVE_MESSAGE, async (_event, message: any) => {
     if (!message || typeof message.id !== 'string' || typeof message.conversationId !== 'string') return null;
     return db.saveMessage(message);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.UPDATE_MESSAGE, async (_event, id: string, changes: any) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.UPDATE_MESSAGE, async (_event, id: string, changes: any) => {
     if (typeof id !== 'string' || !id) return null;
     return db.updateMessage(id, changes || {});
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.DELETE_MESSAGE, async (_event, id: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.DELETE_MESSAGE, async (_event, id: string) => {
     if (typeof id !== 'string' || !id) return false;
     return db.deleteMessage(id);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.GET_SETTINGS, async () => {
+  trustedHandle(DATABASE_IPC_CHANNELS.GET_SETTINGS, async () => {
     return db.getAppSettings();
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.SAVE_SETTING, async (_event, key: string, value: unknown) => {
-    if (typeof key !== 'string' || !key) return false;
-    return db.saveAppSetting(key, value);
+  trustedHandle(DATABASE_IPC_CHANNELS.SAVE_SETTING, async (_event, key: string, value: unknown) => {
+    const safeKey = assertString(key, 'key', { maxLength: 256 });
+    return db.saveAppSetting(safeKey, value);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.EXPORT_BACKUP, async () => {
+  trustedHandle(DATABASE_IPC_CHANNELS.EXPORT_BACKUP, async () => {
     return db.exportDatabaseBackup();
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.RESTORE_BACKUP, async (_event, filePath: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.RESTORE_BACKUP, async (_event, filePath: string) => {
     if (typeof filePath !== 'string' || !filePath) return { success: false, error: 'Invalid path' };
     try {
       return db.restoreDatabaseBackup(resolveDatabaseBackupInput(filePath));
@@ -1196,7 +1312,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.VALIDATE_BACKUP, async (_event, filePath: string) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.VALIDATE_BACKUP, async (_event, filePath: string) => {
     if (typeof filePath !== 'string' || !filePath) return { valid: false, error: 'Invalid path' };
     try {
       return db.validateDatabaseFile(resolveDatabaseBackupInput(filePath));
@@ -1205,12 +1321,12 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.MIGRATE_LEGACY, async (_event, payload: any) => {
+  trustedHandle(DATABASE_IPC_CHANNELS.MIGRATE_LEGACY, async (_event, payload: any) => {
     if (!payload || !Array.isArray(payload.conversations)) return { success: false, imported: 0, error: 'Invalid payload' };
     return db.migrateLegacyData(payload.conversations, payload.settings);
   });
 
-  ipcMain.handle(DATABASE_IPC_CHANNELS.INTEGRITY_CHECK, async () => {
+  trustedHandle(DATABASE_IPC_CHANNELS.INTEGRITY_CHECK, async () => {
     try {
       const database = db.getDatabase();
       if (!database) return { ok: false, error: 'Database not available' };
@@ -1223,7 +1339,7 @@ function registerIpcHandlers(): void {
   });
 
   // Filesystem IPC handlers (P5-A read-only)
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_WORKSPACE_INFO, async (_event, workspacePath: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.GET_WORKSPACE_INFO, async (_event, workspacePath: string) => {
     try {
       const root = ensureWorkspaceRoot();
       const infoPath = workspacePath ? resolveWithinWorkspace(workspacePath) : root;
@@ -1239,7 +1355,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_DIRECTORY, async (_event, dirPath: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.READ_DIRECTORY, async (_event, dirPath: string) => {
     try {
       const resolved = resolveWithinWorkspace(dirPath);
       const stat = fs.statSync(resolved);
@@ -1280,7 +1396,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.READ_FILE, async (_event, filePath: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.READ_FILE, async (_event, filePath: string) => {
     const resolved = resolveWithinWorkspace(filePath);
     const stat = fs.statSync(resolved);
     if (stat.isDirectory()) throw new Error('Cannot read a directory as a file.');
@@ -1290,7 +1406,7 @@ function registerIpcHandlers(): void {
     return buf.toString('utf8');
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.SEARCH_FILES, async (_event, workspacePath: string, query: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.SEARCH_FILES, async (_event, workspacePath: string, query: string) => {
     const root = resolveWithinWorkspace(workspacePath || ensureWorkspaceRoot());
     const results: any[] = [];
     const q = String(query || '').toLowerCase();
@@ -1324,7 +1440,7 @@ function registerIpcHandlers(): void {
     return results;
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.SEARCH_TEXT, async (_event, workspacePath: string, query: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.SEARCH_TEXT, async (_event, workspacePath: string, query: string) => {
     const root = resolveWithinWorkspace(workspacePath || ensureWorkspaceRoot());
     const results: any[] = [];
     const q = String(query || '').toLowerCase();
@@ -1372,13 +1488,13 @@ function registerIpcHandlers(): void {
     return results;
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.SET_ACTIVE_WORKSPACE, async (_event, workspacePath: string | null) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.SET_ACTIVE_WORKSPACE, async (_event, workspacePath: string | null) => {
     // Never trust the renderer path: activation succeeds only for a root that
     // was explicitly authorized earlier (native picker or persisted grant).
     return getWorkspaceGuard().activate(workspacePath);
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_FILE_METADATA, async (_event, filePath: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.GET_FILE_METADATA, async (_event, filePath: string) => {
     try {
       const resolved = resolveWithinWorkspace(filePath);
       const stat = fs.statSync(resolved);
@@ -1394,7 +1510,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.PROPOSE_CHANGE, async (_event, request: any) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.PROPOSE_CHANGE, async (_event, request: any) => {
     try {
       return proposeFileChange(request);
     } catch (err: any) {
@@ -1402,11 +1518,11 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.GET_PENDING_CHANGES, async () => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.GET_PENDING_CHANGES, async () => {
     return getPendingChanges();
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.APPROVE_CHANGE, async (_event, id: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.APPROVE_CHANGE, async (_event, id: string) => {
     try {
       return applyFileChange(id);
     } catch (err: any) {
@@ -1414,64 +1530,116 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.REJECT_CHANGE, async (_event, id: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.REJECT_CHANGE, async (_event, id: string) => {
     return rejectFileChange(id);
   });
 
-  ipcMain.handle(FILESYSTEM_IPC_CHANNELS.RESTORE_BACKUP, async (_event, id: string) => {
+  trustedHandle(FILESYSTEM_IPC_CHANNELS.RESTORE_BACKUP, async (_event, id: string) => {
     return restoreFileBackup(id);
   });
 
   // Memory IPC handlers
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => memory.getMemoryConfig());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) => memory.updateMemoryConfig(config));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) => memory.getTaskMemories(taskId));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORY, async (_event, conversationId: string) => memory.getTaskMemory(conversationId));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) => memory.saveTaskMemory(entry));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.UPDATE_TASK_MEMORY, async (_event, conversationId: string, id: string, changes: any) => memory.updateTaskMemory(conversationId, id, changes));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) => memory.deleteTaskMemory(id));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => memory.getAppMemories());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => memory.saveAppMemory(entry));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => memory.deleteAppMemory(id));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.TOGGLE_APP_MEMORY, async (_event, id: string) => memory.toggleAppMemory(id));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.RETRIEVE, async (_event, options: any) => memory.retrieveMemories(options));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_GOVERNANCE, async () => memory.getMemoryGovernance());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.DISMISS_CONFLICT, async (_event, pairKey: string) =>
-    memory.dismissMemoryConflict(pairKey)
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_CONFIG, async () => memory.getMemoryConfig());
+  trustedHandle(MEMORY_IPC_CHANNELS.UPDATE_CONFIG, async (_event, config: any) =>
+    memory.updateMemoryConfig(assertPlainObject(config, 'config'))
   );
-  ipcMain.handle(MEMORY_IPC_CHANNELS.RESOLVE_CONFLICT, async (_event, pairKey: string, keepId: string) =>
-    memory.resolveMemoryConflict(pairKey, keepId)
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORIES, async (_event, taskId: string) =>
+    memory.getTaskMemories(assertString(taskId, 'taskId', { maxLength: 128 }))
   );
-  ipcMain.handle(
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_TASK_MEMORY, async (_event, conversationId: string) =>
+    memory.getTaskMemory(assertString(conversationId, 'conversationId', { maxLength: 128 }))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.SAVE_TASK_MEMORY, async (_event, entry: any) =>
+    memory.saveTaskMemory(assertPlainObject(entry, 'entry'))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.UPDATE_TASK_MEMORY, async (_event, conversationId: string, id: string, changes: any) =>
+    memory.updateTaskMemory(
+      assertString(conversationId, 'conversationId', { maxLength: 128 }),
+      assertString(id, 'id', { maxLength: 128 }),
+      assertPlainObject(changes, 'changes'),
+    )
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.DELETE_TASK_MEMORY, async (_event, id: string) =>
+    memory.deleteTaskMemory(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => memory.getAppMemories());
+  trustedHandle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) =>
+    memory.saveAppMemory(assertPlainObject(entry, 'entry'))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) =>
+    memory.deleteAppMemory(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.TOGGLE_APP_MEMORY, async (_event, id: string) =>
+    memory.toggleAppMemory(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
+  trustedHandle(MEMORY_IPC_CHANNELS.RETRIEVE, async (_event, options: any) => {
+    const input = assertPlainObject(options, 'options');
+    const query = assertString(input.query, 'query', {
+      allowEmpty: true,
+      maxLength: 16_384,
+    });
+    return memory.retrieveMemories({ ...input, query } as any);
+  });
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_GOVERNANCE, async () => memory.getMemoryGovernance());
+  trustedHandle(MEMORY_IPC_CHANNELS.DISMISS_CONFLICT, async (_event, pairKey: string) =>
+    memory.dismissMemoryConflict(assertString(pairKey, 'pairKey', { maxLength: 512 }))
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.RESOLVE_CONFLICT, async (_event, pairKey: string, keepId: string) =>
+    memory.resolveMemoryConflict(
+      assertString(pairKey, 'pairKey', { maxLength: 512 }),
+      assertString(keepId, 'keepId', { maxLength: 128 }),
+    )
+  );
+  trustedHandle(
     MEMORY_IPC_CHANNELS.CONFIRM,
-    async (_event, id: string, scope: 'app' | 'task', taskId?: string) => memory.confirmMemory(id, scope, taskId)
+    async (_event, id: string, scope: 'app' | 'task', taskId?: string) => {
+      const safeScope = assertString(scope, 'scope', { maxLength: 8 });
+      if (safeScope !== 'app' && safeScope !== 'task') {
+        throw new IpcArgumentError('scope must be "app" or "task".');
+      }
+      return memory.confirmMemory(
+        assertString(id, 'id', { maxLength: 128 }),
+        safeScope,
+        assertOptionalString(taskId, 'taskId', { maxLength: 128 }),
+      );
+    }
   );
-  ipcMain.handle(MEMORY_IPC_CHANNELS.PURGE_EXPIRED, async () => memory.purgeExpiredMemories());
-  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_VERSIONS, async (_event, memoryId: string) => memory.getMemoryVersions(memoryId));
-  ipcMain.handle(MEMORY_IPC_CHANNELS.RESTORE_VERSION, async (_event, memoryId: string, versionId: string) =>
-    memory.restoreMemoryVersion(memoryId, versionId)
+  trustedHandle(MEMORY_IPC_CHANNELS.PURGE_EXPIRED, async () => memory.purgeExpiredMemories());
+  trustedHandle(MEMORY_IPC_CHANNELS.GET_VERSIONS, async (_event, memoryId: string) =>
+    memory.getMemoryVersions(assertString(memoryId, 'memoryId', { maxLength: 128 }))
   );
-  ipcMain.handle(MEMORY_IPC_CHANNELS.REBUILD_INDEX, async () => memory.forceRebuildMemoryIndex());
+  trustedHandle(MEMORY_IPC_CHANNELS.RESTORE_VERSION, async (_event, memoryId: string, versionId: string) =>
+    memory.restoreMemoryVersion(
+      assertString(memoryId, 'memoryId', { maxLength: 128 }),
+      assertString(versionId, 'versionId', { maxLength: 128 }),
+    )
+  );
+  trustedHandle(MEMORY_IPC_CHANNELS.REBUILD_INDEX, async () => memory.forceRebuildMemoryIndex());
 
   // Terminal IPC handlers
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.CREATE, async (event, shell?: string, cwd?: string) => {
+  trustedHandle(TERMINAL_IPC_CHANNELS.CREATE, async (event, shell?: string, cwd?: string) => {
+    const requestedShell = assertOptionalString(shell, 'shell', { maxLength: 128 });
+    if (requestedShell && !ALLOWED_TERMINAL_SHELLS.has(requestedShell.toLowerCase())) {
+      throw new IpcArgumentError('Unsupported terminal shell.');
+    }
+    const shellName = requestedShell || 'powershell.exe';
+    const requestedCwd = assertOptionalString(cwd, 'cwd', { maxLength: 4096 });
     const id = `term-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const shellName = shell || 'powershell.exe';
     const guard = getWorkspaceGuard();
     const activeRoot = guard.getActiveRoot();
     let workDir = activeRoot || process.cwd();
-    if (cwd) {
+    if (requestedCwd) {
       if (activeRoot) {
         // Recheck containment at the moment of spawn; the renderer may only
         // open a terminal inside the authorized workspace.
         try {
-          workDir = guard.resolve(cwd);
+          workDir = guard.resolve(requestedCwd);
         } catch {
           workDir = activeRoot;
         }
-      } else if (fs.existsSync(cwd) && fs.statSync(cwd).isDirectory()) {
-        workDir = fs.realpathSync(cwd);
+      } else if (fs.existsSync(requestedCwd) && fs.statSync(requestedCwd).isDirectory()) {
+        workDir = fs.realpathSync(requestedCwd);
       }
     }
     const name = shellName === 'powershell.exe' ? 'PowerShell' : shellName === 'cmd.exe' ? 'Command Prompt' : 'Bash';
@@ -1499,41 +1667,50 @@ function registerIpcHandlers(): void {
     return { id, name, shell: shellName, cwd: workDir, isRunning: true, exitCode: null, history: [] };
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.WRITE, async (_event, sessionId: string, input: string) => {
-    const session = terminalSessions.get(sessionId);
+  trustedHandle(TERMINAL_IPC_CHANNELS.WRITE, async (_event, sessionId: string, input: string) => {
+    const safeSessionId = assertString(sessionId, 'sessionId', { maxLength: 128 });
+    const safeInput = assertString(input, 'input', {
+      maxLength: 1024 * 1024,
+      allowEmpty: true,
+    });
+    const session = terminalSessions.get(safeSessionId);
     if (!session) return false;
     try {
-      session.process.write(input);
+      session.process.write(safeInput);
       return true;
     } catch {
       return false;
     }
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.RESIZE, async (_event, sessionId: string, cols: number, rows: number) => {
-    const session = terminalSessions.get(sessionId);
+  trustedHandle(TERMINAL_IPC_CHANNELS.RESIZE, async (_event, sessionId: string, cols: number, rows: number) => {
+    const safeSessionId = assertString(sessionId, 'sessionId', { maxLength: 128 });
+    const safeCols = assertFiniteInteger(cols, 'cols', 2, 1000);
+    const safeRows = assertFiniteInteger(rows, 'rows', 2, 1000);
+    const session = terminalSessions.get(safeSessionId);
     if (!session) return false;
     try {
-      session.process.resize(cols, rows);
+      session.process.resize(safeCols, safeRows);
       return true;
     } catch {
       return false;
     }
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.KILL, async (_event, sessionId: string) => {
-    const session = terminalSessions.get(sessionId);
+  trustedHandle(TERMINAL_IPC_CHANNELS.KILL, async (_event, sessionId: string) => {
+    const safeSessionId = assertString(sessionId, 'sessionId', { maxLength: 128 });
+    const session = terminalSessions.get(safeSessionId);
     if (!session) return false;
     try {
       session.process.kill();
     } catch {
       // ignore
     }
-    terminalSessions.delete(sessionId);
+    terminalSessions.delete(safeSessionId);
     return true;
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.LIST, async () => {
+  trustedHandle(TERMINAL_IPC_CHANNELS.LIST, async () => {
     return Array.from(terminalSessions.values()).map((s) => ({
       id: s.id,
       name: s.name,
@@ -1545,41 +1722,61 @@ function registerIpcHandlers(): void {
     }));
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_APPROVE, async (_event, id: string, sessionId?: string) => {
-    const pending = pendingTerminalApprovals.get(id);
+  trustedHandle(TERMINAL_IPC_CHANNELS.AGENT_APPROVE, async (_event, id: string, sessionId?: string) => {
+    const safeId = assertString(id, 'id', { maxLength: 128 });
+    const safeSessionId = assertOptionalString(sessionId, 'sessionId', { maxLength: 128 });
+    const pending = pendingTerminalApprovals.get(safeId);
     if (!pending) return false;
-    if (sessionId) pending.sessionId = sessionId;
+    if (safeSessionId) pending.sessionId = safeSessionId;
     clearTimeout(pending.timeout);
     pending.resolve(true);
     // keep pending for execution to read sessionId; delete after execution in tool
     return true;
   });
 
-  ipcMain.handle(TERMINAL_IPC_CHANNELS.AGENT_REJECT, async (_event, id: string) => {
-    const pending = pendingTerminalApprovals.get(id);
+  trustedHandle(TERMINAL_IPC_CHANNELS.AGENT_REJECT, async (_event, id: string) => {
+    const safeId = assertString(id, 'id', { maxLength: 128 });
+    const pending = pendingTerminalApprovals.get(safeId);
     if (!pending) return false;
     clearTimeout(pending.timeout);
     pending.resolve(false);
-    pendingTerminalApprovals.delete(id);
+    pendingTerminalApprovals.delete(safeId);
     return true;
   });
 
   // Skills IPC handlers
-  ipcMain.handle(SKILLS_IPC_CHANNELS.LIST, async () => skills.listSkills());
-  ipcMain.handle(SKILLS_IPC_CHANNELS.GET, async (_event, id: string) => skills.getSkill(id));
-  ipcMain.handle(SKILLS_IPC_CHANNELS.SAVE, async (_event, skill: any) => skills.saveSkill(skill));
-  ipcMain.handle(SKILLS_IPC_CHANNELS.DELETE, async (_event, id: string) => skills.deleteSkill(id));
-  ipcMain.handle(SKILLS_IPC_CHANNELS.DUPLICATE, async (_event, id: string) => skills.duplicateSkill(id));
-  ipcMain.handle(SKILLS_IPC_CHANNELS.DIR, async () => skills.getSkillsDir());
+  trustedHandle(SKILLS_IPC_CHANNELS.LIST, async () => skills.listSkills());
+  trustedHandle(SKILLS_IPC_CHANNELS.GET, async (_event, id: string) =>
+    skills.getSkill(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(SKILLS_IPC_CHANNELS.SAVE, async (_event, skill: any) =>
+    skills.saveSkill(assertPlainObject(skill, 'skill'))
+  );
+  trustedHandle(SKILLS_IPC_CHANNELS.DELETE, async (_event, id: string) =>
+    skills.deleteSkill(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(SKILLS_IPC_CHANNELS.DUPLICATE, async (_event, id: string) =>
+    skills.duplicateSkill(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(SKILLS_IPC_CHANNELS.DIR, async () => skills.getSkillsDir());
 
   // Trash / Backup Bin IPC handlers
-  ipcMain.handle(TRASH_IPC_CHANNELS.LIST, async () => trash.listTrash());
-  ipcMain.handle(TRASH_IPC_CHANNELS.ADD, async (_event, type: string, data: any) => trash.addToTrash(type, data));
-  ipcMain.handle(TRASH_IPC_CHANNELS.RESTORE, async (_event, id: string) => trash.restoreTrash(id));
-  ipcMain.handle(TRASH_IPC_CHANNELS.PURGE, async (_event, id: string) => trash.purgeTrash(id));
-  ipcMain.handle(TRASH_IPC_CHANNELS.PURGE_EXPIRED, async () => trash.purgeExpired());
+  trustedHandle(TRASH_IPC_CHANNELS.LIST, async () => trash.listTrash());
+  trustedHandle(TRASH_IPC_CHANNELS.ADD, async (_event, type: string, data: any) =>
+    trash.addToTrash(
+      assertString(type, 'type', { maxLength: 64 }),
+      assertPlainObject(data, 'data'),
+    )
+  );
+  trustedHandle(TRASH_IPC_CHANNELS.RESTORE, async (_event, id: string) =>
+    trash.restoreTrash(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(TRASH_IPC_CHANNELS.PURGE, async (_event, id: string) =>
+    trash.purgeTrash(assertString(id, 'id', { maxLength: 128 }))
+  );
+  trustedHandle(TRASH_IPC_CHANNELS.PURGE_EXPIRED, async () => trash.purgeExpired());
 
-  ipcMain.handle(SYSTEM_IPC_CHANNELS.CHECK_REMOTE_DEBUGGING, async () => {
+  trustedHandle(SYSTEM_IPC_CHANNELS.CHECK_REMOTE_DEBUGGING, async () => {
     try {
       const res = await fetch('http://127.0.0.1:9222/json/version', { signal: AbortSignal.timeout(1000) });
       if (res.ok) return true;
@@ -1594,7 +1791,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(SYSTEM_IPC_CHANNELS.OPEN_REMOTE_DEBUGGING, async () => {
+  trustedHandle(SYSTEM_IPC_CHANNELS.OPEN_REMOTE_DEBUGGING, async () => {
     try {
       // Open a browser-neutral help page; Chrome/Edge users can enable
       // remote debugging from there or via chrome://inspect/#remote-debugging.
@@ -1604,7 +1801,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(SYSTEM_IPC_CHANNELS.CHECK_EFFORT_SUPPORT, async (_event, providerType: string, model: string) => {
+  trustedHandle(SYSTEM_IPC_CHANNELS.CHECK_EFFORT_SUPPORT, async (_event, providerType: string, model: string) => {
     return supportsReasoningEffort(providerType, model);
   });
 }
@@ -2791,6 +2988,10 @@ function createSplashWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      nodeIntegrationInWorker: false,
+      webviewTag: false,
     },
   });
 
@@ -2827,6 +3028,10 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      nodeIntegrationInWorker: false,
+      webviewTag: false,
     },
   });
 
@@ -2835,28 +3040,18 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:') || url.startsWith('http:')) {
-      shell.openExternal(url);
+    const safeUrl = sanitizeExternalUrl(url);
+    if (safeUrl) {
+      void shell.openExternal(safeUrl).catch(() => {});
     }
     return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-    try {
-      const parsed = new URL(navigationUrl);
-      if (isDev) {
-        const allowedOrigin = new URL(devServerUrl).origin;
-        if (parsed.origin !== allowedOrigin) {
-          event.preventDefault();
-        }
-      } else {
-        if (parsed.protocol !== 'file:') {
-          event.preventDefault();
-        }
-      }
-    } catch {
-      event.preventDefault();
-    }
+    if (!isTrustedRendererLocation(navigationUrl)) event.preventDefault();
+  });
+  mainWindow.webContents.on('will-redirect', (event, navigationUrl) => {
+    if (!isTrustedRendererLocation(navigationUrl)) event.preventDefault();
   });
 
   if (isDev) {
@@ -2890,6 +3085,7 @@ if (!hasLock) {
     db.initDatabase();
     loadPendingChanges();
     trash.purgeExpired();
+    installRendererSecurity();
     registerIpcHandlers();
     createSplashWindow();
     createWindow();

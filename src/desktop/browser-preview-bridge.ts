@@ -139,6 +139,8 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     maxEntries: 1000,
     retrievalTokenBudget: 1200,
     retrievalMaxResults: 8,
+    encryptionEnabled: false,
+    encryptionAvailable: false,
   };
 
   private taskMemories: TaskMemoryEntry[] = [];
@@ -371,6 +373,11 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
   private previewMemory: IMemoryBridge = {
     getMemoryConfig: async (): Promise<MemoryConfig> => ({ ...this.memoryConfig }),
     updateMemoryConfig: async (config: Partial<MemoryConfig>): Promise<MemoryConfig> => {
+      if (config.encryptionEnabled === true && this.memoryConfig.encryptionAvailable !== true) {
+        throw new Error(
+          'Memory encryption cannot be enabled because OS secure storage is unavailable in browser preview.'
+        );
+      }
       this.memoryConfig = { ...this.memoryConfig, ...config };
       this.saveToStorage('refx_memory_config', this.memoryConfig);
       return { ...this.memoryConfig };

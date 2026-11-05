@@ -11,6 +11,11 @@ import {
 } from '../shared/utils/memory-retrieval';
 import * as embeddings from './embeddings';
 import * as encryption from './encryption';
+import {
+  atomicWriteEncodedMemoryFile,
+  atomicWriteMemoryFile,
+  readMemoryJsonFile,
+} from '../shared/utils/memory-file';
 import type {
   MemoryRetrievalOptions,
   MemoryRetrievalResponse,
@@ -42,56 +47,21 @@ function ensureDir(dir: string): void {
 }
 
 /**
- * Primary memory files are the source of truth. Each write keeps a `.bak` of
- * the previous version and writes through a temp file before renaming, so a
- * crash or power loss cannot leave a half-written JSON document behind.
+ * Primary memory files are the source of truth. Encryption happens before any
+ * filesystem mutation, so an encryption failure leaves the existing file (and
+ * its recovery copies) untouched.
  */
 function atomicWrite(filePath: string, content: string): void {
-  const dir = path.dirname(filePath);
-  ensureDir(dir);
-  const tmp = filePath + '.tmp';
-  const bak = filePath + '.bak';
-  const payload = encryption.encryptText(content);
-  fs.writeFileSync(tmp, payload, 'utf8');
-  // Keep a latest-known-good recovery copy of exactly what we are about to
-  // publish. If the primary file is later damaged, the backup still contains
-  // the most recent successful write rather than an older generation.
-  try {
-    fs.copyFileSync(tmp, bak);
-  } catch {
-    // A failed backup must not block the primary write.
-  }
-  fs.renameSync(tmp, filePath);
+  atomicWriteMemoryFile(filePath, content, encryption.encryptText);
 }
 
 /**
  * Reads JSON from the primary file, then the pending temp file, then the last
- * known-good backup. This makes recovery automatic after a corrupt write.
+ * known-good backup. Decryption failures fail closed instead of falling back
+ * to empty data that a later save could overwrite.
  */
 function readJsonFile<T>(filePath: string, fallback: T): T {
-  const candidates = [filePath, filePath + '.tmp', filePath + '.bak'];
-  for (let index = 0; index < candidates.length; index += 1) {
-    const candidate = candidates[index];
-    if (!fs.existsSync(candidate)) continue;
-    try {
-      const raw = fs.readFileSync(candidate, 'utf8');
-      const decrypted = encryption.decryptText(raw);
-      const parsed = JSON.parse(decrypted) as T;
-      if (index > 0) {
-        // The primary file was corrupt. Restore it from the recovery copy so
-        // the next read is fast and the store does not stay degraded.
-        try {
-          atomicWrite(filePath, JSON.stringify(parsed, null, 2));
-        } catch {
-          // Recovery is best-effort; returning the parsed value is enough.
-        }
-      }
-      return parsed;
-    } catch {
-      // Try the next recovery candidate.
-    }
-  }
-  return fallback;
+  return readMemoryJsonFile(filePath, fallback, encryption.memoryFileCodec());
 }
 
 function hashContent(...parts: string[]): string {
@@ -113,6 +83,8 @@ function getConfig(): any {
     maxEntries: base.maxEntries ?? 1000,
     retrievalTokenBudget: Math.min(Math.max(Number(base.retrievalTokenBudget) || 1200, 200), 16000),
     retrievalMaxResults: Math.min(Math.max(Number(base.retrievalMaxResults) || 8, 1), 30),
+    encryptionEnabled: base.encryptionEnabled === true,
+    encryptionAvailable: encryption.isEncryptionAvailable(),
   };
 }
 
@@ -183,8 +155,17 @@ function migrateMemoryDirectory(newDirRaw: string): { success: boolean; error?: 
 }
 
 function updateConfig(config: any): any {
+  if (config?.encryptionEnabled === true && !encryption.isEncryptionAvailable()) {
+    throw new Error(
+      'Memory encryption cannot be enabled because OS secure storage is unavailable on this system.',
+    );
+  }
   const current = getConfig();
-  const updated = { ...current, ...config };
+  // `encryptionAvailable` is a runtime capability probe, not a user setting.
+  // Never persist it, or an old "true" could outlive the OS capability.
+  const { encryptionAvailable: _runtimeAvailability, ...persistedCurrent } = current;
+  const { encryptionAvailable: _ignoredAvailability, ...persistedPatch } = config || {};
+  const updated = { ...persistedCurrent, ...persistedPatch };
   if (
     config.globalMemoryDirectory &&
     expandPath(config.globalMemoryDirectory) !== expandPath(current.globalMemoryDirectory)
@@ -196,7 +177,8 @@ function updateConfig(config: any): any {
   // The directory may have changed, so rebuild the derived index from the new
   // primary file location.
   syncMemoryIndexIfNeeded(true);
-  return { ...updated, storageBackend: getConfig().storageBackend };
+  // Return the effective config so callers see the current runtime capability.
+  return getConfig();
 }
 
 function memoryRoot(): string {
@@ -231,9 +213,14 @@ function readTaskEntries(conversationId: string): any[] {
 function writeTaskEntries(conversationId: string, entries: any[]): void {
   const dir = taskDir(conversationId);
   ensureDir(dir);
-  atomicWrite(path.join(dir, 'metadata.json'), JSON.stringify(entries, null, 2));
+  const metadata = JSON.stringify(entries, null, 2);
   const md = entries.map((e) => `# ${e.title || ''}\n\n${e.content || ''}\n`).join('\n---\n\n');
-  atomicWrite(path.join(dir, 'memory.md'), md);
+  // Encode both documents before touching either file so an encryption
+  // failure cannot leave metadata.json updated while memory.md is not.
+  const metadataPayload = encryption.encryptText(metadata);
+  const mdPayload = encryption.encryptText(md);
+  atomicWriteEncodedMemoryFile(path.join(dir, 'metadata.json'), metadataPayload);
+  atomicWriteEncodedMemoryFile(path.join(dir, 'memory.md'), mdPayload);
 }
 
 function readAppEntries(): any[] {

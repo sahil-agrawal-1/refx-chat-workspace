@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, FileText, Code, Globe, Check, Copy } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useAppStore } from '@/stores/app-store';
+import { isAllowedExternalUrl } from '@shared/security/url-policy';
 
 /**
  * Escape HTML special characters to prevent XSS in rendered output.
@@ -22,12 +23,7 @@ export function escapeHtml(unsafe: string): string {
  * @exported for testing
  */
 export function isSafeUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return isAllowedExternalUrl(url);
 }
 
 export const ExportChatModal: React.FC = () => {

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
+import { sanitizeExternalUrl } from '@shared/security/url-policy';
 
 const HtmlIcon = ({ size = 11, color = '#E34F26' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
@@ -457,7 +458,25 @@ const renderInline = (text: string): React.ReactNode[] => {
     } else if (match[3] !== undefined) {
       parts.push(<em key={match.index} className="italic text-foreground">{match[3]}</em>);
     } else if (match[4] !== undefined) {
-      parts.push(<a key={match.index} href={match[5]} className="text-blue-400 hover:underline" target="_blank" rel="noreferrer">{match[4]}</a>);
+      // Model output is untrusted. Only render an anchor for absolute http(s)
+      // URLs; anything else (javascript:, data:, file:, relative paths) stays
+      // plain text so it cannot execute or navigate outside the app.
+      const href = sanitizeExternalUrl(match[5]);
+      if (href) {
+        parts.push(
+          <a
+            key={match.index}
+            href={href}
+            className="text-blue-400 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {match[4]}
+          </a>
+        );
+      } else {
+        parts.push(match[4]);
+      }
     }
     lastIndex = match.index + match[0].length;
   }

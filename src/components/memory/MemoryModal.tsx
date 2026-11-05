@@ -75,21 +75,31 @@ export const MemoryModal: React.FC = () => {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
-    await addTaskMemory(newTaskTitle, newTaskContent, tags);
-    setNewTaskTitle('');
-    setNewTaskContent('');
-    setNewTaskTags('');
-    setIsAdding(false);
+    try {
+      await addTaskMemory(newTaskTitle, newTaskContent, tags);
+      setNewTaskTitle('');
+      setNewTaskContent('');
+      setNewTaskTags('');
+      setIsAdding(false);
+    } catch {
+      // The store already surfaced the encryption/write error. Keep the form
+      // populated so the user can retry without losing their input.
+    }
   };
 
   const handleCreateAppMemory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAppTitle.trim() || !newAppSummary.trim()) return;
-    await addAppMemory(newAppCategory, newAppTitle, newAppSummary, newAppDetails);
-    setNewAppTitle('');
-    setNewAppSummary('');
-    setNewAppDetails('');
-    setIsAdding(false);
+    try {
+      await addAppMemory(newAppCategory, newAppTitle, newAppSummary, newAppDetails);
+      setNewAppTitle('');
+      setNewAppSummary('');
+      setNewAppDetails('');
+      setIsAdding(false);
+    } catch {
+      // The store already surfaced the encryption/write error. Keep the form
+      // populated so the user can retry without losing their input.
+    }
   };
 
   const getCategoryColor = (cat: string) => {
@@ -369,7 +379,9 @@ export const MemoryModal: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Toggle
                   checked={memoryConfig.autoMemoryEnabled}
-                  onChange={(val) => updateMemoryConfig({ autoMemoryEnabled: val })}
+                  onChange={(val) => {
+                    void updateMemoryConfig({ autoMemoryEnabled: val }).catch(() => {});
+                  }}
                 />
                 {appMemories.length > 0 && (
                   <button
@@ -531,16 +543,18 @@ export const MemoryModal: React.FC = () => {
                   <input
                     type="text"
                     value={memoryConfig.globalMemoryDirectory}
-                    onChange={(e) => updateMemoryConfig({ globalMemoryDirectory: e.target.value })}
+                    onChange={(e) => {
+                      void updateMemoryConfig({ globalMemoryDirectory: e.target.value }).catch(() => {});
+                    }}
                     className="flex-1 bg-surface-raised border border-border focus:border-accent rounded-xl px-3.5 py-2 text-foreground font-mono text-xs focus:outline-none"
                   />
                   <button
                     type="button"
-                    onClick={() =>
-                      updateMemoryConfig({
+                    onClick={() => {
+                      void updateMemoryConfig({
                         globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
-                      })
-                    }
+                      }).catch(() => {});
+                    }}
                     className="px-3.5 py-2 bg-surface hover:bg-surface-raised text-foreground rounded-xl transition-all cursor-pointer text-xs border border-border font-medium"
                   >
                     Reset Default
@@ -561,6 +575,34 @@ export const MemoryModal: React.FC = () => {
                     {memoryConfig.storageBackend || 'SQLite'}
                   </div>
                 </div>
+              </div>
+
+              <div className="p-3.5 bg-surface-raised border border-border rounded-xl flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-emerald-400" />
+                    <span>Encrypt memory files</span>
+                  </div>
+                  <p className="text-[11px] text-foreground-muted mt-0.5">
+                    {memoryConfig.encryptionEnabled
+                      ? memoryConfig.encryptionAvailable === false
+                        ? 'Encryption is enabled, but OS secure storage is currently unavailable. Encrypted files cannot be read or written.'
+                        : 'Memory files are encrypted with OS secure storage (DPAPI). Plaintext fallback is disabled.'
+                      : memoryConfig.encryptionAvailable === false
+                        ? 'OS secure storage is unavailable, so encryption cannot be enabled.'
+                        : 'Encrypt memory files at rest using OS secure storage.'}
+                  </p>
+                </div>
+                <Toggle
+                  checked={memoryConfig.encryptionEnabled === true}
+                  disabled={
+                    memoryConfig.encryptionEnabled !== true &&
+                    memoryConfig.encryptionAvailable === false
+                  }
+                  onChange={(val) => {
+                    void updateMemoryConfig({ encryptionEnabled: val }).catch(() => {});
+                  }}
+                />
               </div>
             </div>
           </div>

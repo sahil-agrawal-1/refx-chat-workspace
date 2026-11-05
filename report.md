@@ -36,10 +36,12 @@ src/
   main.tsx, App.tsx, index.css
   layouts/AppLayout.tsx
   stores/app-store.tsx  # Central React context/state store
-  stores/app-store.test.tsx   # Chat store behavior tests (8 tests)
-  stores/security.test.ts   # Security behavior tests (22 tests)
-  stores/provider-verification.test.ts  # Provider verification tests (18 tests)
+  stores/app-store.test.tsx   # Chat store behavior tests (included in store suite)
+  stores/security.test.ts   # Security behavior tests (included in store suite)
+  stores/provider-verification.test.ts  # Provider verification tests (included in store suite)
   stores/test-shim.ts     # DOM shims for Node.js test environment
+  utils/diff.test.ts, utils/workspace-path.test.ts # Utility tests
+  shared/utils/*.test.ts # Shared utility/security/memory/workspace tests
   types/index.ts
   utils/diff.ts, diff.test.ts
   desktop/browser-preview-bridge.ts   # Stage 1 browser adapter (localStorage stubs)
@@ -192,11 +194,10 @@ See `security.md` for full security documentation including:
 
 | Suite | Tests | Pass | Fail |
 |-------|-------|------|------|
-| Chat store (`app-store.test.tsx`) | 8 | 8 | 0 |
-| Security (`security.test.ts`) | 22 | 22 | 0 |
-| Provider Verification (`provider-verification.test.ts`) | 18 | 18 | 0 |
-| Diff (`diff.test.ts`) | 3 | 3 | 0 |
-| **Total** | **51** | **51** | **0** |
+| Shared utilities (`shared/utils/*.test.ts`) | 60 | 60 | 0 |
+| App utilities (`src/utils/*.test.ts`) | 21 | 21 | 0 |
+| React stores (`src/stores/*.test.{ts,tsx}`) | 48 | 48 | 0 |
+| **Total** (`pnpm test`) | **129** | **129** | **0** |
 
 ---
 
@@ -204,10 +205,12 @@ See `security.md` for full security documentation including:
 
 | Check | Status |
 |-------|--------|
-| `tsc --noEmit` (lint) | **PASS** |
+| `pnpm test` (all tracked tests) | **PASS** (129/129) |
+| `pnpm run lint` (`tsc --noEmit`) | **PASS** |
 | `pnpm run build` (Vite web) | **PASS** |
 | `pnpm run build:electron` (esbuild) | **PASS** |
-| Pre-commit security gate | **PASS** |
+| `pnpm run build:icon` (icon generation) | **PASS** |
+| `pnpm run electron:build` (clean-checkout packaging) | **Configured** |
 | CI security pipeline | **Configured** |
 
 ---
