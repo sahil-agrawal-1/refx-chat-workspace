@@ -60,6 +60,24 @@ export interface ResolveOptions {
   platform?: NodeJS.Platform;
 }
 
+/**
+ * Resolve a path whose leaf may not exist yet. The nearest existing ancestor is
+ * realpath'ed, so a symlinked/junction parent cannot be used to escape the
+ * workspace when creating or moving a file.
+ */
+function realpathAllowingMissing(target: string): string {
+  let current = path.resolve(target);
+  const tail: string[] = [];
+  while (!fs.existsSync(current)) {
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    tail.unshift(path.basename(current));
+    current = parent;
+  }
+  const base = fs.existsSync(current) ? fs.realpathSync(current) : current;
+  return tail.length > 0 ? path.join(base, ...tail) : base;
+}
+
 export function resolveWithinWorkspace(
   inputPath: string,
   root: string,
@@ -84,6 +102,10 @@ export function resolveWithinWorkspace(
     real = fs.realpathSync(resolved);
   } else if (!allowMissing) {
     throw new Error('Path does not exist.');
+  } else {
+    // Resolve the nearest existing ancestor so missing paths cannot bypass
+    // containment checks through a symlinked parent directory.
+    real = realpathAllowingMissing(resolved);
   }
   const realCmp = toComparablePath(real, platform);
   const rootCmp = toComparablePath(root, platform);

@@ -296,7 +296,7 @@ export interface IFileSystemBridge {
   searchFiles(workspacePath: string, query: string): Promise<FileSearchResult[]>;
   searchText(workspacePath: string, query: string): Promise<TextSearchResult[]>;
   getFileMetadata(filePath: string): Promise<FileMetadata | null>;
-  setActiveWorkspace(workspacePath: string | null): Promise<void>;
+  setActiveWorkspace(workspacePath: string | null): Promise<boolean>;
   proposeFileChange(request: any): Promise<any>;
   getPendingChanges(): Promise<any[]>;
   approveFileChange(id: string): Promise<boolean>;

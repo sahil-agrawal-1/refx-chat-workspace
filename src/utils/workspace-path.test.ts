@@ -105,6 +105,35 @@ test('resolveWithinWorkspace allowMissing still blocks traversal', () => {
   assert.throws(() => resolveWithinWorkspace(p, workspace, { allowMissing: true }), /outside the selected workspace/);
 });
 
+test('resolveWithinWorkspace allowMissing resolves an existing nested parent', () => {
+  const p = path.join(workspace, 'nested', 'new-file.txt');
+  const resolved = resolveWithinWorkspace(p, workspace, { allowMissing: true });
+  assert.ok(resolved.toLowerCase().endsWith('new-file.txt'));
+});
+
+test('resolveWithinWorkspace allowMissing blocks a new file under a symlinked parent', () => {
+  const junctionPath = path.join(workspace, 'escape-parent');
+  try {
+    fs.symlinkSync(outside, junctionPath, 'junction');
+  } catch {
+    try {
+      fs.symlinkSync(outside, junctionPath, 'dir');
+    } catch {
+      // symlink creation may fail on this platform; skip
+      return;
+    }
+  }
+  try {
+    const missing = path.join(junctionPath, 'new-file.txt');
+    assert.throws(
+      () => resolveWithinWorkspace(missing, workspace, { allowMissing: true }),
+      /outside the selected workspace/
+    );
+  } finally {
+    try { fs.rmSync(junctionPath, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+});
+
 test('resolveWithinWorkspace empty input returns root', () => {
   const resolved = resolveWithinWorkspace('', workspace);
   assert.equal(resolved, workspace);

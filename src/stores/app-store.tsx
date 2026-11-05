@@ -284,7 +284,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (allowed) {
         let sessionId: string | undefined;
         if (req.interactive) {
-          const session = await desktopBridge.terminal.createSession('powershell.exe', selectedWorkspace?.path || 'No workspace opened');
+          const session = await desktopBridge.terminal.createSession('powershell.exe', selectedWorkspace?.path);
           setTerminalSessions((prev) => [...prev, session]);
           setActiveTerminalId(session.id);
           desktopBridge.terminal.onOutput(session.id, (data) => {
@@ -448,7 +448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Create an initial session if workspace or requested
       const session = await desktopBridge.terminal.createSession(
         'powershell.exe',
-        selectedWorkspace?.path || 'No workspace opened'
+        selectedWorkspace?.path
       );
       setTerminalSessions([session]);
       setActiveTerminalId(session.id);
@@ -469,23 +469,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initBridgeData();
   }, [selectedWorkspace]);
 
-  // Restore saved workspace on mount
+  // Restore the saved workspace only after the main process confirms it was
+  // explicitly authorized. A forged localStorage entry cannot grant access.
   useEffect(() => {
-    try {
-      const savedWs = localStorage.getItem('refx_active_workspace');
-      if (savedWs) {
-        const ws = JSON.parse(savedWs);
-        if (ws && ws.path) {
-          setSelectedWorkspace(ws);
-          setRecentWorkspaces((prev) => {
-            if (prev.some((p) => p.path === ws.path)) return prev;
-            return [ws, ...prev].slice(0, 5);
-          });
-        }
+    let cancelled = false;
+    const restore = async () => {
+      let ws: ProjectWorkspace | null = null;
+      try {
+        const savedWs = localStorage.getItem('refx_active_workspace');
+        ws = savedWs ? JSON.parse(savedWs) : null;
+      } catch {
+        ws = null;
       }
-    } catch {
-      // ignore
-    }
+      if (!ws?.path) return;
+
+      let authorized = false;
+      try {
+        authorized = Boolean(await desktopBridge.fs.setActiveWorkspace(ws.path));
+      } catch {
+        authorized = false;
+      }
+      if (cancelled) return;
+
+      if (!authorized) {
+        setSelectedWorkspace(null);
+        setFileTree([]);
+        try {
+          localStorage.removeItem('refx_active_workspace');
+        } catch {
+          // ignore
+        }
+        desktopBridge.database.saveAppSetting('selectedWorkspacePath', null).catch(() => {});
+        setNotification({
+          title: 'Workspace needs authorization',
+          message: 'Select the folder again with the folder picker to grant access.',
+          type: 'warning',
+        });
+        return;
+      }
+
+      setSelectedWorkspace(ws);
+      setRecentWorkspaces((prev) => {
+        if (prev.some((p) => p.path === ws!.path)) return prev;
+        return [ws!, ...prev].slice(0, 5);
+      });
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Restore file tree when workspace is available
@@ -850,6 +882,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selectedWorkspace?.path === pathValue) {
       setSelectedWorkspace(null);
       setFileTree([]);
+      try {
+        localStorage.setItem('refx_active_workspace', 'null');
+      } catch {
+        // ignore
+      }
+      desktopBridge.database.saveAppSetting('selectedWorkspacePath', null).catch(() => {});
       desktopBridge.fs.setActiveWorkspace(null).catch(() => {});
     }
     try {
@@ -860,14 +898,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setWorkspace = (ws: ProjectWorkspace | null) => {
-    setSelectedWorkspace(ws);
-    try {
-      localStorage.setItem('refx_active_workspace', JSON.stringify(ws));
-    } catch {
-      // Ignored
+    if (!ws) {
+      setSelectedWorkspace(null);
+      setFileTree([]);
+      try {
+        localStorage.setItem('refx_active_workspace', 'null');
+      } catch {
+        // Ignored
+      }
+      desktopBridge.database.saveAppSetting('selectedWorkspacePath', null).catch(() => {});
+      desktopBridge.fs.setActiveWorkspace(null).catch(() => {});
+      return;
     }
-    desktopBridge.database.saveAppSetting('selectedWorkspacePath', ws?.path || null).catch(() => {});
-    desktopBridge.fs.setActiveWorkspace(ws?.path || null).catch(() => {});
+
+    // The main process decides whether this root was explicitly authorized.
+    // A path coming from localStorage/recent list cannot grant access by itself.
+    void (async () => {
+      let authorized = false;
+      try {
+        authorized = Boolean(await desktopBridge.fs.setActiveWorkspace(ws.path));
+      } catch {
+        authorized = false;
+      }
+      if (!authorized) {
+        setNotification({
+          title: 'Workspace not authorized',
+          message: `Choose "${ws.name}" again with the folder picker to grant access.`,
+          type: 'warning',
+        });
+        return;
+      }
+      setSelectedWorkspace(ws);
+      try {
+        localStorage.setItem('refx_active_workspace', JSON.stringify(ws));
+      } catch {
+        // Ignored
+      }
+      desktopBridge.database.saveAppSetting('selectedWorkspacePath', ws.path).catch(() => {});
+    })();
   };
 
   const selectFile = (path: string | null) => {
@@ -1161,7 +1229,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createNewTerminalSession = async (shell = 'powershell.exe') => {
     const session = await desktopBridge.terminal.createSession(
       shell,
-      selectedWorkspace?.path || 'No workspace opened'
+      selectedWorkspace?.path
     );
     setTerminalSessions((prev) => [...prev, session]);
     setActiveTerminalId(session.id);

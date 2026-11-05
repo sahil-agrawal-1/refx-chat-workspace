@@ -266,6 +266,8 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       if (typeof window !== 'undefined' && window.desktop?.fs?.setActiveWorkspace) {
         return window.desktop.fs.setActiveWorkspace(workspacePath);
       }
+      // Browser preview has no real filesystem; there is nothing to authorize.
+      return true;
     },
     proposeFileChange: async (request: any) => {
       if (typeof window !== 'undefined' && window.desktop?.fs?.proposeFileChange) {
