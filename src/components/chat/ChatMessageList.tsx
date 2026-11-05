@@ -274,6 +274,8 @@ const ThinkingProcessCard: React.FC<{
   timestamp: number;
   isGenerating: boolean;
 }> = ({ activities, durationMs, timestamp, isGenerating }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grouped' | 'timeline'>('grouped');
   const [elapsed, setElapsed] = useState<number>(() => {
     if (durationMs) return Math.max(1, Math.round(durationMs / 1000));
     return Math.max(1, Math.round((Date.now() - timestamp) / 1000));
@@ -291,121 +293,245 @@ const ThinkingProcessCard: React.FC<{
     ? `${(durationMs / 1000).toFixed(1)}s`
     : `${elapsed}s`;
 
-  // Deduplicate and group consecutive or duplicate actions
-  const grouped: GroupedActivity[] = [];
+  // Categorize activities into clean groups
+  const fileReads: { name: string; fullPath: string; count: number }[] = [];
+  const fileWrites: { name: string; fullPath: string; type: string }[] = [];
+  const webSearches: string[] = [];
+  const webBrowses: string[] = [];
+
   for (const act of activities) {
-    const key = `${act.type}:${act.title}:${act.detail || ''}`;
-    const prev = grouped[grouped.length - 1];
-    if (prev && `${prev.type}:${prev.title}:${prev.detail || ''}` === key) {
-      prev.count += 1;
-      prev.status = act.status;
-    } else {
-      grouped.push({
-        id: act.id,
-        type: act.type,
-        title: act.title,
-        detail: act.detail,
-        status: act.status,
-        count: 1,
-      });
+    const detailClean = (act.detail || '').replace(/\\/g, '/');
+    const fileName = detailClean.split('/').pop() || detailClean || act.title;
+
+    if (act.type === 'file_read') {
+      const existing = fileReads.find((f) => f.name === fileName);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        fileReads.push({ name: fileName, fullPath: detailClean, count: 1 });
+      }
+    } else if (act.type === 'file_write') {
+      fileWrites.push({ name: fileName, fullPath: detailClean, type: act.title });
+    } else if (act.type === 'web_search') {
+      if (!webSearches.includes(act.detail || act.title)) {
+        webSearches.push(act.detail || act.title);
+      }
+    } else if (act.type === 'web_browse') {
+      if (!webBrowses.includes(act.detail || act.title)) {
+        webBrowses.push(act.detail || act.title);
+      }
     }
   }
 
-  const reads = activities.filter((a) => a.type === 'file_read').length;
-  const writes = activities.filter((a) => a.type === 'file_write').length;
-  const web = activities.filter((a) => a.type === 'web_search' || a.type === 'web_browse').length;
-  const commands = activities.filter((a) => a.type === 'terminal_run').length;
+  // Active step info while generating
+  const currentActive = isGenerating ? activities[activities.length - 1] : null;
+  const currentActionDetail = currentActive
+    ? (currentActive.detail ? currentActive.detail.replace(/\\/g, '/').split('/').pop() : currentActive.title)
+    : null;
+
+  const totalSteps = activities.length;
 
   return (
-    <details
-      className="bg-surface-raised/80 hover:bg-surface-raised border border-border/80 rounded-2xl p-3 text-xs transition-all shadow-xs group"
-      open={isGenerating}
-    >
-      <summary className="cursor-pointer select-none text-[11px] text-foreground flex items-center justify-between font-medium">
-        <div className="flex items-center gap-2 min-w-0">
-          <ChevronRight size={12} strokeWidth={2} className="group-open:rotate-90 transition-transform text-foreground-muted shrink-0" />
-          <div className="flex items-center gap-1.5 min-w-0">
+    <div className="my-2 rounded-2xl border border-border/80 bg-surface/80 backdrop-blur-md overflow-hidden transition-all shadow-xs">
+      {/* Header Bar */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-surface-raised/50 transition-colors select-none text-xs"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-surface border border-border/70 shrink-0">
             {isGenerating ? (
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping shrink-0" />
+              <Sparkles size={13} className="text-indigo-400 animate-spin" />
             ) : (
-              <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+              <CheckCircle2 size={13} className="text-emerald-400" />
             )}
-            <span className="font-semibold text-foreground truncate">
-              {isGenerating ? `Working for ${durationStr}...` : `Worked for ${durationStr}`}
-            </span>
-            <span className="text-foreground-muted font-normal">•</span>
-            <span className="text-foreground-muted font-normal">
-              {grouped.length} step{grouped.length > 1 ? 's' : ''} taken
-            </span>
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-foreground text-[12px]">
+                {isGenerating
+                  ? `Thinking & Working (${durationStr})`
+                  : `Explored ${totalSteps} step${totalSteps > 1 ? 's' : ''} in ${durationStr}`}
+              </span>
+
+              {/* Status chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {fileReads.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-mono border border-indigo-500/20">
+                    {fileReads.length} file{fileReads.length > 1 ? 's' : ''} read
+                  </span>
+                )}
+                {fileWrites.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono border border-amber-500/20">
+                    {fileWrites.length} edit{fileWrites.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {webSearches.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-mono border border-blue-500/20">
+                    {webSearches.length} search{webSearches.length > 1 ? 'es' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {isGenerating && currentActionDetail && (
+              <div className="text-[11px] text-foreground-muted flex items-center gap-1.5 mt-0.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                <span className="truncate">Active step: <code className="text-indigo-300 font-mono text-[10.5px]">{currentActionDetail}</code></span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Quick summary badges */}
-        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-          {reads > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-mono text-[10px] border border-indigo-500/20">
-              {reads} read{reads > 1 ? 's' : ''}
+        {/* Right Arrow / View Details */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-3 text-foreground-muted text-[11px]">
+          <span className="hidden sm:inline hover:text-foreground">{isOpen ? 'Hide' : 'Details'}</span>
+          <ChevronRight
+            size={13}
+            strokeWidth={2}
+            className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+          />
+        </div>
+      </div>
+
+      {/* Expanded Content Area */}
+      {isOpen && (
+        <div className="border-t border-border/60 p-3 bg-surface-raised/30 text-xs animate-in fade-in duration-150">
+          {/* Subheader: Toggle between Compact Chips and Timeline */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
+            <span className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider">
+              Inspection Details
             </span>
+            <div className="flex items-center gap-1 bg-surface p-0.5 rounded-lg border border-border/60 text-[10px]">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setViewMode('grouped'); }}
+                className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                  viewMode === 'grouped' ? 'bg-surface-raised text-foreground font-medium' : 'text-foreground-muted hover:text-foreground'
+                }`}
+              >
+                Compact Files
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setViewMode('timeline'); }}
+                className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                  viewMode === 'timeline' ? 'bg-surface-raised text-foreground font-medium' : 'text-foreground-muted hover:text-foreground'
+                }`}
+              >
+                Chronological Steps
+              </button>
+            </div>
+          </div>
+
+          {/* Mode 1: Compact Files Grid */}
+          {viewMode === 'grouped' && (
+            <div className="space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+              {fileReads.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <FileCode size={11} className="text-indigo-400" />
+                    <span>Inspected Files ({fileReads.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {fileReads.map((f, idx) => (
+                      <span
+                        key={idx}
+                        title={f.fullPath}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border/80 text-[11px] font-mono text-foreground hover:border-indigo-500/40 transition-colors"
+                      >
+                        <FileCode size={11} className="text-indigo-400 shrink-0" />
+                        <span className="truncate max-w-[180px]">{f.name}</span>
+                        {f.count > 1 && (
+                          <span className="text-[9px] px-1 rounded bg-indigo-500/15 text-indigo-300 font-semibold">
+                            {f.count}x
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {fileWrites.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <FileEdit size={11} className="text-amber-400" />
+                    <span>Modifications ({fileWrites.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {fileWrites.map((f, idx) => (
+                      <span
+                        key={idx}
+                        title={f.fullPath}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-300"
+                      >
+                        <FileEdit size={11} className="text-amber-400 shrink-0" />
+                        <span>{f.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {webSearches.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Globe size={11} className="text-blue-400" />
+                    <span>Web Searches ({webSearches.length})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {webSearches.map((q, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[11px] text-blue-300"
+                      >
+                        <Globe size={11} className="text-blue-400 shrink-0" />
+                        <span className="truncate max-w-[240px]">"{q}"</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-          {writes > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-mono text-[10px] border border-amber-500/20">
-              {writes} edit{writes > 1 ? 's' : ''}
-            </span>
-          )}
-          {web > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-mono text-[10px] border border-blue-500/20">
-              {web} web
-            </span>
-          )}
-          {commands > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] border border-emerald-500/20">
-              {commands} run
-            </span>
+
+          {/* Mode 2: Chronological Timeline View */}
+          {viewMode === 'timeline' && (
+            <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1.5 pr-1 pl-1">
+              {activities.map((step, idx) => {
+                const detailClean = (step.detail || '').replace(/\\/g, '/');
+                const fileName = detailClean.split('/').pop() || detailClean;
+                return (
+                  <div key={step.id || idx} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 rounded-lg hover:bg-surface/60 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="p-1 rounded-md bg-surface border border-border shrink-0">
+                        {step.type === 'file_read' && <FileCode size={11} className="text-indigo-400" />}
+                        {step.type === 'file_write' && <FileEdit size={11} className="text-amber-400" />}
+                        {step.type === 'web_search' && <Globe size={11} className="text-blue-400" />}
+                        {step.type === 'web_browse' && <ExternalLink size={11} className="text-purple-400" />}
+                        {step.type === 'terminal_run' && <Terminal size={11} className="text-emerald-400" />}
+                      </span>
+                      <span className="font-medium text-foreground truncate">{step.title}</span>
+                      {step.detail && (
+                        <span className="font-mono text-[10px] text-foreground-muted truncate max-w-[280px]" title={step.detail}>
+                          {fileName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="shrink-0 ml-2">
+                      {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400" />}
+                      {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse block" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-      </summary>
-
-      {/* Steps List */}
-      <div className="mt-3 pl-3 ml-1.5 border-l-2 border-border/60 space-y-2 pt-1">
-        {grouped.map((step) => {
-          const detailClean = (step.detail || '').replace(/\\/g, '/');
-          const fileName = detailClean.split('/').pop() || detailClean;
-
-          return (
-            <div key={step.id} className="flex items-center justify-between gap-2 text-[11px] text-foreground-muted py-0.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="shrink-0 p-1 rounded-md bg-surface border border-border">
-                  {step.type === 'file_read' && <FileCode size={12} className="text-indigo-400" />}
-                  {step.type === 'file_write' && <FileEdit size={12} className="text-amber-400" />}
-                  {step.type === 'web_search' && <Globe size={12} className="text-blue-400" />}
-                  {step.type === 'web_browse' && <ExternalLink size={12} className="text-purple-400" />}
-                  {step.type === 'terminal_run' && <Terminal size={12} className="text-emerald-400" />}
-                </span>
-                <span className="font-medium text-foreground truncate">{step.title}</span>
-                {step.detail && (
-                  <span
-                    className="font-mono text-[10px] text-foreground-muted/80 truncate max-w-[280px] sm:max-w-[400px] bg-surface px-1.5 py-0.5 rounded border border-border/50"
-                    title={step.detail}
-                  >
-                    {fileName !== detailClean ? `.../${fileName}` : step.detail}
-                  </span>
-                )}
-                {step.count > 1 && (
-                  <span className="px-1.5 py-0.5 rounded bg-surface-raised border border-border text-[9px] font-mono text-indigo-400 font-semibold">
-                    {step.count}x
-                  </span>
-                )}
-              </div>
-
-              <div className="shrink-0 ml-2">
-                {step.status === 'completed' && <CheckCircle2 size={12} className="text-emerald-400" />}
-                {step.status === 'running' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse block" />}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </details>
+      )}
+    </div>
   );
 };
 

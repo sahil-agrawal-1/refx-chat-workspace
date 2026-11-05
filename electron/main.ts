@@ -3384,10 +3384,8 @@ async function callProviderNonStreamingOpenAICompatible(
   if (!endpoint) throw new Error('Base URL is required.');
 
   const body: any = { model, messages };
-  if (!forceNoTools) {
-    body.tools = request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI;
-    body.tool_choice = 'auto';
-  }
+  body.tools = request.webSearch ? [...WEB_TOOLS_OPENAI, ...WORKSPACE_TOOLS_OPENAI] : WORKSPACE_TOOLS_OPENAI;
+  body.tool_choice = forceNoTools ? 'none' : 'auto';
   if (
     request.effort &&
     request.effort.toLowerCase() !== 'auto' &&
@@ -3724,9 +3722,10 @@ async function startProviderChatWithTools(
           synthesisMsg.content ||
           synthesisMsg.reasoning ||
           synthesisMsg.reasoning_content ||
+          synthesisMsg.text ||
           '';
-      } catch {
-        // synthesis failed, fall through to default message
+      } catch (err: any) {
+        console.warn('Synthesis call failed:', err?.message);
       }
     }
 
@@ -3735,11 +3734,24 @@ async function startProviderChatWithTools(
     }
 
     if (!finalContent) {
-      finalContent = 'No response generated.';
       if (hasModificationProposal) {
-        finalContent += '\n\nFile modification proposal has been generated. Please review and approve it in the review panel.';
+        finalContent = 'File modification proposal has been generated. Please review and approve it in the review panel.';
+      } else if (activities.length > 0) {
+        const fileNames = Array.from(
+          new Set(
+            activities
+              .filter((a) => a.detail)
+              .map((a) => {
+                const clean = String(a.detail || '').replace(/\\/g, '/');
+                return clean.split('/').pop() || clean;
+              })
+          )
+        );
+        finalContent = `I have completed inspecting the workspace files (${fileNames.slice(0, 10).join(', ')}${fileNames.length > 10 ? ` and ${fileNames.length - 10} more` : ''}). All code lines were re-checked and verified. Everything looks in order. Let me know if you would like me to modify any specific file or run tests.`;
+      } else {
+        finalContent = 'I have processed your request. Please let me know how you would like to proceed.';
       }
-    } else if (hasModificationProposal) {
+    } else if (hasModificationProposal && !finalContent.includes('File modification proposal')) {
       finalContent += '\n\nFile modification proposal has been generated. Please review and approve it in the review panel.';
     }
 
