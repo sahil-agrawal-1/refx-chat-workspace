@@ -416,7 +416,8 @@ function applyFileChange(id: string): boolean {
 
   // Recheck the workspace boundary at apply time. Pending changes are persisted
   // to disk and may be old, so the proposal-time check is not sufficient.
-  const targetPath = resolveWithinWorkspace(change.filePath);
+  // A create targets a file that does not exist yet.
+  const targetPath = resolveWithinWorkspace(change.filePath, change.operationType === 'create');
   let newPath: string | undefined;
   if (change.operationType === 'rename' || change.operationType === 'move') {
     if (!change.newPath) throw new Error('Missing newPath.');
