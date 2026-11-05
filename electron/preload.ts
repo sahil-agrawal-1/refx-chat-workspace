@@ -152,6 +152,7 @@ const desktopAPI: IDesktopAPI = {
     deleteAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.DELETE_APP_MEMORY, id),
     toggleAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.TOGGLE_APP_MEMORY, id),
     clearAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.CLEAR_APP_MEMORIES),
+    retrieveMemories: (options: any) => ipcRenderer.invoke(MEM_CHANNELS.RETRIEVE, options),
     rebuildMemoryIndex: () => ipcRenderer.invoke(MEM_CHANNELS.REBUILD_INDEX),
   },
   fs: {

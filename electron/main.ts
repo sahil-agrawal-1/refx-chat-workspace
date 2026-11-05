@@ -1363,6 +1363,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => memory.deleteAppMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.TOGGLE_APP_MEMORY, async (_event, id: string) => memory.toggleAppMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.RETRIEVE, async (_event, options: any) => memory.retrieveMemories(options));
   ipcMain.handle(MEMORY_IPC_CHANNELS.REBUILD_INDEX, async () => memory.forceRebuildMemoryIndex());
 
   // Terminal IPC handlers
@@ -3324,7 +3325,7 @@ const WORKSPACE_TOOLS_OPENAI = [
     type: 'function',
     function: {
       name: 'search_memory',
-      description: 'Search stored user preferences, coding conventions, project requirements, and past learnings from the memory manager.',
+      description: 'Search stored user preferences, coding conventions, project requirements, and past learnings. Results are ranked and include score, matched terms, and retrieval reasons.',
       parameters: {
         type: 'object',
         properties: {

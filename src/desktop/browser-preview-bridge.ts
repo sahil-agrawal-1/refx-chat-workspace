@@ -16,6 +16,11 @@ import type {
   ProviderConfig,
   ProviderVerificationResult,
 } from 'shared/contracts/desktop-bridge';
+import {
+  buildMemoryContext,
+  rankMemoryCandidates,
+  type MemoryCandidate,
+} from 'shared/utils/memory-retrieval';
 
 export const INITIAL_PROVIDERS: ProviderConfig[] = [
   {
@@ -128,6 +133,8 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
     globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory',
     storageBackend: 'file_index',
     maxEntries: 1000,
+    retrievalTokenBudget: 1200,
+    retrievalMaxResults: 8,
   };
 
   private taskMemories: TaskMemoryEntry[] = [];
@@ -407,6 +414,59 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.appMemories = [];
       this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
+    },
+    retrieveMemories: async (options) => {
+      const includeApp = options.includeAppMemory !== false;
+      const includeTask = options.includeTaskMemory !== false;
+      const includeCrossTask = options.includeCrossTask === true;
+      const candidates: MemoryCandidate[] = [
+        ...(includeApp ? this.appMemories : [])
+          .filter((memory) => memory.enabled !== false)
+          .map((memory) => ({ ...memory, scope: 'app' as const })),
+        ...(includeTask ? this.taskMemories : [])
+          .filter(
+            (memory) =>
+              includeCrossTask || !options.conversationId || memory.taskId === options.conversationId
+          )
+          .map((memory) => ({ ...memory, scope: 'task' as const })),
+      ];
+      const maxResults = Math.min(Math.max(options.maxResults ?? 8, 1), 30);
+      const tokenBudget = Math.min(Math.max(options.tokenBudget ?? 1200, 200), 16000);
+      const ranked = rankMemoryCandidates(candidates, {
+        query: options.query,
+        currentTaskId: options.conversationId || null,
+      }).slice(0, maxResults);
+      const packed = buildMemoryContext(ranked, tokenBudget);
+
+      if (options.trackUsage !== false && packed.usedResults.length > 0) {
+        const appIds = new Set(
+          packed.usedResults.filter((result) => result.scope === 'app').map((result) => result.id)
+        );
+        const taskIds = new Set(
+          packed.usedResults.filter((result) => result.scope === 'task').map((result) => result.id)
+        );
+        const now = Date.now();
+        this.appMemories = this.appMemories.map((memory) =>
+          appIds.has(memory.id)
+            ? { ...memory, usageCount: (memory.usageCount || 0) + 1, lastUsedAt: now }
+            : memory
+        );
+        this.taskMemories = this.taskMemories.map((memory) =>
+          taskIds.has(memory.id)
+            ? { ...memory, usageCount: (memory.usageCount || 0) + 1, lastUsedAt: now }
+            : memory
+        );
+        this.saveToStorage('refx_app_memories', this.appMemories);
+        this.saveToStorage('refx_task_memories', this.taskMemories);
+      }
+
+      return {
+        results: packed.usedResults,
+        context: packed.context,
+        usedTokens: packed.usedTokens,
+        budgetTokens: tokenBudget,
+        totalCandidates: candidates.length,
+      };
     },
     rebuildMemoryIndex: async () => ({
       success: true,

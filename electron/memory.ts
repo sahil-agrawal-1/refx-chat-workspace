@@ -3,6 +3,17 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import * as db from './database';
+import {
+  buildMemoryContext,
+  rankMemoryCandidates,
+  redactSensitiveText,
+  type MemoryCandidate,
+} from '../shared/utils/memory-retrieval';
+import type {
+  MemoryRetrievalOptions,
+  MemoryRetrievalResponse,
+  MemoryRetrievalResult,
+} from '../shared/contracts/desktop-bridge';
 
 const DEFAULT_MEMORY_DIR = '%APPDATA%\\Refx AI\\memory';
 
@@ -90,6 +101,8 @@ function getConfig(): any {
     storageBackend:
       base.storageBackend === 'json_file' ? 'json_file' : 'file_index',
     maxEntries: base.maxEntries ?? 1000,
+    retrievalTokenBudget: Math.min(Math.max(Number(base.retrievalTokenBudget) || 1200, 200), 16000),
+    retrievalMaxResults: Math.min(Math.max(Number(base.retrievalMaxResults) || 8, 1), 30),
   };
 }
 
@@ -446,9 +459,11 @@ export function saveTaskMemory(entry: any): any {
   const taskId = entry.taskId || 'default-task';
   const entries = readTaskEntries(taskId);
   const now = Date.now();
-  const title = entry.title || '';
-  const content = entry.content || '';
-  const tags = Array.isArray(entry.tags) ? entry.tags : [];
+  const title = redactSensitiveText(entry.title || '');
+  const content = redactSensitiveText(entry.content || '');
+  const tags = Array.isArray(entry.tags)
+    ? entry.tags.map((tag: any) => redactSensitiveText(String(tag)))
+    : [];
   const contentHash = hashContent(title, content);
 
   const duplicate = db.findMemoryIndexByHash('task', safeId(taskId), contentHash);
@@ -461,6 +476,9 @@ export function saveTaskMemory(entry: any): any {
     content,
     tags,
     contentHash,
+    confidence: typeof entry.confidence === 'number' ? entry.confidence : 0.75,
+    usageCount: 0,
+    lastUsedAt: 0,
     createdAt: now,
     updatedAt: now,
   };
@@ -491,6 +509,8 @@ export function updateTaskMemory(conversationId: string, id: string, changes: an
   const idx = entries.findIndex((entry: any) => entry.id === id);
   if (idx < 0) return null;
   const updated = { ...entries[idx], ...changes, updatedAt: Date.now() };
+  updated.title = redactSensitiveText(updated.title || '');
+  updated.content = redactSensitiveText(updated.content || '');
   updated.contentHash = hashContent(updated.title || '', updated.content || '');
   entries[idx] = updated;
   writeTaskEntries(conversationId, entries);
@@ -535,8 +555,13 @@ export function searchMemories(query: string, category?: string): any[] {
   syncMemoryIndexIfNeeded();
 
   try {
-    const results = db.searchMemoryIndex(rawQuery, { category, limit: 20 });
-    if (results.length > 0 || !rawQuery) return results;
+    const rows = db.searchMemoryIndex(rawQuery, { category, limit: 60 });
+    if (rows.length > 0 || !rawQuery) {
+      return rankMemoryCandidates(rows.map(toMemoryCandidate), {
+        query: rawQuery,
+        now: Date.now(),
+      }).slice(0, 20);
+    }
   } catch (err) {
     console.error('[Memory] Indexed search failed; falling back to files:', err);
   }
@@ -544,14 +569,168 @@ export function searchMemories(query: string, category?: string): any[] {
   return fallbackSearchMemories(rawQuery, category);
 }
 
+function toMemoryCandidate(row: any): MemoryCandidate {
+  return {
+    id: String(row.id),
+    scope: row.scope === 'task' ? 'task' : 'app',
+    taskId: row.taskId,
+    category: row.category,
+    title: row.title,
+    summary: row.summary,
+    details: row.details,
+    content: row.content,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    confidence: row.confidence,
+    usageCount: row.usageCount,
+    lastUsedAt: row.lastUsedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    expiresAt: row.expiresAt,
+    rank: row.rank,
+  };
+}
+
+function markMemoriesUsed(results: MemoryRetrievalResult[]): void {
+  if (!results.length) return;
+  const now = Date.now();
+  const appIds = new Set<string>();
+  const taskGroups = new Map<string, Set<string>>();
+
+  for (const result of results) {
+    if (result.scope === 'app') {
+      appIds.add(result.id);
+    } else if (result.scope === 'task' && result.taskId) {
+      const ids = taskGroups.get(result.taskId) || new Set<string>();
+      ids.add(result.id);
+      taskGroups.set(result.taskId, ids);
+    }
+  }
+
+  if (appIds.size > 0) {
+    const entries = readAppEntries();
+    let changed = false;
+    for (const entry of entries) {
+      if (!appIds.has(String(entry.id))) continue;
+      entry.usageCount = Math.max(0, Number(entry.usageCount) || 0) + 1;
+      entry.lastUsedAt = now;
+      changed = true;
+    }
+    if (changed) {
+      writeAppEntries(entries);
+      indexAppEntries(entries);
+    }
+  }
+
+  for (const [taskId, ids] of taskGroups) {
+    const entries = readTaskEntries(taskId);
+    let changed = false;
+    for (const entry of entries) {
+      if (!ids.has(String(entry.id))) continue;
+      entry.usageCount = Math.max(0, Number(entry.usageCount) || 0) + 1;
+      entry.lastUsedAt = now;
+      changed = true;
+    }
+    if (changed) {
+      writeTaskEntries(taskId, entries);
+      indexTaskEntries(taskId, entries);
+    }
+  }
+}
+
+/**
+ * Ranked, token-budgeted retrieval used for per-message context injection and
+ * for the search_memory tool. The result carries retrieval reasons so the UI
+ * can explain why a memory was selected.
+ */
+export function retrieveMemories(options: MemoryRetrievalOptions): MemoryRetrievalResponse {
+  const query = String(options?.query || '').trim();
+  const config = getConfig();
+  const tokenBudget = Math.min(
+    Math.max(Number(options?.tokenBudget) || Number(config.retrievalTokenBudget) || 1200, 200),
+    16000
+  );
+  const maxResults = Math.min(
+    Math.max(Number(options?.maxResults) || Number(config.retrievalMaxResults) || 8, 1),
+    30
+  );
+  const currentTaskId = options?.conversationId ? safeId(options.conversationId) : null;
+  const includeApp = options?.includeAppMemory !== false;
+  const includeTask = options?.includeTaskMemory !== false;
+  const recallIntent = /previous project|requirements|preference|remember|earlier|before|last time|other conversation/i.test(
+    query
+  );
+  const includeCrossTask = options?.includeCrossTask ?? recallIntent;
+
+  syncMemoryIndexIfNeeded();
+
+  const candidates = new Map<string, MemoryCandidate>();
+  const addRows = (rows: any[]) => {
+    for (const row of rows) {
+      if (!row || !row.id || candidates.has(String(row.id))) continue;
+      candidates.set(String(row.id), toMemoryCandidate(row));
+    }
+  };
+
+  if (includeApp) {
+    addRows(db.searchMemoryIndex(query, { scope: 'app', limit: 60 }));
+    if (query) addRows(db.searchMemoryIndex('', { scope: 'app', limit: 30 }));
+  }
+
+  if (includeTask) {
+    if (currentTaskId) {
+      addRows(db.searchMemoryIndex(query, { scope: 'task', taskId: currentTaskId, limit: 60 }));
+      if (query) addRows(db.searchMemoryIndex('', { scope: 'task', taskId: currentTaskId, limit: 30 }));
+    }
+    if (includeCrossTask) {
+      addRows(db.searchMemoryIndex(query, { scope: 'task', limit: 60 }));
+    }
+  }
+
+  const ranked = rankMemoryCandidates([...candidates.values()], {
+    query,
+    currentTaskId,
+    now: Date.now(),
+  }).slice(0, maxResults);
+
+  const packed = buildMemoryContext(ranked, tokenBudget);
+
+  if (options?.trackUsage !== false && packed.usedResults.length > 0) {
+    try {
+      markMemoriesUsed(packed.usedResults);
+    } catch (err) {
+      console.error('[Memory] Failed to record memory usage:', err);
+    }
+  }
+
+  try {
+    db.logMemoryRetrieval(
+      options?.conversationId || null,
+      query,
+      packed.usedResults.map((result) => result.id),
+      tokenBudget,
+      packed.usedTokens
+    );
+  } catch (err) {
+    console.error('[Memory] Failed to record retrieval event:', err);
+  }
+
+  return {
+    results: packed.usedResults,
+    context: packed.context,
+    usedTokens: packed.usedTokens,
+    budgetTokens: tokenBudget,
+    totalCandidates: candidates.size,
+  };
+}
+
 export function saveAppMemory(entry: any): any {
   syncMemoryIndexIfNeeded();
   const entries = readAppEntries();
   const now = Date.now();
   const category = entry.category || 'preference';
-  const title = entry.title || '';
-  const summary = entry.summary || '';
-  const details = entry.details || '';
+  const title = redactSensitiveText(entry.title || '');
+  const summary = redactSensitiveText(entry.summary || '');
+  const details = redactSensitiveText(entry.details || '');
   const contentHash = hashContent(category, title, summary, details);
 
   const duplicate = db.findMemoryIndexByHash('app', null, contentHash);
@@ -565,6 +744,9 @@ export function saveAppMemory(entry: any): any {
     details,
     enabled: entry.enabled ?? true,
     contentHash,
+    confidence: typeof entry.confidence === 'number' ? entry.confidence : 0.7,
+    usageCount: 0,
+    lastUsedAt: 0,
     createdAt: now,
     updatedAt: now,
   };

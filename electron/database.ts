@@ -31,6 +31,26 @@ let initialized = false;
 
 const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
   {
+    version: 4,
+    name: 'memory_retrieval_log',
+    sql: `
+      CREATE TABLE IF NOT EXISTS memory_retrieval_log (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT,
+        query TEXT NOT NULL,
+        selected_ids TEXT NOT NULL,
+        token_budget INTEGER NOT NULL,
+        used_tokens INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_retrieval_conversation
+        ON memory_retrieval_log(conversation_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_memory_retrieval_created
+        ON memory_retrieval_log(created_at);
+    `,
+  },
+  {
     version: 3,
     name: 'memory_index',
     sql: `
@@ -984,7 +1004,7 @@ export function clearAppMemories(): boolean {
 
 export function getMemoryConfig(): any {
   const database = getDatabase();
-  const defaultConfig = { autoMemoryEnabled: false, globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory', storageBackend: 'file_index', maxEntries: 1000 };
+  const defaultConfig = { autoMemoryEnabled: false, globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory', storageBackend: 'file_index', maxEntries: 1000, retrievalTokenBudget: 1200, retrievalMaxResults: 8 };
   if (!database) return defaultConfig;
   const row = database.prepare('SELECT value FROM app_settings WHERE key = ?').get('memory_config') as any;
   if (!row) return defaultConfig;
@@ -1378,4 +1398,62 @@ export function getMemoryOperationLog(memoryId?: string, limit = 100): any[] {
     source: row.source,
     createdAt: row.created_at,
   }));
+}
+
+export function logMemoryRetrieval(
+  conversationId: string | null,
+  query: string,
+  selectedIds: string[],
+  tokenBudget: number,
+  usedTokens: number
+): void {
+  const database = getDatabase();
+  if (!database) return;
+  database
+    .prepare(
+      `INSERT INTO memory_retrieval_log
+         (id, conversation_id, query, selected_ids, token_budget, used_tokens, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      `mem-retrieval-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      conversationId,
+      query,
+      JSON.stringify(selectedIds),
+      Math.max(0, Math.floor(tokenBudget)),
+      Math.max(0, Math.floor(usedTokens)),
+      Date.now()
+    );
+}
+
+export function getMemoryRetrievalLog(conversationId?: string, limit = 100): any[] {
+  const database = getDatabase();
+  if (!database) return [];
+  const cappedLimit = Math.min(Math.max(limit, 1), 500);
+  const rows = conversationId
+    ? (database
+        .prepare('SELECT * FROM memory_retrieval_log WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?')
+        .all(conversationId, cappedLimit) as any[])
+    : (database
+        .prepare('SELECT * FROM memory_retrieval_log ORDER BY created_at DESC LIMIT ?')
+        .all(cappedLimit) as any[]);
+
+  return rows.map((row) => {
+    let selectedIds: string[] = [];
+    try {
+      const parsed = JSON.parse(row.selected_ids || '[]');
+      if (Array.isArray(parsed)) selectedIds = parsed.map((value) => String(value));
+    } catch {
+      // ignore malformed log row
+    }
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      query: row.query,
+      selectedIds,
+      tokenBudget: row.token_budget,
+      usedTokens: row.used_tokens,
+      createdAt: row.created_at,
+    };
+  });
 }

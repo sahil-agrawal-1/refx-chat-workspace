@@ -86,6 +86,10 @@ export interface TaskMemoryEntry {
   title: string;
   content: string;
   tags: string[];
+  confidence?: number;
+  usageCount?: number;
+  lastUsedAt?: number;
+  expiresAt?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -97,8 +101,52 @@ export interface AppMemoryEntry {
   summary: string;
   details: string;
   enabled: boolean;
+  confidence?: number;
+  usageCount?: number;
+  lastUsedAt?: number;
+  expiresAt?: number;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface MemoryRetrievalOptions {
+  query: string;
+  conversationId?: string | null;
+  tokenBudget?: number;
+  maxResults?: number;
+  includeAppMemory?: boolean;
+  includeTaskMemory?: boolean;
+  includeCrossTask?: boolean;
+  trackUsage?: boolean;
+}
+
+export interface MemoryRetrievalResult {
+  id: string;
+  scope: 'app' | 'task';
+  taskId?: string;
+  category?: string;
+  title: string;
+  text: string;
+  summary?: string;
+  details?: string;
+  content?: string;
+  tags?: string[];
+  score: number;
+  reasons: string[];
+  matchedTerms: string[];
+  confidence: number;
+  usageCount: number;
+  lastUsedAt?: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface MemoryRetrievalResponse {
+  results: MemoryRetrievalResult[];
+  context: string;
+  usedTokens: number;
+  budgetTokens: number;
+  totalCandidates: number;
 }
 
 export interface MemoryConfig {
@@ -106,6 +154,8 @@ export interface MemoryConfig {
   globalMemoryDirectory: string;
   storageBackend: 'file_index' | 'sqlite' | 'json_file';
   maxEntries: number;
+  retrievalTokenBudget?: number;
+  retrievalMaxResults?: number;
 }
 
 export type ProviderConnectionStatus =
@@ -258,6 +308,7 @@ export interface IMemoryBridge {
   deleteAppMemory(id: string): Promise<boolean>;
   toggleAppMemory(id: string): Promise<boolean>;
   clearAppMemories(): Promise<boolean>;
+  retrieveMemories(options: MemoryRetrievalOptions): Promise<MemoryRetrievalResponse>;
   rebuildMemoryIndex(): Promise<{ success: boolean; indexed: number; fts: boolean; rebuilt: boolean; error?: string }>;
 }
 
@@ -487,6 +538,7 @@ export const MEMORY_IPC_CHANNELS = {
   DELETE_APP_MEMORY: 'desktop:memDeleteAppMemory',
   TOGGLE_APP_MEMORY: 'desktop:memToggleAppMemory',
   CLEAR_APP_MEMORIES: 'desktop:memClearAppMemories',
+  RETRIEVE: 'desktop:memRetrieve',
   REBUILD_INDEX: 'desktop:memRebuildIndex',
 } as const;
 
