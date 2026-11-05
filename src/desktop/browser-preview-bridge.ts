@@ -125,8 +125,8 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   private memoryConfig: MemoryConfig = {
     autoMemoryEnabled: false,
-    globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
-    storageBackend: 'sqlite',
+    globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory',
+    storageBackend: 'file_index',
     maxEntries: 1000,
   };
 
@@ -395,11 +395,25 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
     },
+    toggleAppMemory: async (id: string): Promise<boolean> => {
+      const target = this.appMemories.find((m) => m.id === id);
+      if (!target) return false;
+      target.enabled = target.enabled === false;
+      target.updatedAt = Date.now();
+      this.saveToStorage('refx_app_memories', this.appMemories);
+      return true;
+    },
     clearAppMemories: async (): Promise<boolean> => {
       this.appMemories = [];
       this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
     },
+    rebuildMemoryIndex: async () => ({
+      success: true,
+      indexed: this.taskMemories.length + this.appMemories.length,
+      fts: false,
+      rebuilt: true,
+    }),
   };
 
   public provider: IProviderBridge = {

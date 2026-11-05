@@ -1361,7 +1361,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(MEMORY_IPC_CHANNELS.GET_APP_MEMORIES, async () => memory.getAppMemories());
   ipcMain.handle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) => memory.saveAppMemory(entry));
   ipcMain.handle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) => memory.deleteAppMemory(id));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.TOGGLE_APP_MEMORY, async (_event, id: string) => memory.toggleAppMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.REBUILD_INDEX, async () => memory.forceRebuildMemoryIndex());
 
   // Terminal IPC handlers
   ipcMain.handle(TERMINAL_IPC_CHANNELS.CREATE, async (event, shell?: string, cwd?: string) => {
@@ -2787,6 +2789,9 @@ if (!hasLock) {
     registerIpcHandlers();
     createSplashWindow();
     createWindow();
+    // Build the derived memory search index after the window is created so a
+    // large memory directory never delays application startup.
+    setImmediate(() => memory.initializeMemoryIndex());
 
     const startTime = Date.now();
     const showMain = () => {

@@ -150,7 +150,9 @@ const desktopAPI: IDesktopAPI = {
     getAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.GET_APP_MEMORIES),
     saveAppMemory: (entry: any) => ipcRenderer.invoke(MEM_CHANNELS.SAVE_APP_MEMORY, entry),
     deleteAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.DELETE_APP_MEMORY, id),
+    toggleAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.TOGGLE_APP_MEMORY, id),
     clearAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.CLEAR_APP_MEMORIES),
+    rebuildMemoryIndex: () => ipcRenderer.invoke(MEM_CHANNELS.REBUILD_INDEX),
   },
   fs: {
     selectFolderDialog: (defaultPath?: string) => ipcRenderer.invoke(IPC_CHANNELS.SELECT_WORKSPACE, defaultPath),

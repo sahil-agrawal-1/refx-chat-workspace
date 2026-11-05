@@ -104,7 +104,7 @@ export interface AppMemoryEntry {
 export interface MemoryConfig {
   autoMemoryEnabled: boolean;
   globalMemoryDirectory: string;
-  storageBackend: 'sqlite' | 'json_file';
+  storageBackend: 'file_index' | 'sqlite' | 'json_file';
   maxEntries: number;
 }
 
@@ -253,11 +253,12 @@ export interface IMemoryBridge {
   saveTaskMemory(entry: Omit<TaskMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<TaskMemoryEntry>;
   updateTaskMemory(conversationId: string, id: string, changes: any): Promise<TaskMemoryEntry | null>;
   deleteTaskMemory(id: string): Promise<boolean>;
-  deleteTaskMemory(id: string): Promise<boolean>;
   getAppMemories(): Promise<AppMemoryEntry[]>;
   saveAppMemory(entry: Omit<AppMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<AppMemoryEntry>;
   deleteAppMemory(id: string): Promise<boolean>;
+  toggleAppMemory(id: string): Promise<boolean>;
   clearAppMemories(): Promise<boolean>;
+  rebuildMemoryIndex(): Promise<{ success: boolean; indexed: number; fts: boolean; rebuilt: boolean; error?: string }>;
 }
 
 export interface IProviderBridge {
@@ -484,7 +485,9 @@ export const MEMORY_IPC_CHANNELS = {
   GET_APP_MEMORIES: 'desktop:memGetAppMemories',
   SAVE_APP_MEMORY: 'desktop:memSaveAppMemory',
   DELETE_APP_MEMORY: 'desktop:memDeleteAppMemory',
+  TOGGLE_APP_MEMORY: 'desktop:memToggleAppMemory',
   CLEAR_APP_MEMORIES: 'desktop:memClearAppMemories',
+  REBUILD_INDEX: 'desktop:memRebuildIndex',
 } as const;
 
 export const DATABASE_IPC_CHANNELS = {

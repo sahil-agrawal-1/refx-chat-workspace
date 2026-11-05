@@ -1,9 +1,15 @@
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import * as db from './database';
 
 const DEFAULT_MEMORY_DIR = '%APPDATA%\\Refx AI\\memory';
+
+interface IndexSyncState {
+  signature: string;
+  indexedAt: number;
+}
 
 function expandPath(p: string): string {
   return (p || DEFAULT_MEMORY_DIR).replace(/%APPDATA%/gi, app.getPath('appData'));
@@ -17,12 +23,61 @@ function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+/**
+ * Primary memory files are the source of truth. Each write keeps a `.bak` of
+ * the previous version and writes through a temp file before renaming, so a
+ * crash or power loss cannot leave a half-written JSON document behind.
+ */
 function atomicWrite(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
   ensureDir(dir);
   const tmp = filePath + '.tmp';
+  const bak = filePath + '.bak';
   fs.writeFileSync(tmp, content, 'utf8');
+  // Keep a latest-known-good recovery copy of exactly what we are about to
+  // publish. If the primary file is later damaged, the backup still contains
+  // the most recent successful write rather than an older generation.
+  try {
+    fs.copyFileSync(tmp, bak);
+  } catch {
+    // A failed backup must not block the primary write.
+  }
   fs.renameSync(tmp, filePath);
+}
+
+/**
+ * Reads JSON from the primary file, then the pending temp file, then the last
+ * known-good backup. This makes recovery automatic after a corrupt write.
+ */
+function readJsonFile<T>(filePath: string, fallback: T): T {
+  const candidates = [filePath, filePath + '.tmp', filePath + '.bak'];
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8')) as T;
+      if (index > 0) {
+        // The primary file was corrupt. Restore it from the recovery copy so
+        // the next read is fast and the store does not stay degraded.
+        try {
+          atomicWrite(filePath, JSON.stringify(parsed, null, 2));
+        } catch {
+          // Recovery is best-effort; returning the parsed value is enough.
+        }
+      }
+      return parsed;
+    } catch {
+      // Try the next recovery candidate.
+    }
+  }
+  return fallback;
+}
+
+function hashContent(...parts: string[]): string {
+  const normalized = parts
+    .map((part) => String(part || '').trim().toLowerCase().replace(/\s+/g, ' '))
+    .join('\u0000');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
 }
 
 function getConfig(): any {
@@ -31,7 +86,9 @@ function getConfig(): any {
   return {
     autoMemoryEnabled: base.autoMemoryEnabled ?? false,
     globalMemoryDirectory: base.globalMemoryDirectory || DEFAULT_MEMORY_DIR,
-    storageBackend: 'sqlite' as any,
+    // Files remain the source of truth; SQLite is the derived search index.
+    storageBackend:
+      base.storageBackend === 'json_file' ? 'json_file' : 'file_index',
     maxEntries: base.maxEntries ?? 1000,
   };
 }
@@ -105,12 +162,18 @@ function migrateMemoryDirectory(newDirRaw: string): { success: boolean; error?: 
 function updateConfig(config: any): any {
   const current = getConfig();
   const updated = { ...current, ...config };
-  if (config.globalMemoryDirectory && expandPath(config.globalMemoryDirectory) !== expandPath(current.globalMemoryDirectory)) {
+  if (
+    config.globalMemoryDirectory &&
+    expandPath(config.globalMemoryDirectory) !== expandPath(current.globalMemoryDirectory)
+  ) {
     const result = migrateMemoryDirectory(config.globalMemoryDirectory);
     if (!result.success) throw new Error(result.error || 'Migration failed.');
   }
   db.saveAppSetting('memory_config', updated);
-  return updated;
+  // The directory may have changed, so rebuild the derived index from the new
+  // primary file location.
+  syncMemoryIndexIfNeeded(true);
+  return { ...updated, storageBackend: getConfig().storageBackend };
 }
 
 function memoryRoot(): string {
@@ -123,19 +186,23 @@ function memoryRoot(): string {
   return root;
 }
 
+function appEntriesPath(): string {
+  return path.join(memoryRoot(), 'app-memory', 'entries.json');
+}
+
 function taskDir(conversationId: string): string {
   return path.join(memoryRoot(), 'tasks', safeId(conversationId));
 }
 
+function taskMetadataPath(conversationId: string): string {
+  return path.join(taskDir(conversationId), 'metadata.json');
+}
+
 function readTaskEntries(conversationId: string): any[] {
-  const metaPath = path.join(taskDir(conversationId), 'metadata.json');
+  const metaPath = taskMetadataPath(conversationId);
   if (!fs.existsSync(metaPath)) return [];
-  try {
-    const parsed = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readJsonFile<any>(metaPath, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function writeTaskEntries(conversationId: string, entries: any[]): void {
@@ -146,6 +213,215 @@ function writeTaskEntries(conversationId: string, entries: any[]): void {
   atomicWrite(path.join(dir, 'memory.md'), md);
 }
 
+function readAppEntries(): any[] {
+  const filePath = appEntriesPath();
+  if (!fs.existsSync(filePath)) return [];
+  const parsed = readJsonFile<any>(filePath, []);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function writeAppEntries(entries: any[]): void {
+  atomicWrite(appEntriesPath(), JSON.stringify(entries, null, 2));
+}
+
+function listTaskEntryFiles(): Array<{ taskId: string; entries: any[] }> {
+  const tasksPath = path.join(memoryRoot(), 'tasks');
+  if (!fs.existsSync(tasksPath)) return [];
+  const result: Array<{ taskId: string; entries: any[] }> = [];
+  for (const entry of fs.readdirSync(tasksPath, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const metaPath = path.join(tasksPath, entry.name, 'metadata.json');
+    if (!fs.existsSync(metaPath)) continue;
+    const parsed = readJsonFile<any>(metaPath, []);
+    if (Array.isArray(parsed)) result.push({ taskId: entry.name, entries: parsed });
+  }
+  return result;
+}
+
+// ---------------- SQLite index sync ----------------
+
+function getIndexState(): IndexSyncState | null {
+  const stored = db.getAppSettings()['memory_index_sync_state'];
+  if (!stored || typeof stored !== 'object') return null;
+  const state = stored as any;
+  if (typeof state.signature !== 'string') return null;
+  return { signature: state.signature, indexedAt: Number(state.indexedAt) || 0 };
+}
+
+function setIndexState(state: IndexSyncState): void {
+  db.saveAppSetting('memory_index_sync_state', state);
+}
+
+function computeDiskSignature(): string {
+  const root = memoryRoot();
+  const parts: string[] = [path.resolve(root).toLowerCase()];
+
+  const appPath = appEntriesPath();
+  if (fs.existsSync(appPath)) {
+    const stat = fs.statSync(appPath);
+    parts.push(`app:${stat.size}:${stat.mtimeMs}`);
+  }
+
+  const tasksPath = path.join(root, 'tasks');
+  if (fs.existsSync(tasksPath)) {
+    const dirs = fs
+      .readdirSync(tasksPath, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    for (const dir of dirs) {
+      const metaPath = path.join(tasksPath, dir, 'metadata.json');
+      if (!fs.existsSync(metaPath)) continue;
+      const stat = fs.statSync(metaPath);
+      parts.push(`task:${dir}:${stat.size}:${stat.mtimeMs}`);
+    }
+  }
+
+  return crypto.createHash('sha1').update(parts.join('|')).digest('hex');
+}
+
+function touchIndexState(): void {
+  try {
+    setIndexState({ signature: computeDiskSignature(), indexedAt: Date.now() });
+  } catch {
+    // Index freshness is an optimization; never block a memory write on it.
+  }
+}
+
+function indexAppEntries(entries: any[]): void {
+  const now = Date.now();
+  const records: db.MemoryIndexRecord[] = entries.map((entry) => {
+    const title = String(entry.title || '');
+    const summary = String(entry.summary || '');
+    const details = String(entry.details || '');
+    const category = String(entry.category || 'preference');
+    return {
+      id: String(entry.id),
+      scope: 'app',
+      taskId: null,
+      category,
+      title,
+      body: `${summary}\n${details}`.trim(),
+      tags: Array.isArray(entry.tags) ? entry.tags.map(String) : [],
+      enabled: entry.enabled !== false,
+      contentHash: entry.contentHash || hashContent(category, title, summary, details),
+      source: 'app-memory/entries.json',
+      payload: entry,
+      createdAt: Number(entry.createdAt) || now,
+      updatedAt: Number(entry.updatedAt) || now,
+    };
+  });
+  db.replaceMemoryIndexRecords('app', null, records);
+  touchIndexState();
+}
+
+function indexTaskEntries(taskId: string, entries: any[]): void {
+  const now = Date.now();
+  const indexedTaskId = safeId(taskId);
+  const records: db.MemoryIndexRecord[] = entries.map((entry) => {
+    const title = String(entry.title || '');
+    const content = String(entry.content || '');
+    return {
+      id: String(entry.id),
+      scope: 'task',
+      taskId: indexedTaskId,
+      category: entry.category ? String(entry.category) : null,
+      title,
+      body: content,
+      tags: Array.isArray(entry.tags) ? entry.tags.map(String) : [],
+      enabled: entry.enabled !== false,
+      contentHash: entry.contentHash || hashContent(title, content),
+      source: `tasks/${indexedTaskId}/metadata.json`,
+      payload: entry,
+      createdAt: Number(entry.createdAt) || now,
+      updatedAt: Number(entry.updatedAt) || now,
+    };
+  });
+  db.replaceMemoryIndexRecords('task', indexedTaskId, records);
+  touchIndexState();
+}
+
+export function rebuildMemoryIndex(): number {
+  db.clearMemoryIndex();
+  const appEntries = readAppEntries();
+  indexAppEntries(appEntries);
+  let indexed = appEntries.length;
+
+  for (const task of listTaskEntryFiles()) {
+    indexTaskEntries(task.taskId, task.entries);
+    indexed += task.entries.length;
+  }
+
+  touchIndexState();
+  db.logMemoryOperation('', 'app', 'reindex', 'rebuildMemoryIndex');
+  return indexed;
+}
+
+export function syncMemoryIndexIfNeeded(force = false): boolean {
+  if (!db.isDatabaseInitialized()) return false;
+  try {
+    const signature = computeDiskSignature();
+    const state = getIndexState();
+    const count = db.countMemoryIndex();
+    if (!force && state && state.signature === signature && count > 0) {
+      return false;
+    }
+    rebuildMemoryIndex();
+    return true;
+  } catch (err) {
+    console.error('[Memory] Failed to synchronize memory index:', err);
+    return false;
+  }
+}
+
+export function initializeMemoryIndex(): {
+  success: boolean;
+  indexed: number;
+  fts: boolean;
+  rebuilt: boolean;
+  error?: string;
+} {
+  try {
+    const fts = db.ensureMemorySearch();
+    const rebuilt = syncMemoryIndexIfNeeded(false);
+    if (fts) db.rebuildMemoryFtsFromIndex();
+    return { success: true, indexed: db.countMemoryIndex(), fts, rebuilt };
+  } catch (err: any) {
+    return {
+      success: false,
+      indexed: 0,
+      fts: false,
+      rebuilt: false,
+      error: err?.message || String(err),
+    };
+  }
+}
+
+export function forceRebuildMemoryIndex(): {
+  success: boolean;
+  indexed: number;
+  fts: boolean;
+  rebuilt: boolean;
+  error?: string;
+} {
+  try {
+    const fts = db.ensureMemorySearch();
+    const indexed = rebuildMemoryIndex();
+    if (fts) db.rebuildMemoryFtsFromIndex();
+    return { success: true, indexed, fts, rebuilt: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      indexed: 0,
+      fts: false,
+      rebuilt: false,
+      error: err?.message || String(err),
+    };
+  }
+}
+
+// ---------------- Config ----------------
+
 export function getMemoryConfig(): any {
   return getConfig();
 }
@@ -153,6 +429,8 @@ export function getMemoryConfig(): any {
 export function updateMemoryConfig(config: any): any {
   return updateConfig(config);
 }
+
+// ---------------- Task memory ----------------
 
 export function getTaskMemory(conversationId: string): any {
   const entries = readTaskEntries(conversationId);
@@ -164,138 +442,164 @@ export function getTaskMemories(taskId: string): any[] {
 }
 
 export function saveTaskMemory(entry: any): any {
-  const entries = readTaskEntries(entry.taskId || 'default-task');
+  syncMemoryIndexIfNeeded();
+  const taskId = entry.taskId || 'default-task';
+  const entries = readTaskEntries(taskId);
   const now = Date.now();
+  const title = entry.title || '';
+  const content = entry.content || '';
+  const tags = Array.isArray(entry.tags) ? entry.tags : [];
+  const contentHash = hashContent(title, content);
+
+  const duplicate = db.findMemoryIndexByHash('task', safeId(taskId), contentHash);
+  if (duplicate) return duplicate;
+
   const newEntry = {
     id: `task-mem-${now}-${Math.random().toString(36).slice(2, 8)}`,
-    taskId: entry.taskId || 'default-task',
-    title: entry.title || '',
-    content: entry.content || '',
-    tags: entry.tags || [],
+    taskId,
+    title,
+    content,
+    tags,
+    contentHash,
     createdAt: now,
     updatedAt: now,
   };
   entries.unshift(newEntry);
-  writeTaskEntries(newEntry.taskId, entries);
+  writeTaskEntries(taskId, entries);
+  indexTaskEntries(taskId, entries);
+  db.logMemoryOperation(newEntry.id, 'task', 'create', 'saveTaskMemory');
   return newEntry;
 }
 
 export function deleteTaskMemory(id: string): boolean {
-  // find across task dirs
-  const root = memoryRoot();
-  const tasksPath = path.join(root, 'tasks');
+  const tasksPath = path.join(memoryRoot(), 'tasks');
   if (!fs.existsSync(tasksPath)) return false;
-  for (const dir of fs.readdirSync(tasksPath)) {
-    const metaPath = path.join(tasksPath, dir, 'metadata.json');
-    if (!fs.existsSync(metaPath)) continue;
-    try {
-      const entries = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      if (!Array.isArray(entries)) continue;
-      const idx = entries.findIndex((e: any) => e.id === id);
-      if (idx >= 0) {
-        entries.splice(idx, 1);
-        fs.writeFileSync(metaPath, JSON.stringify(entries, null, 2), 'utf8');
-        return true;
-      }
-    } catch {
-      // ignore
-    }
+  for (const task of listTaskEntryFiles()) {
+    const idx = task.entries.findIndex((entry: any) => entry.id === id);
+    if (idx < 0) continue;
+    task.entries.splice(idx, 1);
+    writeTaskEntries(task.taskId, task.entries);
+    indexTaskEntries(task.taskId, task.entries);
+    db.logMemoryOperation(id, 'task', 'delete', 'deleteTaskMemory');
+    return true;
   }
   return false;
 }
 
 export function updateTaskMemory(conversationId: string, id: string, changes: any): any {
   const entries = readTaskEntries(conversationId);
-  const idx = entries.findIndex((e: any) => e.id === id);
+  const idx = entries.findIndex((entry: any) => entry.id === id);
   if (idx < 0) return null;
-  entries[idx] = { ...entries[idx], ...changes, updatedAt: Date.now() };
+  const updated = { ...entries[idx], ...changes, updatedAt: Date.now() };
+  updated.contentHash = hashContent(updated.title || '', updated.content || '');
+  entries[idx] = updated;
   writeTaskEntries(conversationId, entries);
-  return entries[idx];
+  indexTaskEntries(conversationId, entries);
+  db.logMemoryOperation(id, 'task', 'update', 'updateTaskMemory');
+  return updated;
 }
+
+// ---------------- App memory ----------------
 
 export function getAppMemories(): any[] {
-  const filePath = path.join(memoryRoot(), 'app-memory', 'entries.json');
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return readAppEntries().map((entry) => ({
+    ...entry,
+    enabled: entry.enabled !== false,
+  }));
 }
 
-export function searchMemories(query: string, category?: string): any[] {
-  const q = String(query || '').toLowerCase();
+function fallbackSearchMemories(query: string, category?: string): any[] {
+  const q = String(query || '').toLowerCase().trim();
   const results: any[] = [];
-  // app memories
-  for (const m of getAppMemories()) {
-    if (category && m.category !== category) continue;
-    const hay = `${m.title || ''} ${m.summary || ''} ${m.details || ''}`.toLowerCase();
-    if (!q || hay.includes(q)) results.push({ scope: 'app', ...m });
+
+  for (const memory of getAppMemories()) {
+    if (memory.enabled === false) continue;
+    if (category && memory.category !== category) continue;
+    const hay = `${memory.title || ''} ${memory.summary || ''} ${memory.details || ''}`.toLowerCase();
+    if (!q || hay.includes(q)) results.push({ scope: 'app', ...memory });
   }
-  // task memories
-  const root = memoryRoot();
-  const tasksPath = path.join(root, 'tasks');
-  if (fs.existsSync(tasksPath)) {
-    for (const dir of fs.readdirSync(tasksPath)) {
-      const metaPath = path.join(tasksPath, dir, 'metadata.json');
-      if (!fs.existsSync(metaPath)) continue;
-      try {
-        const entries = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-        if (!Array.isArray(entries)) continue;
-        for (const e of entries) {
-          if (category && e.category !== category) continue;
-          const hay = `${e.title || ''} ${e.content || ''}`.toLowerCase();
-          if (!q || hay.includes(q)) results.push({ scope: 'task', taskId: e.taskId, ...e });
-        }
-      } catch {
-        // ignore
-      }
+
+  for (const task of listTaskEntryFiles()) {
+    for (const entry of task.entries) {
+      if (category && entry.category !== category) continue;
+      const hay = `${entry.title || ''} ${entry.content || ''}`.toLowerCase();
+      if (!q || hay.includes(q)) results.push({ scope: 'task', taskId: task.taskId, ...entry });
     }
   }
+
   return results.slice(0, 20);
 }
 
+export function searchMemories(query: string, category?: string): any[] {
+  const rawQuery = String(query || '').trim();
+  syncMemoryIndexIfNeeded();
+
+  try {
+    const results = db.searchMemoryIndex(rawQuery, { category, limit: 20 });
+    if (results.length > 0 || !rawQuery) return results;
+  } catch (err) {
+    console.error('[Memory] Indexed search failed; falling back to files:', err);
+  }
+
+  return fallbackSearchMemories(rawQuery, category);
+}
+
 export function saveAppMemory(entry: any): any {
-  const entries = getAppMemories();
+  syncMemoryIndexIfNeeded();
+  const entries = readAppEntries();
   const now = Date.now();
+  const category = entry.category || 'preference';
+  const title = entry.title || '';
+  const summary = entry.summary || '';
+  const details = entry.details || '';
+  const contentHash = hashContent(category, title, summary, details);
+
+  const duplicate = db.findMemoryIndexByHash('app', null, contentHash);
+  if (duplicate) return duplicate;
+
   const newEntry = {
     id: `app-mem-${now}-${Math.random().toString(36).slice(2, 8)}`,
-    category: entry.category || 'preference',
-    title: entry.title || '',
-    summary: entry.summary || '',
-    details: entry.details || '',
+    category,
+    title,
+    summary,
+    details,
     enabled: entry.enabled ?? true,
+    contentHash,
     createdAt: now,
     updatedAt: now,
   };
   entries.unshift(newEntry);
-  const filePath = path.join(memoryRoot(), 'app-memory', 'entries.json');
-  atomicWrite(filePath, JSON.stringify(entries, null, 2));
+  writeAppEntries(entries);
+  indexAppEntries(entries);
+  db.logMemoryOperation(newEntry.id, 'app', 'create', 'saveAppMemory');
   return newEntry;
 }
 
 export function deleteAppMemory(id: string): boolean {
-  const entries = getAppMemories().filter((e: any) => e.id !== id);
-  const filePath = path.join(memoryRoot(), 'app-memory', 'entries.json');
-  atomicWrite(filePath, JSON.stringify(entries, null, 2));
+  const entries = readAppEntries().filter((entry: any) => entry.id !== id);
+  writeAppEntries(entries);
+  indexAppEntries(entries);
+  db.logMemoryOperation(id, 'app', 'delete', 'deleteAppMemory');
   return true;
 }
 
 export function clearAppMemories(): boolean {
-  const filePath = path.join(memoryRoot(), 'app-memory', 'entries.json');
-  atomicWrite(filePath, '[]');
+  writeAppEntries([]);
+  db.clearMemoryIndex('app');
+  touchIndexState();
+  db.logMemoryOperation('', 'app', 'clear', 'clearAppMemories');
   return true;
 }
 
 export function toggleAppMemory(id: string): boolean {
-  const entries = getAppMemories();
-  const idx = entries.findIndex((e: any) => e.id === id);
+  const entries = readAppEntries();
+  const idx = entries.findIndex((entry: any) => entry.id === id);
   if (idx < 0) return false;
-  entries[idx].enabled = !entries[idx].enabled;
+  entries[idx].enabled = entries[idx].enabled === false;
   entries[idx].updatedAt = Date.now();
-  const filePath = path.join(memoryRoot(), 'app-memory', 'entries.json');
-  atomicWrite(filePath, JSON.stringify(entries, null, 2));
+  writeAppEntries(entries);
+  indexAppEntries(entries);
+  db.logMemoryOperation(id, 'app', 'update', 'toggleAppMemory');
   return true;
 }
 

@@ -222,8 +222,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [appMemories, setAppMemories] = useState<AppMemoryEntry[]>([]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
     autoMemoryEnabled: true,
-    globalMemoryDirectory: '%APPDATA%\\Refx\\memory',
-    storageBackend: 'sqlite',
+    globalMemoryDirectory: '%APPDATA%\\Refx AI\\memory',
+    storageBackend: 'file_index',
     maxEntries: 1000,
   });
 
@@ -1005,9 +1005,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleAppMemory = async (id: string) => {
     const target = appMemories.find((m) => m.id === id);
-    if (target) {
-      const updated = { ...target, enabled: !target.enabled };
-      setAppMemories((prev) => prev.map((m) => (m.id === id ? updated : m)));
+    if (!target) return;
+    const nextEnabled = !target.enabled;
+    setAppMemories((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, enabled: nextEnabled, updatedAt: Date.now() } : m))
+    );
+    try {
+      const ok = await desktopBridge.memory.toggleAppMemory(id);
+      if (!ok) {
+        setAppMemories((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, enabled: target.enabled } : m))
+        );
+      }
+    } catch {
+      // Roll back the optimistic update if the write failed.
+      setAppMemories((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, enabled: target.enabled } : m))
+      );
     }
   };
 
