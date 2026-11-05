@@ -373,7 +373,9 @@ const ThinkingProcessCard: React.FC<{
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-surface border border-border/70 shrink-0">
             {isGenerating ? (
-              <Sparkles size={13} className="text-indigo-400 animate-spin" />
+              currentActive && (currentActive.type === 'file_read' || currentActive.type === 'file_write')
+                ? getFileIcon((currentActive.detail || '').split('/').pop() || 'file')
+                : <span className="w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
             ) : (
               <CheckCircle2 size={13} className="text-emerald-400" />
             )}
