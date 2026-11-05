@@ -1364,6 +1364,18 @@ function registerIpcHandlers(): void {
   ipcMain.handle(MEMORY_IPC_CHANNELS.TOGGLE_APP_MEMORY, async (_event, id: string) => memory.toggleAppMemory(id));
   ipcMain.handle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
   ipcMain.handle(MEMORY_IPC_CHANNELS.RETRIEVE, async (_event, options: any) => memory.retrieveMemories(options));
+  ipcMain.handle(MEMORY_IPC_CHANNELS.GET_GOVERNANCE, async () => memory.getMemoryGovernance());
+  ipcMain.handle(MEMORY_IPC_CHANNELS.DISMISS_CONFLICT, async (_event, pairKey: string) =>
+    memory.dismissMemoryConflict(pairKey)
+  );
+  ipcMain.handle(MEMORY_IPC_CHANNELS.RESOLVE_CONFLICT, async (_event, pairKey: string, keepId: string) =>
+    memory.resolveMemoryConflict(pairKey, keepId)
+  );
+  ipcMain.handle(
+    MEMORY_IPC_CHANNELS.CONFIRM,
+    async (_event, id: string, scope: 'app' | 'task', taskId?: string) => memory.confirmMemory(id, scope, taskId)
+  );
+  ipcMain.handle(MEMORY_IPC_CHANNELS.PURGE_EXPIRED, async () => memory.purgeExpiredMemories());
   ipcMain.handle(MEMORY_IPC_CHANNELS.REBUILD_INDEX, async () => memory.forceRebuildMemoryIndex());
 
   // Terminal IPC handlers

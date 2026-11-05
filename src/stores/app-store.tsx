@@ -10,6 +10,7 @@ import type {
   TaskMemoryEntry,
   AppMemoryEntry,
   MemoryConfig,
+  MemoryGovernanceSummary,
   TerminalSessionInfo,
   PermissionRequest,
   ActiveModal,
@@ -95,6 +96,12 @@ interface AppContextValue {
   toggleAppMemory: (id: string) => Promise<void>;
   clearAppMemories: () => Promise<void>;
   updateMemoryConfig: (config: Partial<MemoryConfig>) => Promise<void>;
+  memoryGovernance: MemoryGovernanceSummary;
+  refreshMemoryGovernance: () => Promise<void>;
+  dismissMemoryConflict: (pairKey: string) => Promise<void>;
+  resolveMemoryConflict: (pairKey: string, keepId: string) => Promise<void>;
+  confirmMemory: (id: string, scope: 'app' | 'task', taskId?: string) => Promise<void>;
+  purgeExpiredMemories: () => Promise<number>;
 
   // Terminal
   terminalSessions: TerminalSessionInfo[];
@@ -233,6 +240,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     maxEntries: 1000,
     retrievalTokenBudget: 1200,
     retrievalMaxResults: 8,
+  });
+  const [memoryGovernance, setMemoryGovernance] = useState<MemoryGovernanceSummary>({
+    conflicts: [],
+    lowConfidence: [],
+    expired: [],
+    counts: { conflicts: 0, lowConfidence: 0, expired: 0 },
   });
 
   // Terminal (Clean initial state)
@@ -422,6 +435,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAppMemories(aMem);
       const mCfg = await desktopBridge.memory.getMemoryConfig();
       setMemoryConfig(mCfg);
+      void refreshMemoryGovernance();
 
       // Create an initial session if workspace or requested
       const session = await desktopBridge.terminal.createSession(
@@ -988,11 +1002,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       tags,
     });
     setTaskMemories((prev) => [entry, ...prev]);
+    void refreshMemoryGovernance();
   };
 
   const deleteTaskMemory = async (id: string) => {
     await desktopBridge.memory.deleteTaskMemory(id);
     setTaskMemories((prev) => prev.filter((m) => m.id !== id));
+    void refreshMemoryGovernance();
   };
 
   const addAppMemory = async (
@@ -1011,11 +1027,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       confidence,
     });
     setAppMemories((prev) => [entry, ...prev]);
+    void refreshMemoryGovernance();
   };
 
   const deleteAppMemory = async (id: string) => {
     await desktopBridge.memory.deleteAppMemory(id);
     setAppMemories((prev) => prev.filter((m) => m.id !== id));
+    void refreshMemoryGovernance();
   };
 
   const toggleAppMemory = async (id: string) => {
@@ -1043,11 +1061,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearAppMemories = async () => {
     await desktopBridge.memory.clearAppMemories();
     setAppMemories([]);
+    void refreshMemoryGovernance();
   };
 
   const updateMemoryConfig = async (config: Partial<MemoryConfig>) => {
     const updated = await desktopBridge.memory.updateMemoryConfig(config);
     setMemoryConfig(updated);
+  };
+
+  const refreshMemoryGovernance = async () => {
+    try {
+      const summary = await desktopBridge.memory.getMemoryGovernance();
+      setMemoryGovernance(summary);
+    } catch {
+      // ignore
+    }
+  };
+
+  const dismissMemoryConflict = async (pairKey: string) => {
+    await desktopBridge.memory.dismissMemoryConflict(pairKey);
+    await refreshMemoryGovernance();
+  };
+
+  const resolveMemoryConflict = async (pairKey: string, keepId: string) => {
+    const conflict = memoryGovernance.conflicts.find((item) => item.pairKey === pairKey);
+    const discarded = conflict
+      ? conflict.left.id === keepId
+        ? conflict.right
+        : conflict.left
+      : null;
+    const ok = await desktopBridge.memory.resolveMemoryConflict(pairKey, keepId);
+    if (!ok) return;
+    if (discarded) {
+      if (discarded.scope === 'task') {
+        setTaskMemories((prev) => prev.filter((m) => m.id !== discarded.id));
+      } else {
+        setAppMemories((prev) => prev.filter((m) => m.id !== discarded.id));
+      }
+    }
+    await refreshMemoryGovernance();
+  };
+
+  const confirmMemory = async (id: string, scope: 'app' | 'task', taskId?: string) => {
+    await desktopBridge.memory.confirmMemory(id, scope, taskId);
+    if (scope === 'app') {
+      setAppMemories((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
+      );
+    } else {
+      setTaskMemories((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, confidence: 0.85, updatedAt: Date.now() } : m))
+      );
+    }
+    await refreshMemoryGovernance();
+  };
+
+  const purgeExpiredMemories = async () => {
+    const removed = await desktopBridge.memory.purgeExpiredMemories();
+    const now = Date.now();
+    const expiredIds = new Set(memoryGovernance.expired.map((item) => item.id));
+    setAppMemories((prev) => prev.filter((m) => !expiredIds.has(m.id)));
+    setTaskMemories((prev) => prev.filter((m) => !expiredIds.has(m.id)));
+    await refreshMemoryGovernance();
+    return removed;
   };
 
   const executeTerminalCommand = async (cmd: string) => {
@@ -1717,6 +1793,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleAppMemory,
         clearAppMemories,
         updateMemoryConfig,
+        memoryGovernance,
+        refreshMemoryGovernance,
+        dismissMemoryConflict,
+        resolveMemoryConflict,
+        confirmMemory,
+        purgeExpiredMemories,
         terminalSessions,
         activeTerminalId,
         setActiveTerminalId,

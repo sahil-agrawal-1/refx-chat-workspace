@@ -153,6 +153,13 @@ const desktopAPI: IDesktopAPI = {
     toggleAppMemory: (id: string) => ipcRenderer.invoke(MEM_CHANNELS.TOGGLE_APP_MEMORY, id),
     clearAppMemories: () => ipcRenderer.invoke(MEM_CHANNELS.CLEAR_APP_MEMORIES),
     retrieveMemories: (options: any) => ipcRenderer.invoke(MEM_CHANNELS.RETRIEVE, options),
+    getMemoryGovernance: () => ipcRenderer.invoke(MEM_CHANNELS.GET_GOVERNANCE),
+    dismissMemoryConflict: (pairKey: string) => ipcRenderer.invoke(MEM_CHANNELS.DISMISS_CONFLICT, pairKey),
+    resolveMemoryConflict: (pairKey: string, keepId: string) =>
+      ipcRenderer.invoke(MEM_CHANNELS.RESOLVE_CONFLICT, pairKey, keepId),
+    confirmMemory: (id: string, scope: 'app' | 'task', taskId?: string) =>
+      ipcRenderer.invoke(MEM_CHANNELS.CONFIRM, id, scope, taskId),
+    purgeExpiredMemories: () => ipcRenderer.invoke(MEM_CHANNELS.PURGE_EXPIRED),
     rebuildMemoryIndex: () => ipcRenderer.invoke(MEM_CHANNELS.REBUILD_INDEX),
   },
   fs: {

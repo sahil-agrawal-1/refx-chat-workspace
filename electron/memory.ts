@@ -14,6 +14,11 @@ import type {
   MemoryRetrievalResponse,
   MemoryRetrievalResult,
 } from '../shared/contracts/desktop-bridge';
+import {
+  buildGovernanceSummary,
+  type GovernanceMemory,
+  type MemoryGovernanceSummary,
+} from '../shared/utils/memory-governance';
 
 const DEFAULT_MEMORY_DIR = '%APPDATA%\\Refx AI\\memory';
 
@@ -479,6 +484,7 @@ export function saveTaskMemory(entry: any): any {
     confidence: typeof entry.confidence === 'number' ? entry.confidence : 0.75,
     usageCount: 0,
     lastUsedAt: 0,
+    expiresAt: typeof entry.expiresAt === 'number' ? entry.expiresAt : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -747,6 +753,7 @@ export function saveAppMemory(entry: any): any {
     confidence: typeof entry.confidence === 'number' ? entry.confidence : 0.7,
     usageCount: 0,
     lastUsedAt: 0,
+    expiresAt: typeof entry.expiresAt === 'number' ? entry.expiresAt : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -783,6 +790,103 @@ export function toggleAppMemory(id: string): boolean {
   indexAppEntries(entries);
   db.logMemoryOperation(id, 'app', 'update', 'toggleAppMemory');
   return true;
+}
+
+// ---------------- Memory governance ----------------
+
+function collectGovernanceEntries(): GovernanceMemory[] {
+  const appEntries: GovernanceMemory[] = readAppEntries().map((entry: any) => ({
+    ...entry,
+    scope: 'app' as const,
+  }));
+  const taskEntries: GovernanceMemory[] = [];
+  for (const task of listTaskEntryFiles()) {
+    for (const entry of task.entries) {
+      taskEntries.push({
+        ...entry,
+        scope: 'task' as const,
+        taskId: task.taskId,
+      });
+    }
+  }
+  return [...appEntries, ...taskEntries];
+}
+
+/** Detects duplicate/contradictory memories and flags low-confidence/expired items. */
+export function getMemoryGovernance(): MemoryGovernanceSummary {
+  const dismissed = db.getMemoryReviewStates('dismissed').map((row) => row.pairKey);
+  return buildGovernanceSummary(collectGovernanceEntries(), {
+    dismissedPairKeys: dismissed,
+  });
+}
+
+export function dismissMemoryConflict(pairKey: string): boolean {
+  if (!pairKey) return false;
+  return db.setMemoryReviewState(pairKey, 'dismissed');
+}
+
+/**
+ * Resolves a conflict by deleting the memory the user did not keep. The
+ * remaining memory keeps its content untouched.
+ */
+export function resolveMemoryConflict(pairKey: string, keepId: string): boolean {
+  const conflict = getMemoryGovernance().conflicts.find((item) => item.pairKey === pairKey);
+  if (!conflict || !keepId) return false;
+  const discard = conflict.left.id === keepId ? conflict.right : conflict.left;
+  if (discard.id === keepId) return false;
+  const removed = discard.scope === 'task' ? deleteTaskMemory(discard.id) : deleteAppMemory(discard.id);
+  if (!removed) return false;
+  db.setMemoryReviewState(pairKey, 'resolved');
+  return true;
+}
+
+/** Marks a low-confidence memory as reviewed by raising its confidence. */
+export function confirmMemory(id: string, scope: 'app' | 'task', taskId?: string): boolean {
+  if (scope === 'app') {
+    const entries = readAppEntries();
+    const idx = entries.findIndex((entry: any) => entry.id === id);
+    if (idx < 0) return false;
+    entries[idx].confidence = 0.85;
+    entries[idx].updatedAt = Date.now();
+    writeAppEntries(entries);
+    indexAppEntries(entries);
+    db.logMemoryOperation(id, 'app', 'update', 'confirmMemory');
+    return true;
+  }
+  if (!taskId) return false;
+  const updated = updateTaskMemory(taskId, id, { confidence: 0.85 });
+  return Boolean(updated);
+}
+
+/** Deletes every expired memory. Returns the number of removed entries. */
+export function purgeExpiredMemories(): number {
+  const now = Date.now();
+  const isExpired = (entry: any) =>
+    typeof entry.expiresAt === 'number' && entry.expiresAt > 0 && entry.expiresAt <= now;
+
+  const appEntries = readAppEntries();
+  const keptApp = appEntries.filter((entry: any) => !isExpired(entry));
+  let removed = appEntries.length - keptApp.length;
+  if (removed > 0) {
+    for (const entry of appEntries) {
+      if (isExpired(entry)) db.logMemoryOperation(entry.id, 'app', 'delete', 'purgeExpiredMemories');
+    }
+    writeAppEntries(keptApp);
+    indexAppEntries(keptApp);
+  }
+
+  for (const task of listTaskEntryFiles()) {
+    const kept = task.entries.filter((entry: any) => !isExpired(entry));
+    if (kept.length === task.entries.length) continue;
+    for (const entry of task.entries) {
+      if (isExpired(entry)) db.logMemoryOperation(entry.id, 'task', 'delete', 'purgeExpiredMemories');
+    }
+    removed += task.entries.length - kept.length;
+    writeTaskEntries(task.taskId, kept);
+    indexTaskEntries(task.taskId, kept);
+  }
+
+  return removed;
 }
 
 export function backupMemory(): boolean {

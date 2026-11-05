@@ -4,6 +4,8 @@
  * and Browser Preview Adapter (Stage 1).
  */
 
+import type { MemoryGovernanceSummary } from '../utils/memory-governance';
+
 export interface SystemInfo {
   isElectron: boolean;
   platform: 'win32' | 'darwin' | 'linux' | 'browser';
@@ -148,6 +150,14 @@ export interface MemoryRetrievalResponse {
   budgetTokens: number;
   totalCandidates: number;
 }
+
+export type {
+  MemoryConflict,
+  MemoryConflictSide,
+  MemoryConflictType,
+  MemoryReviewItem,
+  MemoryGovernanceSummary,
+} from '../utils/memory-governance';
 
 export interface MemoryConfig {
   autoMemoryEnabled: boolean;
@@ -309,6 +319,11 @@ export interface IMemoryBridge {
   toggleAppMemory(id: string): Promise<boolean>;
   clearAppMemories(): Promise<boolean>;
   retrieveMemories(options: MemoryRetrievalOptions): Promise<MemoryRetrievalResponse>;
+  getMemoryGovernance(): Promise<MemoryGovernanceSummary>;
+  dismissMemoryConflict(pairKey: string): Promise<boolean>;
+  resolveMemoryConflict(pairKey: string, keepId: string): Promise<boolean>;
+  confirmMemory(id: string, scope: 'app' | 'task', taskId?: string): Promise<boolean>;
+  purgeExpiredMemories(): Promise<number>;
   rebuildMemoryIndex(): Promise<{ success: boolean; indexed: number; fts: boolean; rebuilt: boolean; error?: string }>;
 }
 
@@ -539,6 +554,11 @@ export const MEMORY_IPC_CHANNELS = {
   TOGGLE_APP_MEMORY: 'desktop:memToggleAppMemory',
   CLEAR_APP_MEMORIES: 'desktop:memClearAppMemories',
   RETRIEVE: 'desktop:memRetrieve',
+  GET_GOVERNANCE: 'desktop:memGetGovernance',
+  DISMISS_CONFLICT: 'desktop:memDismissConflict',
+  RESOLVE_CONFLICT: 'desktop:memResolveConflict',
+  CONFIRM: 'desktop:memConfirm',
+  PURGE_EXPIRED: 'desktop:memPurgeExpired',
   REBUILD_INDEX: 'desktop:memRebuildIndex',
 } as const;
 

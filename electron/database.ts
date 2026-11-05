@@ -31,6 +31,21 @@ let initialized = false;
 
 const MIGRATIONS: Array<{ version: number; name: string; sql: string }> = [
   {
+    version: 5,
+    name: 'memory_review_state',
+    sql: `
+      CREATE TABLE IF NOT EXISTS memory_review (
+        pair_key TEXT PRIMARY KEY,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_review_status
+        ON memory_review(status, updated_at);
+    `,
+  },
+  {
     version: 4,
     name: 'memory_retrieval_log',
     sql: `
@@ -1470,4 +1485,40 @@ export function getMemoryRetrievalLog(conversationId?: string, limit = 100): any
       createdAt: row.created_at,
     };
   });
+}
+
+// ---------------- Memory review state ----------------
+
+export function getMemoryReviewStates(status?: string): Array<{ pairKey: string; status: string; updatedAt: number }> {
+  const database = getDatabase();
+  if (!database) return [];
+  const rows = status
+    ? (database.prepare('SELECT * FROM memory_review WHERE status = ? ORDER BY updated_at DESC').all(status) as any[])
+    : (database.prepare('SELECT * FROM memory_review ORDER BY updated_at DESC').all() as any[]);
+  return rows.map((row) => ({
+    pairKey: row.pair_key,
+    status: row.status,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function setMemoryReviewState(pairKey: string, status: string): boolean {
+  const database = getDatabase();
+  if (!database || !pairKey) return false;
+  const now = Date.now();
+  database
+    .prepare(
+      `INSERT INTO memory_review (pair_key, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(pair_key) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`
+    )
+    .run(pairKey, status, now, now);
+  return true;
+}
+
+export function clearMemoryReviewState(pairKey: string): boolean {
+  const database = getDatabase();
+  if (!database || !pairKey) return false;
+  const result = database.prepare('DELETE FROM memory_review WHERE pair_key = ?').run(pairKey);
+  return result.changes > 0;
 }

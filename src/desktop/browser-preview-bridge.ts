@@ -21,6 +21,10 @@ import {
   rankMemoryCandidates,
   type MemoryCandidate,
 } from 'shared/utils/memory-retrieval';
+import {
+  buildGovernanceSummary,
+  type GovernanceMemory,
+} from 'shared/utils/memory-governance';
 
 export const INITIAL_PROVIDERS: ProviderConfig[] = [
   {
@@ -139,6 +143,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   private taskMemories: TaskMemoryEntry[] = [];
   private appMemories: AppMemoryEntry[] = [];
+  private dismissedMemoryConflicts: Set<string> = new Set();
   private providers: ProviderConfig[] = [...INITIAL_PROVIDERS];
   private terminalOutputs: Map<string, ((data: string) => void)[]> = new Map();
   private fileSystem: Map<string, string> = new Map();
@@ -180,6 +185,13 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       const savedMemConfig = localStorage.getItem('refx_memory_config');
       if (savedMemConfig) {
         this.memoryConfig = { ...this.memoryConfig, ...JSON.parse(savedMemConfig) };
+      }
+      const savedReview = localStorage.getItem('refx_memory_review');
+      if (savedReview) {
+        const parsed = JSON.parse(savedReview);
+        if (Array.isArray(parsed)) {
+          this.dismissedMemoryConflicts = new Set(parsed.map((value) => String(value)));
+        }
       }
     } catch {
       // Storage unavailable in current environment; use clean in-memory defaults
@@ -467,6 +479,71 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
         budgetTokens: tokenBudget,
         totalCandidates: candidates.length,
       };
+    },
+    getMemoryGovernance: async () => {
+      const entries: GovernanceMemory[] = [
+        ...this.appMemories.map((memory) => ({ ...memory, scope: 'app' as const })),
+        ...this.taskMemories.map((memory) => ({ ...memory, scope: 'task' as const })),
+      ];
+      return buildGovernanceSummary(entries, {
+        dismissedPairKeys: this.dismissedMemoryConflicts,
+      });
+    },
+    dismissMemoryConflict: async (pairKey: string) => {
+      if (!pairKey) return false;
+      this.dismissedMemoryConflicts.add(pairKey);
+      this.saveToStorage('refx_memory_review', [...this.dismissedMemoryConflicts]);
+      return true;
+    },
+    resolveMemoryConflict: async (pairKey: string, keepId: string) => {
+      const entries: GovernanceMemory[] = [
+        ...this.appMemories.map((memory) => ({ ...memory, scope: 'app' as const })),
+        ...this.taskMemories.map((memory) => ({ ...memory, scope: 'task' as const })),
+      ];
+      const conflict = buildGovernanceSummary(entries, {
+        dismissedPairKeys: this.dismissedMemoryConflicts,
+      }).conflicts.find((item) => item.pairKey === pairKey);
+      if (!conflict || !keepId) return false;
+      const discard = conflict.left.id === keepId ? conflict.right : conflict.left;
+      if (discard.id === keepId) return false;
+      if (discard.scope === 'task') {
+        this.taskMemories = this.taskMemories.filter((memory) => memory.id !== discard.id);
+        this.saveToStorage('refx_task_memories', this.taskMemories);
+      } else {
+        this.appMemories = this.appMemories.filter((memory) => memory.id !== discard.id);
+        this.saveToStorage('refx_app_memories', this.appMemories);
+      }
+      this.dismissedMemoryConflicts.add(pairKey);
+      this.saveToStorage('refx_memory_review', [...this.dismissedMemoryConflicts]);
+      return true;
+    },
+    confirmMemory: async (id: string, scope: 'app' | 'task') => {
+      if (scope === 'app') {
+        const target = this.appMemories.find((memory) => memory.id === id);
+        if (!target) return false;
+        target.confidence = 0.85;
+        target.updatedAt = Date.now();
+        this.saveToStorage('refx_app_memories', this.appMemories);
+        return true;
+      }
+      const target = this.taskMemories.find((memory) => memory.id === id);
+      if (!target) return false;
+      target.confidence = 0.85;
+      target.updatedAt = Date.now();
+      this.saveToStorage('refx_task_memories', this.taskMemories);
+      return true;
+    },
+    purgeExpiredMemories: async () => {
+      const now = Date.now();
+      const isExpired = (memory: { expiresAt?: number }) =>
+        typeof memory.expiresAt === 'number' && memory.expiresAt > 0 && memory.expiresAt <= now;
+      const appBefore = this.appMemories.length;
+      const taskBefore = this.taskMemories.length;
+      this.appMemories = this.appMemories.filter((memory) => !isExpired(memory));
+      this.taskMemories = this.taskMemories.filter((memory) => !isExpired(memory));
+      this.saveToStorage('refx_app_memories', this.appMemories);
+      this.saveToStorage('refx_task_memories', this.taskMemories);
+      return appBefore + taskBefore - this.appMemories.length - this.taskMemories.length;
     },
     rebuildMemoryIndex: async () => ({
       success: true,

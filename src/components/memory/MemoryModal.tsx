@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Brain,
   Bookmark,
@@ -8,6 +8,7 @@ import {
   Database,
   Sparkles,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
@@ -29,11 +30,23 @@ export const MemoryModal: React.FC = () => {
     toggleAppMemory,
     clearAppMemories,
     updateMemoryConfig,
+    memoryGovernance,
+    refreshMemoryGovernance,
+    dismissMemoryConflict,
+    resolveMemoryConflict,
+    confirmMemory,
+    purgeExpiredMemories,
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'task' | 'app' | 'settings'>('task');
+  const [activeTab, setActiveTab] = useState<'task' | 'app' | 'settings' | 'review'>('task');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    if (activeModal === 'memory') {
+      void refreshMemoryGovernance();
+    }
+  }, [activeModal, refreshMemoryGovernance]);
 
   // Task Memory Form
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -156,6 +169,23 @@ export const MemoryModal: React.FC = () => {
             >
               <Database size={13} className="text-foreground-muted" />
               <span>Storage Configuration</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('review');
+                setIsAdding(false);
+              }}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${activeTab === 'review' ? 'bg-surface text-foreground border border-border shadow-xs' : 'text-foreground-muted hover:text-foreground hover:bg-surface'}`}
+            >
+              <ShieldCheck size={13} className="text-amber-400" />
+              <span>Review</span>
+              {(memoryGovernance.counts.conflicts + memoryGovernance.counts.lowConfidence + memoryGovernance.counts.expired) > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-500/30 text-[10px] font-mono text-amber-400">
+                  {memoryGovernance.counts.conflicts + memoryGovernance.counts.lowConfidence + memoryGovernance.counts.expired}
+                </span>
+              )}
             </button>
           </div>
 
@@ -520,6 +550,117 @@ export const MemoryModal: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'review' && (
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-surface border border-border rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-sm text-foreground">Memory health</h4>
+                  <p className="text-foreground-muted text-[11px] mt-0.5">
+                    {memoryGovernance.counts.conflicts} conflict(s), {memoryGovernance.counts.lowConfidence} low-confidence, {memoryGovernance.counts.expired} expired.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void purgeExpiredMemories()}
+                  disabled={memoryGovernance.counts.expired === 0}
+                  className="px-3 py-1.5 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-[11px] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Purge expired
+                </button>
+              </div>
+
+              {memoryGovernance.expired.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="text-[10px] uppercase font-semibold text-foreground-muted">Expired memories</div>
+                  {memoryGovernance.expired.map((item) => (
+                    <div key={item.id} className="p-2.5 bg-surface-raised border border-border rounded-xl">
+                      <div className="font-medium text-foreground text-xs truncate">{item.title}</div>
+                      <div className="text-[11px] text-foreground-muted line-clamp-2 mt-0.5">{item.preview}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {memoryGovernance.conflicts.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="text-[10px] uppercase font-semibold text-foreground-muted">Conflicts</div>
+                  {memoryGovernance.conflicts.map((conflict) => (
+                    <div key={conflict.pairKey} className="p-3 bg-surface-raised border border-border rounded-xl space-y-2">
+                      <div className="text-[11px] text-amber-400 font-medium">
+                        {conflict.type} � {conflict.reason}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[conflict.left, conflict.right].map((side) => (
+                          <div key={side.id} className="p-2 bg-surface border border-border rounded-lg space-y-1">
+                            <div className="font-medium text-foreground text-xs truncate">{side.title}</div>
+                            <div className="text-[11px] text-foreground-muted line-clamp-2">{side.preview}</div>
+                            <button
+                              type="button"
+                              onClick={() => void resolveMemoryConflict(conflict.pairKey, side.id)}
+                              className="mt-1 px-2.5 py-1 rounded-full bg-foreground text-surface text-[10px] font-semibold cursor-pointer"
+                            >
+                              Keep this
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void dismissMemoryConflict(conflict.pairKey)}
+                        className="text-[10px] text-foreground-muted hover:text-foreground cursor-pointer"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {memoryGovernance.lowConfidence.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="text-[10px] uppercase font-semibold text-foreground-muted">Low confidence (needs approval)</div>
+                  {memoryGovernance.lowConfidence.map((item) => (
+                    <div key={item.id} className="p-2.5 bg-surface-raised border border-border rounded-xl flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground text-xs truncate">{item.title}</div>
+                        <div className="text-[11px] text-foreground-muted line-clamp-2 mt-0.5">{item.preview}</div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => void confirmMemory(item.id, item.scope, item.taskId || undefined)}
+                          className="px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-500 text-[10px] font-semibold cursor-pointer"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (item.scope === 'app') void deleteAppMemory(item.id);
+                            else void deleteTaskMemory(item.id);
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-[10px] font-semibold cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {memoryGovernance.counts.conflicts === 0 &&
+                memoryGovernance.counts.lowConfidence === 0 &&
+                memoryGovernance.counts.expired === 0 && (
+                <div className="py-6 text-center text-foreground-muted text-xs">
+                  No memory items need review.
+                </div>
+              )}
             </div>
           </div>
         )}
