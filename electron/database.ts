@@ -1418,12 +1418,26 @@ export function logMemoryRetrieval(
     .run(
       `mem-retrieval-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       conversationId,
-      query,
+      String(query || '').slice(0, 2000),
       JSON.stringify(selectedIds),
       Math.max(0, Math.floor(tokenBudget)),
       Math.max(0, Math.floor(usedTokens)),
       Date.now()
     );
+
+  // Keep the local audit trail bounded so it cannot grow without limit.
+  try {
+    database
+      .prepare(
+        `DELETE FROM memory_retrieval_log
+         WHERE id NOT IN (
+           SELECT id FROM memory_retrieval_log ORDER BY created_at DESC LIMIT 5000
+         )`
+      )
+      .run();
+  } catch {
+    // pruning is best-effort
+  }
 }
 
 export function getMemoryRetrievalLog(conversationId?: string, limit = 100): any[] {
