@@ -187,6 +187,7 @@ const desktopAPI: IDesktopAPI = {
   },
   checkRemoteDebugging: () => ipcRenderer.invoke(SYS_CHANNELS.CHECK_REMOTE_DEBUGGING),
   openRemoteDebugging: () => ipcRenderer.invoke(SYS_CHANNELS.OPEN_REMOTE_DEBUGGING),
+  checkEffortSupport: (providerType: string, model: string) => ipcRenderer.invoke(SYS_CHANNELS.CHECK_EFFORT_SUPPORT, providerType, model),
   database: {
     initializeDatabase: () => ipcRenderer.invoke(DB_CHANNELS.INITIALIZE),
     getConversations: () => ipcRenderer.invoke(DB_CHANNELS.GET_CONVERSATIONS),

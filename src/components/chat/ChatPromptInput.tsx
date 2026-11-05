@@ -55,10 +55,12 @@ export const ChatPromptInput: React.FC = () => {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [showApprovalMenu, setShowApprovalMenu] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [effortSupport, setEffortSupport] = useState<{ supported: boolean; levels: string[] }>({ supported: false, levels: ['Auto'] });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const attachMenuRef = useRef<HTMLDivElement>(null);
@@ -96,9 +98,26 @@ export const ChatPromptInput: React.FC = () => {
     startNewConversation,
     setSelectedModel,
     providers,
+    selectedModel,
+    selectedProvider,
     webSearchActive,
     setWebSearchActive,
   } = useAppStore();
+  React.useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      if (typeof window !== 'undefined' && window.desktop?.checkEffortSupport) {
+        try {
+          const res = await window.desktop.checkEffortSupport(selectedProvider?.type || '', selectedModel || '');
+          if (!cancelled) setEffortSupport(res);
+        } catch {
+          if (!cancelled) setEffortSupport({ supported: false, levels: ['Auto'] });
+        }
+      }
+    }
+    check();
+    return () => { cancelled = true; };
+  }, [selectedModel, selectedProvider]);
 
   // Cleanup object URLs on unmount
   useEffect(() => {

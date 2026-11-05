@@ -775,6 +775,7 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
 
   public checkRemoteDebugging = async () => false;
   public openRemoteDebugging = async () => {};
+  public checkEffortSupport = async () => ({ supported: false, levels: ['Auto'] });
 
   public notify(_title: string, _message: string): void {
     // No-op in browser preview without explicit user gesture

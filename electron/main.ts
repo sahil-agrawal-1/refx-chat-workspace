@@ -614,6 +614,28 @@ async function executeTerminalTool(args: any, sender: Electron.WebContents | nul
   });
 }
 
+function supportsReasoningEffort(providerType: string, model: string): { supported: boolean; levels: string[] } {
+  const m = (model || '').toLowerCase();
+  if (!m) return { supported: false, levels: ['Auto'] };
+  if (providerType === 'openai' || providerType === 'openai_compatible' || providerType === 'custom_local' || providerType === 'openrouter') {
+    const ok = /^o[134]/.test(m) || m.includes('gpt-5') || m.includes('reasoning') || m.includes('deepseek-r1') || m.includes('qwen3') || m.includes('magistral') || m.includes('gpt-oss');
+    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
+  }
+  if (providerType === 'anthropic') {
+    const ok = m.includes('claude-3-7') || m.includes('claude-4') || m.includes('sonnet-4') || m.includes('opus-4') || m.includes('haiku-4');
+    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High', 'Max'] } : { supported: false, levels: ['Auto'] };
+  }
+  if (providerType === 'gemini') {
+    const ok = m.includes('2.5') || m.includes('thinking');
+    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
+  }
+  if (providerType === 'ollama' || providerType === 'lm_studio') {
+    const ok = m.includes('deepseek-r1') || m.includes('qwen3') || m.includes('magistral') || m.includes('gpt-oss');
+    return ok ? { supported: true, levels: ['Auto', 'Low', 'Medium', 'High'] } : { supported: false, levels: ['Auto'] };
+  }
+  return { supported: false, levels: ['Auto'] };
+}
+
 function registerIpcHandlers(): void {
   // Native method: getAppInfo
   ipcMain.handle(IPC_CHANNELS.GET_APP_INFO, async (): Promise<DesktopAppInfo> => {
@@ -1456,6 +1478,10 @@ function registerIpcHandlers(): void {
       // ignore
     }
   });
+
+  ipcMain.handle(SYSTEM_IPC_CHANNELS.CHECK_EFFORT_SUPPORT, async (_event, providerType: string, model: string) => {
+    return supportsReasoningEffort(providerType, model);
+  });
 }
 
 /**
@@ -2120,7 +2146,7 @@ async function startProviderChatOpenAICompatible(
         stream: true,
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
         ...(request.maxTokens !== undefined ? { max_tokens: request.maxTokens } : {}),
-         ...(request.effort && request.effort !== 'auto' && request.effort.toLowerCase() !== 'auto' ? { reasoning_effort: (request.effort.toLowerCase() === 'extra high' || request.effort.toLowerCase() === 'max' ? 'high' : request.effort.toLowerCase()) as any } : {}),
+         ...(request.effort && request.effort !== 'auto' && request.effort.toLowerCase() !== 'auto' && supportsReasoningEffort(request.providerType || '', request.model || '').supported ? { reasoning_effort: (request.effort.toLowerCase() === 'extra high' || request.effort.toLowerCase() === 'max' ? 'high' : request.effort.toLowerCase()) as any } : {}),
       });
 
       for await (const chunk of stream) {
@@ -2425,7 +2451,7 @@ async function startProviderChatAnthropic(
           system: anthropicSystem,
           messages: conversation as any,
           tools: anthropicTools as any,
-          ...(request.effort && request.effort !== 'auto' ? { output_config: { effort: (request.effort.toLowerCase() === 'extra high' ? 'max' : request.effort.toLowerCase()) as any } } : {}),
+          ...(request.effort && request.effort !== 'auto' && supportsReasoningEffort(request.providerType || '', request.model || '').supported ? { output_config: { effort: (((request.effort || '').toLowerCase() === 'extra high' ? 'max' : (request.effort || '').toLowerCase()) ) as any } } : {}),
         });
 
         const toolUses = (response.content || []).filter((b: any) => b.type === 'tool_use');
