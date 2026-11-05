@@ -3413,6 +3413,71 @@ async function callProviderNonStreamingOllama(
   return data?.message || {};
 }
 
+function extractPseudoToolCalls(text: string): { cleanedText: string; toolCalls: any[] } {
+  const toolCalls: any[] = [];
+  if (!text) return { cleanedText: text, toolCalls };
+
+  const toolCallRegex = /<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/gi;
+  let match;
+
+  while ((match = toolCallRegex.exec(text)) !== null) {
+    const rawBlock = match[1];
+    const trimmed = rawBlock.trim();
+
+    // Check JSON inside <tool_call>
+    if (trimmed.startsWith('{') && (trimmed.endsWith('}') || trimmed.includes('"name"'))) {
+      try {
+        const jsonStr = trimmed.endsWith('}') ? trimmed : trimmed + '}';
+        const parsed = JSON.parse(jsonStr);
+        const name = parsed.name || parsed.function?.name || parsed.tool;
+        const args = parsed.arguments || parsed.parameters || parsed.args || {};
+        if (name) {
+          toolCalls.push({
+            id: `call_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            type: 'function',
+            function: {
+              name,
+              arguments: typeof args === 'string' ? args : JSON.stringify(args),
+            },
+          });
+        }
+        continue;
+      } catch {}
+    }
+
+    // Check XML-like: <function=name> or <function name="...">
+    const funcMatch = rawBlock.match(/<function[ =]([a-zA-Z0-9_\-:]+)>|<function\s+name=["']?([a-zA-Z0-9_\-:]+)["']?>/i);
+    const funcName = funcMatch ? (funcMatch[1] || funcMatch[2]) : null;
+
+    if (funcName) {
+      const args: Record<string, any> = {};
+      const paramRegex = /<parameter=([a-zA-Z0-9_\-]+)>([\s\S]*?)(?:<\/parameter>|(?=<parameter=)|$)/gi;
+      let pMatch;
+      while ((pMatch = paramRegex.exec(rawBlock)) !== null) {
+        const paramName = pMatch[1].trim();
+        const paramVal = pMatch[2].trim();
+        args[paramName] = paramVal;
+      }
+
+      toolCalls.push({
+        id: `call_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        type: 'function',
+        function: {
+          name: funcName,
+          arguments: JSON.stringify(args),
+        },
+      });
+    }
+  }
+
+  let cleaned = text;
+  if (toolCalls.length > 0) {
+    cleaned = cleaned.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, '').trim();
+  }
+
+  return { cleanedText: cleaned, toolCalls };
+}
+
 async function startProviderChatWithTools(
   event: { sender: Electron.WebContents },
   request: ModelInferenceRequest
@@ -3494,7 +3559,18 @@ async function startProviderChatWithTools(
         return { requestId: request.requestId, success: false, error: err?.message };
       }
 
-      const toolCalls = assistantMsg.tool_calls || assistantMsg.toolCalls || [];
+      let toolCalls = assistantMsg.tool_calls || assistantMsg.toolCalls || [];
+      if (!toolCalls || toolCalls.length === 0) {
+        const rawContent = assistantMsg.content || '';
+        if (rawContent.includes('<tool_call>') || rawContent.includes('<function=')) {
+          const pseudo = extractPseudoToolCalls(rawContent);
+          if (pseudo.toolCalls.length > 0) {
+            toolCalls = pseudo.toolCalls;
+            assistantMsg.content = pseudo.cleanedText;
+          }
+        }
+      }
+
       if (!toolCalls || toolCalls.length === 0) {
         finalContent =
           assistantMsg.content ||
@@ -3502,6 +3578,9 @@ async function startProviderChatWithTools(
           assistantMsg.reasoning_content ||
           assistantMsg.reasoning_details?.map?.((r: any) => r?.text || r?.content || '').join('\n') ||
           '';
+        if (finalContent.includes('<tool_call>')) {
+          finalContent = finalContent.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, '').trim();
+        }
         break;
       }
 
@@ -3620,6 +3699,10 @@ async function startProviderChatWithTools(
       } catch {
         // synthesis failed, fall through to default message
       }
+    }
+
+    if (finalContent && finalContent.includes('<tool_call>')) {
+      finalContent = finalContent.replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, '').trim();
     }
 
     if (!finalContent) {

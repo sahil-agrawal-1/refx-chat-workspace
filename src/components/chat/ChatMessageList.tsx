@@ -54,38 +54,108 @@ const renderInline = (text: string): React.ReactNode[] => {
   return parts.length ? parts : [text];
 };
 
+const ToolActionCard: React.FC<{ name: string; path?: string }> = ({ name, path }) => {
+  return (
+    <div className="my-2.5 px-3.5 py-2.5 rounded-xl border border-indigo-500/25 bg-indigo-500/5 backdrop-blur-xs flex items-center justify-between shadow-xs">
+      <div className="flex items-center gap-2.5 text-xs text-foreground min-w-0">
+        <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 shrink-0">
+          <FileEdit size={14} strokeWidth={2} />
+        </div>
+        <div className="min-w-0">
+          <div className="font-semibold text-foreground">
+            {name === 'edit_file' ? 'File Modification Proposed' : name === 'create_file' ? 'New File Proposed' : `Tool Action: ${name}`}
+          </div>
+          {path && (
+            <div className="font-mono text-[11px] text-foreground-muted mt-0.5 truncate max-w-sm sm:max-w-md">
+              {path}
+            </div>
+          )}
+        </div>
+      </div>
+      <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-[10px] font-medium border border-indigo-500/20 uppercase tracking-wider shrink-0 ml-2">
+        Action
+      </span>
+    </div>
+  );
+};
+
 const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => {
   const [copied, setCopied] = useState(false);
   const lines = code.replace(/\n$/, '').split('\n');
+
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const displayLang = (lang || 'code').toUpperCase();
+
   return (
-    <div className="my-2.5 rounded-xl border border-border overflow-hidden bg-surface shadow-xs">
-      <div className="flex items-center justify-between px-3.5 py-1.5 bg-surface-raised border-b border-border text-[11px]">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded-md bg-surface text-foreground-muted font-mono text-[10px] uppercase tracking-wider">
-            {lang || 'code'}
+    <div className="my-3 rounded-xl border border-border/80 overflow-hidden bg-[#121317] dark:bg-[#0c0d11] shadow-md transition-all group">
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-3.5 py-2 bg-[#1a1b22] dark:bg-[#14151a] border-b border-border/60 text-xs select-none">
+        <div className="flex items-center gap-3">
+          {/* Mac-style Window Dots */}
+          <div className="flex items-center gap-1.5 opacity-80">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]/90 inline-block shadow-xs" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]/90 inline-block shadow-xs" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]/90 inline-block shadow-xs" />
+          </div>
+
+          <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+          {/* Language Pill */}
+          <div className="flex items-center gap-1.5 text-foreground-muted">
+            <Code2 size={13} className="text-indigo-400 shrink-0" />
+            <span className="font-mono text-[10.5px] font-semibold text-foreground/85 tracking-wider">
+              {displayLang}
+            </span>
+          </div>
+
+          {/* Line Counter */}
+          <span className="text-[10px] text-foreground-muted/60 font-mono hidden sm:inline">
+            {lines.length} {lines.length === 1 ? 'line' : 'lines'}
           </span>
         </div>
+
+        {/* Copy Button with Feedback */}
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-foreground-muted hover:text-foreground transition-colors cursor-pointer text-xs"
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+            copied
+              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-xs'
+              : 'bg-surface hover:bg-surface-raised text-foreground-muted hover:text-foreground border border-border/60 hover:border-border'
+          }`}
+          title="Copy code to clipboard"
         >
-          {copied ? <Check size={12} strokeWidth={2} className="text-emerald-400" /> : <Copy size={12} strokeWidth={1.8} />}
-          <span>{copied ? 'Copied' : 'Copy'}</span>
+          {copied ? (
+            <>
+              <Check size={12} strokeWidth={2.5} className="text-emerald-400" />
+              <span className="text-emerald-400">Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} strokeWidth={1.8} />
+              <span>Copy</span>
+            </>
+          )}
         </button>
       </div>
-      <div className="overflow-x-auto p-2">
-        <table className="w-full text-[12px] font-mono leading-5">
+
+      {/* Code Area */}
+      <div className="overflow-x-auto p-3 text-[12px] font-mono leading-relaxed select-text scrollbar-thin">
+        <table className="w-full border-collapse">
           <tbody>
             {lines.map((line, idx) => (
-              <tr key={idx} className="hover:bg-surface-raised">
-                <td className="w-10 px-2 text-right text-foreground-muted select-none border-r border-border">{idx + 1}</td>
-                <td className="px-3 whitespace-pre text-foreground">{line || ' '}</td>
+              <tr key={idx} className="hover:bg-white/[0.02] group/line transition-colors">
+                <td className="w-9 pr-3 text-right text-foreground-muted/40 group-hover/line:text-foreground-muted/70 select-none text-[11px] align-top">
+                  {idx + 1}
+                </td>
+                <td className="pl-3 border-l border-border/30 whitespace-pre text-[#e6edf3] font-mono">
+                  {line || ' '}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -96,53 +166,94 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
 };
 
 const MarkdownContent: React.FC<{ content: string }> = ({ content }) => {
-  const parts = content.split(/(```[\s\S]*?```)/g);
+  // 1. Extract any <tool_call> blocks if present
+  const toolCallRegex = /<tool_call>([\s\S]*?)(?:<\/tool_call>|$)/gi;
+  const sections: Array<{ type: 'markdown' | 'tool_card'; content: string; toolName?: string; toolPath?: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = toolCallRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      sections.push({ type: 'markdown', content: content.slice(lastIndex, match.index) });
+    }
+    const raw = match[1];
+    const funcMatch = raw.match(/<function[ =]([a-zA-Z0-9_\-:]+)>|<function\s+name=["']?([a-zA-Z0-9_\-:]+)["']?>/i);
+    const funcName = funcMatch ? (funcMatch[1] || funcMatch[2]) : 'edit_file';
+    const pathMatch = raw.match(/<parameter=path>([\s\S]*?)(?:<\/parameter>|(?=<parameter=)|$)/i);
+    const path = pathMatch ? pathMatch[1].trim() : '';
+
+    sections.push({
+      type: 'tool_card',
+      content: raw,
+      toolName: funcName,
+      toolPath: path,
+    });
+    lastIndex = toolCallRegex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    sections.push({ type: 'markdown', content: content.slice(lastIndex) });
+  }
+
   return (
     <>
-      {parts.map((part, i) => {
-        if (part.startsWith('```')) {
-          const m = part.match(/^```(\w*)\n?([\s\S]*?)```$/);
-          return <CodeBlock key={i} lang={m?.[1] || ''} code={m?.[2] || ''} />;
+      {sections.map((sec, secIdx) => {
+        if (sec.type === 'tool_card') {
+          return <ToolActionCard key={`tool-${secIdx}`} name={sec.toolName || 'tool'} path={sec.toolPath} />;
         }
-        const lines = part.split('\n');
-        const elements: React.ReactNode[] = [];
-        let listItems: string[] = [];
-        const flushList = () => {
-          if (listItems.length) {
-            elements.push(
-              <ul key={`ul-${elements.length}`} className="list-none space-y-1.5 my-2 pl-3">
-                {listItems.map((li, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-foreground text-xs">
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                    <span className="leading-relaxed">{renderInline(li)}</span>
-                  </li>
-                ))}
-              </ul>
-            );
-            listItems = [];
-          }
-        };
-        lines.forEach((line, idx) => {
-          if (line.startsWith('### ')) {
-            flushList();
-            elements.push(<h3 key={`h3-${idx}`} className="text-sm font-semibold text-foreground mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
-          } else if (line.startsWith('## ')) {
-            flushList();
-            elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-foreground mt-4 mb-1.5 border-b border-border pb-1">{renderInline(line.slice(3))}</h2>);
-          } else if (line.startsWith('# ')) {
-            flushList();
-            elements.push(<h1 key={`h1-${idx}`} className="text-lg font-bold text-foreground mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
-          } else if (/^[-*] /.test(line)) {
-            listItems.push(line.slice(2));
-          } else if (line.trim() === '') {
-            flushList();
-          } else {
-            flushList();
-            elements.push(<p key={`p-${idx}`} className="my-1.5 leading-relaxed text-foreground text-xs">{renderInline(line)}</p>);
-          }
-        });
-        flushList();
-        return <div key={i}>{elements}</div>;
+
+        // Support both completed code blocks and streaming open code blocks: ```lang\n...
+        const parts = sec.content.split(/(```[\w-]*\n[\s\S]*?(?:```|$))/g);
+
+        return (
+          <React.Fragment key={`sec-${secIdx}`}>
+            {parts.map((part, i) => {
+              if (part.startsWith('```')) {
+                const m = part.match(/^```([\w-]*)\n?([\s\S]*?)(?:```)?$/);
+                return <CodeBlock key={i} lang={m?.[1] || ''} code={m?.[2] || ''} />;
+              }
+              const lines = part.split('\n');
+              const elements: React.ReactNode[] = [];
+              let listItems: string[] = [];
+              const flushList = () => {
+                if (listItems.length) {
+                  elements.push(
+                    <ul key={`ul-${elements.length}`} className="list-none space-y-1.5 my-2 pl-3">
+                      {listItems.map((li, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-foreground text-xs">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                          <span className="leading-relaxed">{renderInline(li)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                  listItems = [];
+                }
+              };
+              lines.forEach((line, idx) => {
+                if (line.startsWith('### ')) {
+                  flushList();
+                  elements.push(<h3 key={`h3-${idx}`} className="text-sm font-semibold text-foreground mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
+                } else if (line.startsWith('## ')) {
+                  flushList();
+                  elements.push(<h2 key={`h2-${idx}`} className="text-base font-semibold text-foreground mt-4 mb-1.5 border-b border-border pb-1">{renderInline(line.slice(3))}</h2>);
+                } else if (line.startsWith('# ')) {
+                  flushList();
+                  elements.push(<h1 key={`h1-${idx}`} className="text-lg font-bold text-foreground mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
+                } else if (/^[-*] /.test(line)) {
+                  listItems.push(line.slice(2));
+                } else if (line.trim() === '') {
+                  flushList();
+                } else {
+                  flushList();
+                  elements.push(<p key={`p-${idx}`} className="my-1.5 leading-relaxed text-foreground text-xs">{renderInline(line)}</p>);
+                }
+              });
+              flushList();
+              return <div key={i}>{elements}</div>;
+            })}
+          </React.Fragment>
+        );
       })}
     </>
   );
