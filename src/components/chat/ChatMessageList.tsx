@@ -20,9 +20,41 @@ import {
   Wand2,
   Globe,
   ExternalLink,
+  Palette,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
+
+// Helper: select icon & color based on file extension
+const getFileIcon = (fileName: string): React.ReactElement => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  switch (ext) {
+    case 'jsx':
+    case 'tsx':
+      return <Code2 size={11} className="text-cyan-400 shrink-0" />;
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return <FileCode size={11} className="text-amber-400 shrink-0" />;
+    case 'ts':
+      return <FileCode size={11} className="text-blue-400 shrink-0" />;
+    case 'css':
+    case 'scss':
+    case 'less':
+      return <Palette size={11} className="text-teal-400 shrink-0" />;
+    case 'json':
+      return <FileCode size={11} className="text-yellow-400 shrink-0" />;
+    case 'html':
+      return <Globe size={11} className="text-orange-400 shrink-0" />;
+    case 'md':
+    case 'mdx':
+      return <FileCode size={11} className="text-purple-400 shrink-0" />;
+    case 'py':
+      return <FileCode size={11} className="text-emerald-400 shrink-0" />;
+    default:
+      return <FileCode size={11} className="text-indigo-400 shrink-0" />;
+  }
+};
 
 const renderInline = (text: string): React.ReactNode[] => {
   const parts: React.ReactNode[] = [];
@@ -441,7 +473,7 @@ const ThinkingProcessCard: React.FC<{
                         title={f.fullPath}
                         className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface border border-border/80 text-[11px] font-mono text-foreground hover:border-indigo-500/40 transition-colors"
                       >
-                        <FileCode size={11} className="text-indigo-400 shrink-0" />
+                        {getFileIcon(f.name)}
                         <span className="truncate max-w-[180px]">{f.name}</span>
                         {f.count > 1 && (
                           <span className="text-[9px] px-1 rounded bg-indigo-500/15 text-indigo-300 font-semibold">
@@ -467,8 +499,8 @@ const ThinkingProcessCard: React.FC<{
                         title={f.fullPath}
                         className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-300"
                       >
-                        <FileEdit size={11} className="text-amber-400 shrink-0" />
-                        <span>{f.name}</span>
+                        {getFileIcon(f.name)}
+                        <span className="truncate max-w-[180px]">{f.name}</span>
                       </span>
                     ))}
                   </div>
@@ -507,8 +539,7 @@ const ThinkingProcessCard: React.FC<{
                   <div key={step.id || idx} className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 rounded-lg hover:bg-surface/60 transition-colors">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="p-1 rounded-md bg-surface border border-border shrink-0">
-                        {step.type === 'file_read' && <FileCode size={11} className="text-indigo-400" />}
-                        {step.type === 'file_write' && <FileEdit size={11} className="text-amber-400" />}
+                        {(step.type === 'file_read' || step.type === 'file_write') && getFileIcon(fileName)}
                         {step.type === 'web_search' && <Globe size={11} className="text-blue-400" />}
                         {step.type === 'web_browse' && <ExternalLink size={11} className="text-purple-400" />}
                         {step.type === 'terminal_run' && <Terminal size={11} className="text-emerald-400" />}
