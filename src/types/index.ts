@@ -110,7 +110,8 @@ export type ActiveModal =
   | 'workspace-picker'
   | 'permission'
   | 'diff-review'
-  | 'onboarding';
+  | 'onboarding'
+  | 'conversation-history';
 
 export type ActiveDrawer =
   | null

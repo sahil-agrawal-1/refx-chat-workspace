@@ -12,6 +12,14 @@ function safeId(id: string): string {
   return String(id).replace(/[^a-zA-Z0-9._-]/g, '');
 }
 
+function safeFileName(name: string): string {
+  const cleaned = String(name || 'skill')
+    .replace(/[<>:"/\\|?*]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (cleaned || 'skill') + '.md';
+}
+
 function entryDir(id: string): string {
   return path.join(skillsRoot(), safeId(id));
 }
@@ -66,13 +74,29 @@ export function saveSkill(skill: any): any {
   const tmpSkill = path.join(dir, 'SKILL.md.tmp');
   fs.writeFileSync(tmpSkill, skill.instructions || '', 'utf8');
   fs.renameSync(tmpSkill, path.join(dir, 'SKILL.md'));
+
+  // Also publish a directly visible Markdown file in the skills folder.
+  try {
+    fs.writeFileSync(path.join(skillsRoot(), safeFileName(meta.name)), skill.instructions || '', 'utf8');
+  } catch {
+    // The directory-backed skill remains the source of truth.
+  }
+
   return { ...meta, instructions: skill.instructions || '' };
 }
 
 export function deleteSkill(id: string): boolean {
   const dir = entryDir(id);
   if (!fs.existsSync(dir)) return false;
+  const skill = readSkill(id);
   fs.rmSync(dir, { recursive: true, force: true });
+  if (skill?.name) {
+    try {
+      fs.unlinkSync(path.join(skillsRoot(), safeFileName(skill.name)));
+    } catch {
+      // Best-effort cleanup of the published Markdown file.
+    }
+  }
   return true;
 }
 

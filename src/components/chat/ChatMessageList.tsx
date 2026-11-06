@@ -527,9 +527,9 @@ const CodeBlock: React.FC<{ lang: string; code: string }> = ({ lang, code }) => 
   const displayLang = (lang || 'code').toUpperCase();
 
   return (
-    <div className="my-4 rounded-xl border border-[#303033] overflow-hidden bg-[#101011] shadow-[0_12px_32px_rgba(0,0,0,.2)] transition-all group">
+    <div className="my-4 rounded-xl border border-[#303033] overflow-hidden bg-surface shadow-[0_12px_32px_rgba(0,0,0,.2)] transition-all group">
       {/* Top Header */}
-      <div className="flex items-center justify-between px-3.5 py-2 bg-[#19191a] border-b border-[#303033] text-xs select-none">
+      <div className="flex items-center justify-between px-3.5 py-2 bg-surface-raised border-b border-[#303033] text-xs select-none">
         <div className="flex items-center gap-3">
           {/* Language Pill */}
           <div className="flex items-center gap-1.5 text-foreground-muted">
@@ -763,7 +763,7 @@ const ThinkingProcessCard: React.FC<{
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer transition-colors"
+        className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground cursor-pointer transition-colors"
       >
         <span>Thinking</span>
         {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -778,17 +778,17 @@ const ThinkingProcessCard: React.FC<{
             const isPackage = step.type === 'terminal_run' || step.title.toLowerCase().includes('install') || step.title.toLowerCase().includes('package');
 
             return (
-              <div key={step.id || idx} className="flex items-center gap-2 text-zinc-400 py-0.5">
+              <div key={step.id || idx} className="flex items-center gap-2 text-foreground-muted py-0.5">
                 {isReact ? (
                   <span className="text-cyan-400 text-sm font-bold leading-none select-none">⚛</span>
                 ) : isPackage ? (
-                  <Terminal size={12} className="text-zinc-400 shrink-0" />
+                  <Terminal size={12} className="text-foreground-muted shrink-0" />
                 ) : (
-                  <span className="p-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+                  <span className="p-0.5 rounded bg-surface-raised text-foreground-muted shrink-0">
                     {getFileIcon(fileName)}
                   </span>
                 )}
-                <span className="text-zinc-300 font-mono text-[11.5px] truncate">{step.title}</span>
+                <span className="text-foreground-muted font-mono text-[11.5px] truncate">{step.title}</span>
               </div>
             );
           })}
@@ -799,8 +799,9 @@ const ThinkingProcessCard: React.FC<{
 };
 
 export const ChatMessageList: React.FC = () => {
-  const { currentConversation, isGenerating, setActiveDiffFile, toggleBottomPanel, sendMessage, addTaskMemory } = useAppStore();
+  const { currentConversation, isGenerating, setActiveDiffFile, toggleBottomPanel, sendMessage, addTaskMemory, addAppMemory, undoMessage } = useAppStore();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
 
@@ -911,16 +912,16 @@ export const ChatMessageList: React.FC = () => {
         if (isUser) {
           return (
             <div key={msg.id} className="flex flex-col items-end space-y-1.5">
-              <div className="max-w-xl bg-[#141417] text-zinc-100 rounded-2xl px-5 py-3 text-[14px] leading-relaxed border border-zinc-800/80 shadow-xs">
+              <div className="max-w-xl bg-surface-card text-foreground rounded-2xl px-5 py-3 text-[14px] leading-relaxed border border-border/80 shadow-xs">
                 <p className="whitespace-pre-wrap leading-relaxed select-text">{msg.content}</p>
                 {msg.attachments && msg.attachments.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-zinc-800">
+                  <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-border">
                     {msg.attachments.map((att) => (
                       <span
                         key={att.id}
-                        className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md text-zinc-400 flex items-center gap-1"
+                        className="text-[10px] font-mono bg-surface border border-border px-2 py-0.5 rounded-md text-foreground-muted flex items-center gap-1"
                       >
-                        <FileCode size={12} strokeWidth={1.8} className="text-zinc-400" />
+                        <FileCode size={12} strokeWidth={1.8} className="text-foreground-muted" />
                         {att.name}
                       </span>
                     ))}
@@ -928,12 +929,12 @@ export const ChatMessageList: React.FC = () => {
                 )}
               </div>
               {/* Micro Toolbar below user message: CornerUpLeft, RotateCcw, Copy */}
-              <div className="flex items-center gap-2.5 text-zinc-500 pr-1">
+              <div className="flex items-center gap-2.5 text-foreground-muted pr-1">
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={() => { void undoMessage(msg.id); }}
                   title="Undo / Reply"
-                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   <CornerUpLeft size={13} strokeWidth={1.8} />
                 </button>
@@ -941,7 +942,7 @@ export const ChatMessageList: React.FC = () => {
                   type="button"
                   onClick={() => handleRetry(msg)}
                   title="Retry"
-                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                  className="hover:text-foreground-muted transition-colors cursor-pointer"
                 >
                   <RotateCcw size={13} strokeWidth={1.8} />
                 </button>
@@ -949,7 +950,7 @@ export const ChatMessageList: React.FC = () => {
                   type="button"
                   onClick={() => handleCopy(msg.content, msg.id)}
                   title="Copy"
-                  className="hover:text-zinc-300 transition-colors cursor-pointer"
+                  className="hover:text-foreground-muted transition-colors cursor-pointer"
                 >
                   {copiedId === msg.id ? (
                     <Check size={13} strokeWidth={2} className="text-emerald-400" />
@@ -964,9 +965,9 @@ export const ChatMessageList: React.FC = () => {
 
         // Assistant Message
         return (
-          <div key={msg.id} className="flex flex-col space-y-2 text-zinc-200">
+          <div key={msg.id} className="flex flex-col space-y-2 text-foreground">
             {/* Main Conversational Response Text directly on canvas */}
-            <div className="text-[14.5px] text-zinc-100 leading-relaxed">
+            <div className="text-[14.5px] text-foreground leading-relaxed">
               <MarkdownContent content={msg.content || (isGenerating ? '' : 'No response generated.')} />
               {isGenerating && msg.id === messages[messages.length - 1]?.id && (
                 <span className="inline-block w-1.5 h-3.5 bg-zinc-200 ml-1 align-middle animate-pulse" />
@@ -974,7 +975,7 @@ export const ChatMessageList: React.FC = () => {
             </div>
 
             {/* Status: Worked for 2m > */}
-            <div className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-400 cursor-pointer w-fit">
+            <div className="flex items-center gap-1 text-xs text-foreground-muted hover:text-foreground-muted cursor-pointer w-fit">
               <span>Worked for {msg.durationMs ? `${(msg.durationMs / 1000).toFixed(0)}s` : '2m'}</span>
               <ChevronRight size={12} strokeWidth={1.8} />
             </div>
@@ -991,9 +992,9 @@ export const ChatMessageList: React.FC = () => {
 
             {/* File Changed Card */}
             {((msg.fileChanges && msg.fileChanges.length > 0) || (msg.activities && msg.activities.some((a) => a.type === 'file_write'))) && (
-              <div className="rounded-xl border border-zinc-800 bg-[#0e0e11] px-4 py-3 flex items-center justify-between shadow-xs mt-1">
+              <div className="rounded-xl border border-border bg-surface px-4 py-3 flex items-center justify-between shadow-xs mt-1">
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-zinc-200 font-medium">
+                  <span className="text-foreground font-medium">
                     {msg.fileChanges?.length || 1} file changed
                   </span>
                   <span className="text-emerald-400 font-mono font-medium">
@@ -1002,7 +1003,7 @@ export const ChatMessageList: React.FC = () => {
                   <span className="text-rose-400 font-mono font-medium">
                     -{msg.fileChanges?.reduce((acc, c) => acc + c.deletions, 0) || 34}
                   </span>
-                  <ChevronRight size={12} className="text-zinc-500" />
+                  <ChevronRight size={12} className="text-foreground-muted" />
                 </div>
                 <button
                   type="button"
@@ -1012,21 +1013,21 @@ export const ChatMessageList: React.FC = () => {
                     }
                     toggleBottomPanel('diff');
                   }}
-                  className="border border-zinc-700/80 bg-[#161619] hover:bg-zinc-800 text-zinc-200 rounded-lg px-3 py-1 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="border border-zinc-700/80 bg-surface-raised hover:bg-surface-raised text-foreground rounded-lg px-3 py-1 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <FileText size={13} className="text-zinc-400" />
+                  <FileText size={13} className="text-foreground-muted" />
                   <span>Review</span>
                 </button>
               </div>
             )}
 
             {/* Timestamp + Copy + Thumbs Up + Thumbs Down Row */}
-            <div className="flex items-center gap-3 text-xs text-zinc-500 px-1 pt-0.5">
+            <div className="flex items-center gap-3 text-xs text-foreground-muted px-1 pt-0.5">
               <span>8h ago</span>
               <button
                 type="button"
                 onClick={() => handleCopy(msg.content, msg.id)}
-                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                className="hover:text-foreground-muted transition-colors cursor-pointer"
                 title="Copy response"
               >
                 {copiedId === msg.id ? (
@@ -1037,14 +1038,34 @@ export const ChatMessageList: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                onClick={() => {
+                  setFeedback((prev) => ({ ...prev, [msg.id]: 'up' }));
+                  void addAppMemory(
+                    'preference',
+                    'Helpful assistant response',
+                    'User marked an assistant response as helpful.',
+                    msg.content.slice(0, 1000),
+                    0.9
+                  ).catch(() => {});
+                }}
+                className={`transition-colors cursor-pointer ${feedback[msg.id] === 'up' ? 'text-emerald-400' : 'hover:text-foreground-muted'}`}
                 title="Helpful"
               >
                 <ThumbsUp size={13} strokeWidth={1.8} />
               </button>
               <button
                 type="button"
-                className="hover:text-zinc-300 transition-colors cursor-pointer"
+                onClick={() => {
+                  setFeedback((prev) => ({ ...prev, [msg.id]: 'down' }));
+                  void addAppMemory(
+                    'preference',
+                    'Unhelpful assistant response',
+                    'User marked an assistant response as not helpful.',
+                    msg.content.slice(0, 1000),
+                    0.9
+                  ).catch(() => {});
+                }}
+                className={`transition-colors cursor-pointer ${feedback[msg.id] === 'down' ? 'text-rose-400' : 'hover:text-foreground-muted'}`}
                 title="Not helpful"
               >
                 <ThumbsDown size={13} strokeWidth={1.8} />

@@ -219,7 +219,18 @@ See `security.md` for full security documentation including:
 
 | Area | Limitation | Notes |
 |------|-----------|-------|
-| Live endpoint testing | All provider verification tests use mocked `window.desktop` — no actual network calls to real provider APIs | Cannot claim providers work against real endpoints without live API keys |
+| Live endpoint testing | All provider verification tests use mocked `window.desktop` - no actual network calls to real provider APIs | Cannot claim providers work against real endpoints without live API keys |
+
+---
+
+## 10. Recent Updates (2026-11-06)
+
+- Light-mode surfaces converted from hardcoded dark colors to theme tokens.
+- Sidebar supports pinned conversations and newest/oldest filtering.
+- Skills creation now uses a form and saves a visible `.md` file.
+- All enabled skills are injected into AI context.
+- Assistant responses support undo and helpful/not-helpful feedback saved to app memory.
+- Overview widget collapses/slides with the file drawer and preserves chat spacing.
 | Custom local endpoint | Returns `auth-verified-model-untested` when endpoint returns non-JSON | Users must enter model ID manually |
 | Memory persistence | Stored in `localStorage`, not SQLite | No migration path from `localStorage` to backend |
 | Filesystem IPC | `readFile`/`writeFile`/`watchDirectory` not implemented in Electron main | File changes staged in UI but not written to disk |

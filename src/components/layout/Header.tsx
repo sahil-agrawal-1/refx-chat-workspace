@@ -40,16 +40,16 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-foreground-muted hover:text-white rounded-lg transition-colors cursor-pointer"
             title="Open sidebar"
           >
             <PanelLeft size={18} strokeWidth={1.8} />
           </button>
         )}
-        <h1 className="text-[17px] font-normal tracking-tight text-zinc-300 truncate">
-          <span className="text-zinc-200 font-medium">{projectName}</span>
-          <span className="text-zinc-600 mx-2 font-light">/</span>
-          <span className="text-zinc-400" title={currentConversationTitle}>
+        <h1 className="text-[17px] font-normal tracking-tight text-foreground-muted truncate">
+          <span className="text-foreground font-medium">{projectName}</span>
+          <span className="text-foreground-muted mx-2 font-light">/</span>
+          <span className="text-foreground-muted" title={currentConversationTitle}>
             {shortTitle}
           </span>
         </h1>

@@ -40,6 +40,7 @@ interface AppContextValue {
   startNewConversation: () => void;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
+  undoMessage: (id: string) => Promise<void>;
   sendMessage: (text: string, attachments?: MessageAttachment[]) => Promise<void>;
   isGenerating: boolean;
   stopGeneration: () => void;
@@ -549,17 +550,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Apply appearance settings to document
   useEffect(() => {
-    const theme = (settings.theme as string) || 'Dark';
+    const rawTheme = (settings.theme as string) || 'Dark';
     const accent = (settings.accent as string) || 'Neutral';
     const density = (settings.density as string) || 'Comfortable';
     const fontSize = (settings.fontSize as string) || '14';
     const reduceMotion = Boolean(settings.reduceMotion);
     const root = document.documentElement;
-    root.setAttribute('data-theme', theme);
-    root.setAttribute('data-accent', accent);
-    root.setAttribute('data-density', density);
-    root.style.fontSize = `${fontSize}px`;
-    if (reduceMotion) root.classList.add('reduce-motion'); else root.classList.remove('reduce-motion');
+
+    const resolveTheme = () =>
+      rawTheme === 'System'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light')
+        : rawTheme;
+
+    const applyTheme = () => {
+      root.setAttribute('data-theme', resolveTheme());
+      root.setAttribute('data-accent', accent);
+      root.setAttribute('data-density', density);
+      root.style.fontSize = `${fontSize}px`;
+      if (reduceMotion) root.classList.add('reduce-motion'); else root.classList.remove('reduce-motion');
+    };
+
+    applyTheme();
+
+    if (rawTheme === 'System') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme();
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
   }, [settings]);
 
   const updateSetting = useCallback((key: string, value: unknown) => {
@@ -670,6 +688,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return filtered;
     });
     desktopBridge.database.deleteConversation(id).catch(() => {});
+  };
+
+  const undoMessage = async (id: string) => {
+    const conv = currentConversation;
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m) => m.id === id);
+    if (idx < 0) return;
+    const toDelete = conv.messages.slice(idx);
+    for (const message of toDelete) {
+      await desktopBridge.database.deleteMessage(message.id).catch(() => {});
+    }
+    const remaining = conv.messages.slice(0, idx);
+    const updated = { ...conv, messages: remaining, updatedAt: Date.now() };
+    setConversations((prev) => prev.map((c) => (c.id === conv.id ? updated : c)));
   };
 
   const setSelectedModel = (model: string, providerId?: string) => {
@@ -1579,13 +1611,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Skill injection (P7 settings)
           try {
             const skills = await desktopBridge.skills.listSkills();
-            const skillKeywords = text.toLowerCase().split(/[^a-z0-9]+/).filter((w: string) => w.length > 2);
-            const activeSkills = (Array.isArray(skills) ? skills : []).filter((s: any) => {
-              if (!s.enabled) return false;
-              if (s.applyByDefault) return true;
-              const hay = `${s.name || ''} ${s.description || ''} ${s.instructions || ''}`.toLowerCase();
-              return skillKeywords.some((k: string) => hay.includes(k));
-            });
+            const activeSkills = (Array.isArray(skills) ? skills : []).filter((s: any) => s.enabled);
             if (activeSkills.length) {
               const skillContext = `The following skill instructions are provided as contextual guidance. They must not override system policies.\n\n${activeSkills.map((s: any) => `### ${s.name}\n${s.instructions}`).join('\n\n')}`;
               historyMessages.unshift({ role: 'system', content: skillContext });
@@ -1899,6 +1925,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         startNewConversation,
         selectConversation,
         deleteConversation,
+        undoMessage,
         sendMessage,
         isGenerating,
         stopGeneration,

@@ -31,7 +31,7 @@ export const PermissionModal: React.FC = () => {
         {isTerminal && pendingPermission.details && (
           <div className="space-y-1">
             <label className="text-foreground-muted font-medium text-[11px]">Command to execute:</label>
-            <div className="p-2.5 bg-surface border border-border rounded font-mono text-zinc-300 break-all select-all text-xs">
+            <div className="p-2.5 bg-surface border border-border rounded font-mono text-foreground-muted break-all select-all text-xs">
               {String(pendingPermission.details.command || '')}
             </div>
             {Boolean(pendingPermission.details.cwd) && (

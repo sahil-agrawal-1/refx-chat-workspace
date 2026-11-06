@@ -102,7 +102,7 @@ export const FileExplorerDrawer: React.FC = () => {
           }`}
         >
           <div className="flex items-center gap-1.5 truncate">
-            <FileCode size={14} strokeWidth={1.8} className={`shrink-0 ${isSelected ? 'text-zinc-200' : 'text-foreground-muted'}`} />
+            <FileCode size={14} strokeWidth={1.8} className={`shrink-0 ${isSelected ? 'text-foreground' : 'text-foreground-muted'}`} />
             <span className="truncate">{item.name}</span>
           </div>
 
@@ -115,7 +115,7 @@ export const FileExplorerDrawer: React.FC = () => {
   };
 
   return (
-    <aside className="w-72 shrink-0 h-full bg-surface-raised border-l border-border flex flex-col z-10 text-xs">
+    <aside className="absolute right-0 top-0 h-full w-72 bg-surface-raised border-l border-border flex flex-col z-20 text-xs select-none animate-in slide-in-from-right duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border">
         <div className="flex items-center gap-2 truncate">

@@ -106,7 +106,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { if (currentChange.id) approveChange(currentChange.id); }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-surface-raised hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
               >
                 <Check size={12} strokeWidth={2} className="text-emerald-400" />
                 <span>Accept</span>
@@ -115,7 +115,7 @@ export const DiffReviewPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { if (currentChange.id) rejectChange(currentChange.id); }}
-                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-surface-raised hover:bg-zinc-700 text-foreground rounded text-xs transition-colors cursor-pointer"
               >
                 <X size={12} strokeWidth={2} className="text-red-400" />
                 <span>Reject</span>
@@ -202,7 +202,7 @@ export const DiffReviewPanel: React.FC = () => {
       {currentChange && (
         <div className="px-3.5 py-1.5 bg-surface border-t border-border text-[11px] font-mono text-foreground-muted flex items-center justify-between">
           <span className="truncate">{currentChange.filePath}</span>
-          <span className="capitalize text-zinc-300">Status: {currentChange.status}</span>
+          <span className="capitalize text-foreground-muted">Status: {currentChange.status}</span>
         </div>
       )}
     </div>

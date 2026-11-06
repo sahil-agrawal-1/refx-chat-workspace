@@ -383,10 +383,10 @@ export const ChatPromptInput: React.FC = () => {
 
   return (
     <>
-      <div className="w-full max-w-3xl mx-auto px-4 pb-4 select-none relative z-10">
+      <div className="w-full max-w-3xl mx-auto px-4 pb-4 select-none relative z-10 shrink-0">
         {/* Main Floating Chat Capsule matching Figma design */}
         <div
-          className="bg-[#141416]/95 border border-zinc-800/90 focus-within:border-zinc-700/90 rounded-2xl p-4 shadow-2xl backdrop-blur-md transition-all"
+          className="bg-surface-card/95 border border-border/90 focus-within:border-zinc-700/90 rounded-2xl p-4 shadow-2xl backdrop-blur-md transition-all"
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -403,9 +403,9 @@ export const ChatPromptInput: React.FC = () => {
           {showCommandMenu && (
             <div
               ref={commandMenuRef}
-              className="mb-3 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 text-xs backdrop-blur-md max-h-48 overflow-y-auto custom-scrollbar"
+              className="mb-3 bg-surface border border-border rounded-2xl shadow-2xl py-1.5 text-xs backdrop-blur-md max-h-48 overflow-y-auto custom-scrollbar"
             >
-              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted border-b border-border">
                 Commands
               </div>
               {SLASH_COMMANDS.filter((c) => c.cmd.startsWith(prompt.trim())).map((c) => (
@@ -416,10 +416,10 @@ export const ChatPromptInput: React.FC = () => {
                     setPrompt(c.cmd + ' ');
                     setShowCommandMenu(false);
                   }}
-                  className="w-full flex items-center justify-between px-3.5 py-1.5 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1.5 text-left text-foreground hover:bg-surface-raised cursor-pointer"
                 >
                   <span className="font-mono text-indigo-400">{c.cmd}</span>
-                  <span className="text-zinc-500 text-[11px]">{c.desc}</span>
+                  <span className="text-foreground-muted text-[11px]">{c.desc}</span>
                 </button>
               ))}
             </div>
@@ -431,7 +431,7 @@ export const ChatPromptInput: React.FC = () => {
               {attachedFiles.map((af) => (
                 <div key={af.id} className="group relative flex-shrink-0">
                   {af.type === 'image' && af.previewUrl ? (
-                    <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900 shadow-sm">
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-zinc-700 bg-surface shadow-sm">
                       <img src={af.previewUrl} alt={af.name} className="w-full h-full object-cover" draggable={false} />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button
@@ -445,13 +445,13 @@ export const ChatPromptInput: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-zinc-700 bg-zinc-900 shadow-sm max-w-[160px]">
-                      <FileText size={14} className="text-zinc-400 shrink-0" />
-                      <span className="text-[11px] font-medium text-zinc-200 truncate">{af.name}</span>
+                    <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-zinc-700 bg-surface shadow-sm max-w-[160px]">
+                      <FileText size={14} className="text-foreground-muted shrink-0" />
+                      <span className="text-[11px] font-medium text-foreground truncate">{af.name}</span>
                       <button
                         type="button"
                         onClick={() => removeFile(af.id)}
-                        className="text-zinc-500 hover:text-rose-400 ml-1 cursor-pointer"
+                        className="text-foreground-muted hover:text-rose-400 ml-1 cursor-pointer"
                       >
                         <X size={12} strokeWidth={2} />
                       </button>
@@ -467,7 +467,7 @@ export const ChatPromptInput: React.FC = () => {
             <div className="flex items-center gap-2 px-3 py-1.5 mb-2 bg-red-500/10 border border-red-500/25 rounded-xl text-xs text-red-300 animate-in fade-in duration-150 select-none">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping shrink-0" />
               <span className="font-semibold text-red-400 shrink-0">Live Voice:</span>
-              <span className="truncate italic text-zinc-400 flex-1">
+              <span className="truncate italic text-foreground-muted flex-1">
                 {liveCaption || 'Listening... Speak into your microphone'}
               </span>
               <button
@@ -488,7 +488,7 @@ export const ChatPromptInput: React.FC = () => {
             onKeyDown={handleKeyDown}
             placeholder="Describe what you want to build..."
             rows={1}
-            className="w-full bg-transparent text-zinc-100 placeholder:text-zinc-500 text-[14.5px] resize-none focus:outline-none min-h-[44px] max-h-[160px] leading-relaxed select-text font-normal"
+            className="w-full bg-transparent text-foreground placeholder:text-foreground-muted text-[14.5px] resize-none focus:outline-none min-h-[44px] max-h-[160px] leading-relaxed select-text font-normal"
           />
 
           {/* Bottom Action Bar inside Card */}
@@ -500,15 +500,15 @@ export const ChatPromptInput: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowAttachMenu(!showAttachMenu)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg cursor-pointer"
+                  className="p-1.5 text-foreground-muted hover:text-foreground transition-colors rounded-lg cursor-pointer"
                   title="Add attachment"
                 >
                   <Paperclip size={16} strokeWidth={1.8} />
                 </button>
 
                 {showAttachMenu && (
-                  <div className="absolute left-0 bottom-full mb-2 w-52 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
-                    <div className="px-3 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
+                  <div className="absolute left-0 bottom-full mb-2 w-52 bg-surface border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md">
+                    <div className="px-3 py-1 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
                       Add Context
                     </div>
                     <button
@@ -525,9 +525,9 @@ export const ChatPromptInput: React.FC = () => {
                         };
                         input.click();
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface-raised cursor-pointer"
                     >
-                      <FileCode size={14} className="text-zinc-400" />
+                      <FileCode size={14} className="text-foreground-muted" />
                       <span>Files</span>
                     </button>
                     <button
@@ -536,9 +536,9 @@ export const ChatPromptInput: React.FC = () => {
                         openWorkspaceDialog();
                         setShowAttachMenu(false);
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-surface-raised cursor-pointer"
                     >
-                      <Folder size={14} className="text-zinc-400" />
+                      <Folder size={14} className="text-foreground-muted" />
                       <span>Folder</span>
                     </button>
                   </div>
@@ -549,7 +549,7 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setPrompt((prev) => prev + '@')}
-                className="p-1.5 text-zinc-400 hover:text-zinc-200 transition-colors rounded-lg cursor-pointer font-mono text-sm leading-none"
+                className="p-1.5 text-foreground-muted hover:text-foreground transition-colors rounded-lg cursor-pointer font-mono text-sm leading-none"
                 title="Mention context"
               >
                 @
@@ -560,7 +560,7 @@ export const ChatPromptInput: React.FC = () => {
                 type="button"
                 onClick={() => setWebSearchActive(!webSearchActive)}
                 className={`p-1.5 transition-colors rounded-lg cursor-pointer ${
-                  webSearchActive ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-400 hover:text-zinc-200'
+                  webSearchActive ? 'text-blue-400 bg-blue-500/10' : 'text-foreground-muted hover:text-foreground'
                 }`}
                 title={webSearchActive ? 'Web search enabled' : 'Enable web search'}
               >
@@ -577,19 +577,19 @@ export const ChatPromptInput: React.FC = () => {
                       ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                       : approvalMode === 'auto_preview'
                       ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
-                      : 'text-zinc-400 hover:text-zinc-200 bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800'
+                      : 'text-foreground-muted hover:text-foreground bg-surface-raised/40 hover:bg-surface-raised/80 border border-border'
                   }`}
                   title="Execution approval mode"
                 >
-                  <Hand size={13} strokeWidth={1.8} className="text-zinc-400" />
+                  <Hand size={13} strokeWidth={1.8} className="text-foreground-muted" />
                   <span>
                     {approvalMode === 'turbo' ? 'Turbo' : approvalMode === 'auto_preview' ? 'Auto Preview' : 'Ask for approval'}
                   </span>
                 </button>
 
                 {showApprovalMenu && (
-                  <div className="absolute bottom-full mb-2 left-0 w-60 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800">
+                  <div className="absolute bottom-full mb-2 left-0 w-60 bg-surface border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border">
                       Approval Mode
                     </div>
                     {[
@@ -606,12 +606,12 @@ export const ChatPromptInput: React.FC = () => {
                         }}
                         className={`w-full text-left px-3 py-2 transition-colors cursor-pointer ${
                           approvalMode === opt.id
-                            ? 'bg-zinc-800 text-white font-medium'
-                            : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                            ? 'bg-surface-raised text-white font-medium'
+                            : 'text-foreground-muted hover:text-white hover:bg-surface-raised/50'
                         }`}
                       >
                         <div className="font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-zinc-500">{opt.desc}</div>
+                        <div className="text-[10px] text-foreground-muted">{opt.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -623,7 +623,7 @@ export const ChatPromptInput: React.FC = () => {
             <div className="flex items-center gap-3">
               {/* Save Memory Toggle */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400 font-normal">Save Memory</span>
+                <span className="text-xs text-foreground-muted font-normal">Save Memory</span>
                 <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
               </div>
 
@@ -631,14 +631,14 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowModelPicker(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-zinc-300 hover:text-white bg-zinc-800/40 hover:bg-zinc-800/80 border border-zinc-800 transition-colors cursor-pointer font-mono"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-foreground-muted hover:text-white bg-surface-raised/40 hover:bg-surface-raised/80 border border-border transition-colors cursor-pointer font-mono"
                 title="Select active model"
               >
                 <span className="truncate max-w-[130px]">
                   {selectedModel || 'Ollama qwen-coder 1.1'}
                 </span>
-                <span className="text-zinc-500 font-sans text-[11px]">{effort || 'Medium'}</span>
-                <ChevronDown size={11} strokeWidth={2} className="text-zinc-400" />
+                <span className="text-foreground-muted font-sans text-[11px]">{effort || 'Medium'}</span>
+                <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
               </button>
 
               {/* Mic Button */}
@@ -648,7 +648,7 @@ export const ChatPromptInput: React.FC = () => {
                 className={`p-1.5 transition-colors rounded-lg cursor-pointer ${
                   isListening
                     ? 'text-rose-400 bg-rose-500/20 animate-pulse'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-foreground-muted hover:text-foreground'
                 }`}
                 title={isListening ? 'Listening...' : 'Voice dictation'}
               >
@@ -664,8 +664,8 @@ export const ChatPromptInput: React.FC = () => {
                   isGenerating
                     ? 'bg-rose-500 hover:bg-rose-600 text-white active:scale-95'
                     : prompt.trim() || attachedFiles.length > 0
-                    ? 'bg-zinc-800 hover:bg-zinc-700 text-white active:scale-95'
-                    : 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed opacity-50'
+                    ? 'bg-surface-raised hover:bg-surface-card text-foreground active:scale-95'
+                    : 'bg-surface-raised/60 text-foreground-muted cursor-not-allowed opacity-50'
                 }`}
                 title={isGenerating ? 'Stop generation' : 'Send'}
               >
@@ -684,15 +684,15 @@ export const ChatPromptInput: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowProjectPicker(!showProjectPicker)}
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
           >
             <span>{selectedWorkspace ? selectedWorkspace.name : 'No Project'}</span>
-            <ChevronDown size={12} strokeWidth={1.8} className="text-zinc-500" />
+            <ChevronDown size={12} strokeWidth={1.8} className="text-foreground-muted" />
           </button>
 
           {showProjectPicker && (
-            <div className="absolute left-4 bottom-full mb-2 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 flex items-center justify-between">
+            <div className="absolute left-4 bottom-full mb-2 w-64 bg-surface border border-border rounded-2xl shadow-2xl py-1.5 z-50 text-xs backdrop-blur-md animate-smooth-in">
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider border-b border-border flex items-center justify-between">
                 <span>Projects</span>
                 <button
                   type="button"
@@ -712,7 +712,7 @@ export const ChatPromptInput: React.FC = () => {
                   setShowProjectPicker(false);
                 }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                  !selectedWorkspace ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                  !selectedWorkspace ? 'bg-surface-raised text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface-raised/50'
                 }`}
               >
                 <span>No Project</span>
@@ -727,7 +727,7 @@ export const ChatPromptInput: React.FC = () => {
                     setShowProjectPicker(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer ${
-                    selectedWorkspace?.id === ws.id ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    selectedWorkspace?.id === ws.id ? 'bg-surface-raised text-white font-medium' : 'text-foreground-muted hover:text-white hover:bg-surface-raised/50'
                   }`}
                 >
                   <span className="truncate">{ws.name}</span>

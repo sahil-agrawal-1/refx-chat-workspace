@@ -115,7 +115,7 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({
       <div
         ref={trackRef}
         onMouseDown={handleMouseDown}
-        className="relative h-4 rounded-full bg-zinc-800/90 border border-white/10 cursor-pointer flex items-center shadow-inner"
+        className="relative h-4 rounded-full bg-surface-raised/90 border border-white/10 cursor-pointer flex items-center shadow-inner"
       >
         {/* Active Purple/Indigo Bar container with rounded-full overflow-hidden so it clips cleanly */}
         <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">

@@ -49,7 +49,7 @@ export const OnboardingModal: React.FC = () => {
                 step === s.num
                   ? 'text-foreground font-medium'
                   : step > s.num
-                  ? 'text-zinc-300'
+                  ? 'text-foreground-muted'
                   : 'text-foreground-muted'
               }`}
             >
@@ -96,7 +96,7 @@ export const OnboardingModal: React.FC = () => {
                   >
                     <div className="flex items-center justify-between mb-0.5">
                       <span className="font-medium text-xs text-foreground">{p.name}</span>
-                      {isSelected && <Check size={12} strokeWidth={2} className="text-zinc-200" />}
+                      {isSelected && <Check size={12} strokeWidth={2} className="text-foreground" />}
                     </div>
                     <div className="text-[10px] text-foreground-muted font-mono">
                       {p.isLocal ? 'Local Runtime' : 'API Key'}

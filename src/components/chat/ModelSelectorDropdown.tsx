@@ -116,7 +116,7 @@ export const ModelSelectorDropdown: React.FC = () => {
                                   }`}
                                 >
                                   <span className="truncate">{m}</span>
-                                  {isSelected && <Check size={14} strokeWidth={2} className="text-zinc-300 shrink-0" />}
+                                  {isSelected && <Check size={14} strokeWidth={2} className="text-foreground-muted shrink-0" />}
                                 </button>
                               );
                             })

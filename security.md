@@ -265,6 +265,14 @@ Memory encryption is opt-in through `memory_config.encryptionEnabled`. When enab
 ### Tests
 `shared/utils/memory-encryption.test.ts` covers encryption success, unavailable/failed encryption, legacy plaintext reads, undecryptable ciphertext, file preservation on failure, encrypted backup writes, plaintext upgrade-on-save, and corrupt-primary recovery.
 
+## 13. Recent UI and Theme Hardening (2026-11-06)
+
+- Light mode now resolves `System` and applies theme tokens consistently.
+- Hardcoded dark surfaces/borders/text in major components were converted to theme-aware utilities.
+- Settings selected tabs and skill buttons use foreground colors instead of fixed white.
+- Skill creation writes a visible Markdown file in the app skills directory.
+- All enabled skills are injected into AI context for every request.
+
 ## 12. Renderer Defense in Depth (Phase 4)
 
 ### Content Security Policy
