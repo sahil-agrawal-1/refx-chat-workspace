@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="h-14 px-6 flex items-center justify-between select-none bg-transparent shrink-0 z-10">
-      <div className="flex items-center gap-3 min-w-0 pr-40">
+      <div className="flex items-center gap-3 min-w-0 pr-4">
         {isSidebarCollapsed && (
           <button
             type="button"

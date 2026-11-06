@@ -62,84 +62,10 @@ export const AppLayout: React.FC = () => {
           currentConversationTitle={currentConversation?.title || 'New conversation'}
         />
 
-        {/* Floating Overview Widget (Top-Right, matching Figma design) */}
-        <div
-          className={`absolute top-4 z-20 transition-all duration-300 ${
-            activeDrawer === 'file-explorer' ? 'right-[318px]' : 'right-6'
-          }`}
-        >
-          <div
-            className={`rounded-xl border border-border/80 bg-surface-raised/90 p-2 shadow-2xl backdrop-blur-md space-y-1 transition-all duration-300 overflow-hidden ${
-              activeDrawer === 'file-explorer' ? 'w-11 min-w-0' : 'min-w-[130px]'
-            }`}
-          >
-            {activeDrawer !== 'file-explorer' && (
-              <div className="text-[11px] font-medium text-foreground-muted px-2 py-0.5 select-none">
-                Overview
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => toggleBottomPanel('diff')}
-              className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
-                activeDrawer === 'file-explorer'
-                  ? 'justify-center px-0 py-1.5'
-                  : 'justify-between px-2.5 py-1.5'
-              } ${
-                bottomPanels.has('diff')
-                  ? 'bg-surface-raised text-white'
-                  : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <FileText size={14} className="text-foreground-muted shrink-0" />
-                {activeDrawer !== 'file-explorer' && <span>Review</span>}
-              </div>
-              {activeDrawer !== 'file-explorer' && pendingChangesCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full">
-                  {pendingChangesCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleBottomPanel('terminal')}
-              className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
-                activeDrawer === 'file-explorer'
-                  ? 'justify-center px-0 py-1.5'
-                  : 'gap-2 px-2.5 py-1.5'
-              } ${
-                bottomPanels.has('terminal')
-                  ? 'bg-surface-raised text-white'
-                  : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
-              }`}
-            >
-              <Terminal size={14} className="text-foreground-muted shrink-0" />
-              {activeDrawer !== 'file-explorer' && <span>Terminal</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleDrawer('file-explorer')}
-              className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
-                activeDrawer === 'file-explorer'
-                  ? 'justify-center px-0 py-1.5'
-                  : 'gap-2 px-2.5 py-1.5'
-              } ${
-                activeDrawer === 'file-explorer'
-                  ? 'bg-surface-raised text-white'
-                  : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
-              }`}
-            >
-              <Files size={14} className="text-foreground-muted shrink-0" />
-              {activeDrawer !== 'file-explorer' && <span>Files</span>}
-            </button>
-          </div>
-        </div>
-
         {/* Notification Toast */}
         {notification && (
-          <div className="bg-surface border-b border-border px-4 py-1.5 flex items-center justify-between text-xs animate-in slide-in-from-top-1 z-30">
-            <div className="flex items-center gap-2">
+          <div className="bg-surface border-b border-border px-4 py-1.5 flex items-center justify-between text-xs animate-in slide-in-from-top-1 z-30 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
               {notification.type === 'success' && (
                 <CheckCircle2 size={14} strokeWidth={1.8} className="text-emerald-400 shrink-0" />
               )}
@@ -149,7 +75,7 @@ export const AppLayout: React.FC = () => {
               {notification.type === 'info' && (
                 <Info size={14} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
               )}
-              <div>
+              <div className="truncate">
                 <span className="font-medium text-foreground">{notification.title}: </span>
                 <span className="text-foreground-muted">{notification.message}</span>
               </div>
@@ -157,7 +83,7 @@ export const AppLayout: React.FC = () => {
             <button
               type="button"
               onClick={dismissNotification}
-              className="p-1 text-foreground-muted hover:text-white rounded cursor-pointer"
+              className="p-1 text-foreground-muted hover:text-white rounded cursor-pointer shrink-0 ml-2"
             >
               <X size={14} strokeWidth={1.8} />
             </button>
@@ -165,10 +91,84 @@ export const AppLayout: React.FC = () => {
         )}
 
         {/* Central Workspace Canvas */}
-        <div className="flex-1 flex overflow-hidden relative min-h-0 transition-all duration-300 pr-60">
+        <div className="flex-1 flex overflow-hidden relative min-h-0 pr-44">
           <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
             <ChatMessageList />
             <ChatPromptInput />
+          </div>
+
+          {/* Floating Overview Widget (inside workspace area so it never overlaps header/notification) */}
+          <div
+            className={`absolute top-4 z-20 transition-all duration-300 ${
+              activeDrawer === 'file-explorer' ? 'right-[306px]' : 'right-4'
+            }`}
+          >
+            <div
+              className={`rounded-xl border border-border/80 bg-surface-raised/90 p-2 shadow-2xl backdrop-blur-md space-y-1 transition-all duration-300 overflow-hidden ${
+                activeDrawer === 'file-explorer' ? 'w-11 min-w-0' : 'min-w-[130px]'
+              }`}
+            >
+              {activeDrawer !== 'file-explorer' && (
+                <div className="text-[11px] font-medium text-foreground-muted px-2 py-0.5 select-none">
+                  Overview
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => toggleBottomPanel('diff')}
+                className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                  activeDrawer === 'file-explorer'
+                    ? 'justify-center px-0 py-1.5'
+                    : 'justify-between px-2.5 py-1.5'
+                } ${
+                  bottomPanels.has('diff')
+                    ? 'bg-surface-raised text-white'
+                    : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-foreground-muted shrink-0" />
+                  {activeDrawer !== 'file-explorer' && <span>Review</span>}
+                </div>
+                {activeDrawer !== 'file-explorer' && pendingChangesCount > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 rounded-full">
+                    {pendingChangesCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleBottomPanel('terminal')}
+                className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                  activeDrawer === 'file-explorer'
+                    ? 'justify-center px-0 py-1.5'
+                    : 'gap-2 px-2.5 py-1.5'
+                } ${
+                  bottomPanels.has('terminal')
+                    ? 'bg-surface-raised text-white'
+                    : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
+                }`}
+              >
+                <Terminal size={14} className="text-foreground-muted shrink-0" />
+                {activeDrawer !== 'file-explorer' && <span>Terminal</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleDrawer('file-explorer')}
+                className={`w-full flex items-center rounded-lg text-xs transition-all duration-200 cursor-pointer ${
+                  activeDrawer === 'file-explorer'
+                    ? 'justify-center px-0 py-1.5'
+                    : 'gap-2 px-2.5 py-1.5'
+                } ${
+                  activeDrawer === 'file-explorer'
+                    ? 'bg-surface-raised text-white'
+                    : 'text-foreground-muted hover:bg-surface-raised/60 hover:text-white'
+                }`}
+              >
+                <Files size={14} className="text-foreground-muted shrink-0" />
+                {activeDrawer !== 'file-explorer' && <span>Files</span>}
+              </button>
+            </div>
           </div>
         </div>
 

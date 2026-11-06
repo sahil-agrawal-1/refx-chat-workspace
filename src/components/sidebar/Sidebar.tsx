@@ -10,6 +10,8 @@ import {
   PanelLeft,
   ListFilter,
   Pin,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { Logo } from '@/components/ui/Logo';
@@ -42,6 +44,13 @@ export const Sidebar: React.FC = () => {
     }
   });
 
+  const [expandedProjectPath, setExpandedProjectPath] = useState<string | null>(null);
+
+  const projectNameFor = (projectId?: string) => {
+    if (!projectId) return null;
+    const ws = recentWorkspaces.find((w) => w.path === projectId) || (selectedWorkspace?.path === projectId ? selectedWorkspace : null);
+    return ws?.name || projectId.split(/[/\\]/).pop() || projectId;
+  };
   const [conversationSort, setConversationSort] = useState<'newest' | 'oldest'>('newest');
   const [isConversationFilterOpen, setIsConversationFilterOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
@@ -143,53 +152,131 @@ export const Sidebar: React.FC = () => {
         <div className="space-y-1.5">
           {/* Active selected project */}
           {selectedWorkspace ? (
-            <div className="rounded-xl border border-border/80 bg-surface-card px-3.5 py-2.5 flex items-center justify-between text-[13px] text-foreground group">
-              <button
-                type="button"
-                onClick={() => setWorkspace(selectedWorkspace)}
-                className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
-              >
-                <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-                <span className="truncate text-foreground font-medium">{selectedWorkspace.name}</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeRecentWorkspace(selectedWorkspace.path);
-                }}
-                className="p-1 text-foreground-muted hover:text-rose-400 transition-colors ml-2 shrink-0 cursor-pointer"
-                title="Delete project"
-              >
-                <Trash2 size={15} strokeWidth={1.8} />
-              </button>
+            <div className="rounded-xl border border-border/80 bg-surface-card px-3.5 py-2.5 text-[13px] text-foreground group">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWorkspace(selectedWorkspace)}
+                  className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
+                >
+                  <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
+                  <span className="truncate text-foreground font-medium">{selectedWorkspace.name}</span>
+                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedProjectPath((prev) =>
+                        prev === selectedWorkspace.path ? null : selectedWorkspace.path
+                      )
+                    }
+                    className="p-1 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+                    title="Show conversations"
+                  >
+                    <ChevronDown
+                      size={15}
+                      strokeWidth={1.8}
+                      className={`transition-transform ${expandedProjectPath === selectedWorkspace.path ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRecentWorkspace(selectedWorkspace.path);
+                    }}
+                    className="p-1 text-foreground-muted hover:text-rose-400 transition-colors cursor-pointer"
+                    title="Delete project"
+                  >
+                    <Trash2 size={15} strokeWidth={1.8} />
+                  </button>
+                </div>
+              </div>
+              {expandedProjectPath === selectedWorkspace.path && (
+                <div className="mt-2 pt-2 border-t border-border/60 space-y-1">
+                  {conversations.filter((c) => c.projectId === selectedWorkspace.path).length === 0 ? (
+                    <div className="px-2 py-1 text-[11px] text-foreground-muted">No conversations yet</div>
+                  ) : (
+                    conversations
+                      .filter((c) => c.projectId === selectedWorkspace.path)
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectConversation(c.id)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg text-[12px] text-foreground-muted hover:text-foreground hover:bg-white/[0.03] transition-colors truncate"
+                        >
+                          {c.title || 'New conversation'}
+                        </button>
+                      ))
+                  )}
+                </div>
+              )}
             </div>
           ) : recentWorkspaces.length > 0 ? (
             /* If no active workspace is selected, show recent workspaces as clickable cards with delete icon */
             recentWorkspaces.slice(0, 3).map((ws) => (
               <div
                 key={ws.id}
-                className="rounded-xl border border-border/80 bg-surface-card px-3.5 py-2.5 flex items-center justify-between text-[13px] text-foreground-muted group hover:border-zinc-700 transition-colors"
+                className="rounded-xl border border-border/80 bg-surface-card px-3.5 py-2.5 text-[13px] text-foreground-muted group hover:border-zinc-700 transition-colors"
               >
-                <button
-                  type="button"
-                  onClick={() => setWorkspace(ws)}
-                  className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
-                >
-                  <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
-                  <span className="truncate text-foreground">{ws.name}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRecentWorkspace(ws.path);
-                  }}
-                  className="p-1 text-foreground-muted hover:text-rose-400 transition-colors ml-2 shrink-0 cursor-pointer"
-                  title="Delete project"
-                >
-                  <Trash2 size={15} strokeWidth={1.8} />
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWorkspace(ws)}
+                    className="min-w-0 flex flex-1 items-center gap-2.5 text-left truncate cursor-pointer"
+                  >
+                    <Folder size={16} strokeWidth={1.8} className="text-foreground-muted shrink-0" />
+                    <span className="truncate text-foreground">{ws.name}</span>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedProjectPath((prev) => (prev === ws.path ? null : ws.path))
+                      }
+                      className="p-1 text-foreground-muted hover:text-foreground transition-colors cursor-pointer"
+                      title="Show conversations"
+                    >
+                      <ChevronDown
+                        size={15}
+                        strokeWidth={1.8}
+                        className={`transition-transform ${expandedProjectPath === ws.path ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeRecentWorkspace(ws.path);
+                      }}
+                      className="p-1 text-foreground-muted hover:text-rose-400 transition-colors cursor-pointer"
+                      title="Delete project"
+                    >
+                      <Trash2 size={15} strokeWidth={1.8} />
+                    </button>
+                  </div>
+                </div>
+                {expandedProjectPath === ws.path && (
+                  <div className="mt-2 pt-2 border-t border-border/60 space-y-1">
+                    {conversations.filter((c) => c.projectId === ws.path).length === 0 ? (
+                      <div className="px-2 py-1 text-[11px] text-foreground-muted">No conversations yet</div>
+                    ) : (
+                      conversations
+                        .filter((c) => c.projectId === ws.path)
+                        .map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectConversation(c.id)}
+                            className="w-full text-left px-2 py-1.5 rounded-lg text-[12px] text-foreground-muted hover:text-foreground hover:bg-white/[0.03] transition-colors truncate"
+                          >
+                            {c.title || 'New conversation'}
+                          </button>
+                        ))
+                    )}
+                  </div>
+                )}
               </div>
             ))
           ) : (
@@ -257,7 +344,15 @@ export const Sidebar: React.FC = () => {
                     : 'text-foreground-muted hover:text-white hover:bg-white/[0.03]'
                 }`}
               >
-                <span className="min-w-0 flex-1 truncate text-left">{c.title}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="truncate text-left block">{c.title || 'New conversation'}</span>
+                  {projectNameFor(c.projectId) && (
+                    <span className="flex items-center gap-1 text-[11px] text-foreground-muted truncate mt-0.5">
+                      <Folder size={11} strokeWidth={1.8} className="shrink-0" />
+                      {projectNameFor(c.projectId)}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1 ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
@@ -350,9 +445,17 @@ export const Sidebar: React.FC = () => {
           {/* Active conversation box */}
           {currentConversation && !pinnedIds.has(currentConversation.id) ? (
             <div className="rounded-xl border border-border bg-surface-raised px-3.5 py-2.5 flex items-center justify-between text-[13px] text-foreground shadow-xs group">
-              <span className="truncate text-foreground font-normal">
-                {currentConversation.title || 'New conversation'}
-              </span>
+              <div className="min-w-0 flex-1">
+                <span className="truncate text-foreground font-normal block">
+                  {currentConversation.title || 'New conversation'}
+                </span>
+                {projectNameFor(currentConversation.projectId) && (
+                  <span className="flex items-center gap-1 text-[11px] text-foreground-muted truncate mt-0.5">
+                    <Folder size={11} strokeWidth={1.8} className="shrink-0" />
+                    {projectNameFor(currentConversation.projectId)}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-1.5 text-foreground-muted shrink-0 ml-2">
                 <button
                   type="button"
@@ -391,9 +494,15 @@ export const Sidebar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => selectConversation(c.id)}
-                className="min-w-0 flex-1 truncate text-left"
+                className="min-w-0 flex-1 text-left"
               >
-                {c.title}
+                <div className="truncate text-foreground">{c.title || 'New conversation'}</div>
+                {projectNameFor(c.projectId) && (
+                  <div className="flex items-center gap-1 text-[11px] text-foreground-muted truncate mt-0.5">
+                    <Folder size={11} strokeWidth={1.8} className="shrink-0" />
+                    <span className="truncate">{projectNameFor(c.projectId)}</span>
+                  </div>
+                )}
               </button>
               <div className="flex items-center gap-1 ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button

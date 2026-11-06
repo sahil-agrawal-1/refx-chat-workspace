@@ -384,7 +384,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               title: c.title || 'New Conversation',
               createdAt: c.createdAt || Date.now(),
               updatedAt: c.updatedAt || Date.now(),
-              projectId: undefined,
+              projectId: c.workspacePath || undefined,
               model: c.modelId || selectedModel || 'No model connected',
               providerId: c.providerId || '',
               effort: c.metadata?.effort || 'auto',
@@ -619,6 +619,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: Date.now(),
       model: selectedModel || 'No model connected',
       providerId: selectedProviderId || '',
+      projectId: selectedWorkspace?.path,
       effort: 'auto',
       approvalMode: 'ask',
       saveMemoryDefault: saveMemoryActive,
@@ -923,6 +924,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const removeRecentWorkspace = (pathValue: string) => {
     if (!confirm('Are you sure you want to remove this project? It will be moved to the Backup Bin for 7 days.')) return;
+    const projectConversations = conversations.filter((c) => c.projectId === pathValue);
+    for (const conv of projectConversations) {
+      desktopBridge.trash.addToTrash('conversation', conv).catch(() => {});
+    }
+    if (projectConversations.length > 0) {
+      setConversations((prev) => prev.filter((c) => c.projectId !== pathValue));
+      if (projectConversations.some((c) => c.id === currentConversationId)) {
+        const remaining = conversations.filter((c) => c.projectId !== pathValue);
+        setCurrentConversationId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      for (const conv of projectConversations) {
+        desktopBridge.database.deleteConversation(conv.id).catch(() => {});
+      }
+    }
     const ws = recentWorkspaces.find((w) => w.path === pathValue) || selectedWorkspace;
     if (ws) {
       desktopBridge.trash.addToTrash('workspace', ws).catch(() => {});
@@ -948,6 +963,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setWorkspace = (ws: ProjectWorkspace | null) => {
     if (!ws) {
+      if (currentConversation?.projectId) {
+        const updatedConv = { ...currentConversation, projectId: undefined, updatedAt: Date.now() };
+        setConversations((prev) => prev.map((c) => (c.id === currentConversation.id ? updatedConv : c)));
+        desktopBridge.database.updateConversation(currentConversation.id, {
+          workspacePath: null,
+          updatedAt: Date.now(),
+        }).catch(() => {});
+      }
       setSelectedWorkspace(null);
       setFileTree([]);
       try {

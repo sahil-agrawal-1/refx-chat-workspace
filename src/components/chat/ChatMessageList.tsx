@@ -891,7 +891,7 @@ export const ChatMessageList: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 pt-3 pb-8 space-y-6 max-w-3xl mx-auto w-full pr-44 xl:pr-6 [&::-webkit-scrollbar]:hidden"
+      className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 pt-3 pb-8 space-y-6 max-w-3xl mx-auto w-full [&::-webkit-scrollbar]:hidden"
       style={{ scrollbarWidth: 'none' }}
     >
       {messages.map((msg: ChatMessage) => {
