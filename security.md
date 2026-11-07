@@ -336,3 +336,10 @@ High-risk handlers validate arguments in the main process: `shared/security/ipc-
 ### Limitations
 - Development enables `'unsafe-inline'` for scripts because of Vite's React Refresh preamble and broad dev connect schemes for browser preview.
 - Electron devtools and remote debugging remain available in development; packaged builds retain the strict profile above.
+
+## 14. Memory Backup and Recovery (2026-11-07)
+
+- Secure local memory backup/restore is available through the Memory Manager.
+- Backups are validated before restore and the previous data is preserved on failure.
+- Deletion, migration, and recovery behavior is covered by the existing memory test suite.
+

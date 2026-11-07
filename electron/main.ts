@@ -1566,6 +1566,12 @@ function registerIpcHandlers(): void {
   trustedHandle(MEMORY_IPC_CHANNELS.SAVE_APP_MEMORY, async (_event, entry: any) =>
     memory.saveAppMemory(assertPlainObject(entry, 'entry'))
   );
+  trustedHandle(MEMORY_IPC_CHANNELS.UPDATE_APP_MEMORY, async (_event, id: string, changes: any) =>
+    memory.updateAppMemory(
+      assertString(id, 'id', { maxLength: 128 }),
+      assertPlainObject(changes, 'changes'),
+    )
+  );
   trustedHandle(MEMORY_IPC_CHANNELS.DELETE_APP_MEMORY, async (_event, id: string) =>
     memory.deleteAppMemory(assertString(id, 'id', { maxLength: 128 }))
   );
@@ -1573,6 +1579,10 @@ function registerIpcHandlers(): void {
     memory.toggleAppMemory(assertString(id, 'id', { maxLength: 128 }))
   );
   trustedHandle(MEMORY_IPC_CHANNELS.CLEAR_APP_MEMORIES, async () => memory.clearAppMemories());
+  trustedHandle(MEMORY_IPC_CHANNELS.EXPORT_BACKUP, async () => memory.exportMemoryBackup());
+  trustedHandle(MEMORY_IPC_CHANNELS.RESTORE_BACKUP, async (_event, backupPath: string) =>
+    memory.restoreMemoryBackup(assertString(backupPath, 'backupPath', { maxLength: 4096 }))
+  );
   trustedHandle(MEMORY_IPC_CHANNELS.RETRIEVE, async (_event, options: any) => {
     const input = assertPlainObject(options, 'options');
     const query = assertString(input.query, 'query', {

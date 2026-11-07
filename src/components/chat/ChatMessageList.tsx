@@ -28,6 +28,7 @@ import {
 import { useAppStore } from '@/stores/app-store';
 import type { ChatMessage, ActivityStep } from '@/types';
 import { sanitizeExternalUrl } from '@shared/security/url-policy';
+import { estimateTokens } from '@shared/utils/memory-retrieval';
 
 const HtmlIcon = ({ size = 11, color = '#E34F26' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="shrink-0">
@@ -1070,6 +1071,12 @@ export const ChatMessageList: React.FC = () => {
               >
                 <ThumbsDown size={13} strokeWidth={1.8} />
               </button>
+              <span className="text-[10px] font-mono text-foreground-muted">
+                {estimateTokens(msg.content) >= 1000
+                  ? `${(estimateTokens(msg.content) / 1000).toFixed(1)}k`
+                  : estimateTokens(msg.content)}{' '}
+                tokens
+              </span>
             </div>
           </div>
         );

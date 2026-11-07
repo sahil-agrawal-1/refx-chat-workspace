@@ -333,9 +333,12 @@ export interface IMemoryBridge {
   deleteTaskMemory(id: string): Promise<boolean>;
   getAppMemories(): Promise<AppMemoryEntry[]>;
   saveAppMemory(entry: Omit<AppMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<AppMemoryEntry>;
+  updateAppMemory(id: string, changes: any): Promise<AppMemoryEntry | null>;
   deleteAppMemory(id: string): Promise<boolean>;
   toggleAppMemory(id: string): Promise<boolean>;
   clearAppMemories(): Promise<boolean>;
+  exportMemoryBackup(): Promise<{ success: boolean; path?: string; error?: string }>;
+  restoreMemoryBackup(backupPath: string): Promise<{ success: boolean; error?: string }>;
   retrieveMemories(options: MemoryRetrievalOptions): Promise<MemoryRetrievalResponse>;
   getMemoryGovernance(): Promise<MemoryGovernanceSummary>;
   dismissMemoryConflict(pairKey: string): Promise<boolean>;
@@ -570,9 +573,12 @@ export const MEMORY_IPC_CHANNELS = {
   DELETE_TASK_MEMORY: 'desktop:memDeleteTaskMemory',
   GET_APP_MEMORIES: 'desktop:memGetAppMemories',
   SAVE_APP_MEMORY: 'desktop:memSaveAppMemory',
+  UPDATE_APP_MEMORY: 'desktop:memUpdateAppMemory',
   DELETE_APP_MEMORY: 'desktop:memDeleteAppMemory',
   TOGGLE_APP_MEMORY: 'desktop:memToggleAppMemory',
   CLEAR_APP_MEMORIES: 'desktop:memClearAppMemories',
+  EXPORT_BACKUP: 'desktop:memExportBackup',
+  RESTORE_BACKUP: 'desktop:memRestoreBackup',
   RETRIEVE: 'desktop:memRetrieve',
   GET_GOVERNANCE: 'desktop:memGetGovernance',
   DISMISS_CONFLICT: 'desktop:memDismissConflict',

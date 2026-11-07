@@ -4,6 +4,7 @@ import {
   Bookmark,
   Plus,
   Trash2,
+  Pencil,
   Search,
   Database,
   Sparkles,
@@ -13,6 +14,7 @@ import {
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
 import { useAppStore } from '@/stores/app-store';
+import { desktopBridge } from '@/desktop/browser-preview-bridge';
 import { filterMemories } from '@/utils/diff';
 import type { AppMemoryEntry } from '@/types';
 
@@ -25,10 +27,15 @@ export const MemoryModal: React.FC = () => {
     memoryConfig,
     addTaskMemory,
     deleteTaskMemory,
+    updateTaskMemory,
+    clearTaskMemories,
     addAppMemory,
     deleteAppMemory,
+    updateAppMemory,
     toggleAppMemory,
     clearAppMemories,
+    exportMemoryBackup,
+    restoreMemoryBackup,
     updateMemoryConfig,
     memoryGovernance,
     refreshMemoryGovernance,
@@ -45,6 +52,14 @@ export const MemoryModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'task' | 'app' | 'settings' | 'review' | 'inspector'>('task');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
+  const [editingTaskContent, setEditingTaskContent] = useState('');
+  const [editingTaskTags, setEditingTaskTags] = useState('');
+  const [editingAppId, setEditingAppId] = useState<string | null>(null);
+  const [editingAppTitle, setEditingAppTitle] = useState('');
+  const [editingAppSummary, setEditingAppSummary] = useState('');
+  const [editingAppDetails, setEditingAppDetails] = useState('');
 
   useEffect(() => {
     if (activeModal === 'memory') {
@@ -76,10 +91,19 @@ export const MemoryModal: React.FC = () => {
       .map((t) => t.trim())
       .filter(Boolean);
     try {
-      await addTaskMemory(newTaskTitle, newTaskContent, tags);
+      if (editingTaskId) {
+        await updateTaskMemory('default-task', editingTaskId, {
+          title: newTaskTitle,
+          content: newTaskContent,
+          tags,
+        });
+      } else {
+        await addTaskMemory(newTaskTitle, newTaskContent, tags);
+      }
       setNewTaskTitle('');
       setNewTaskContent('');
       setNewTaskTags('');
+      setEditingTaskId(null);
       setIsAdding(false);
     } catch {
       // The store already surfaced the encryption/write error. Keep the form
@@ -91,10 +115,20 @@ export const MemoryModal: React.FC = () => {
     e.preventDefault();
     if (!newAppTitle.trim() || !newAppSummary.trim()) return;
     try {
-      await addAppMemory(newAppCategory, newAppTitle, newAppSummary, newAppDetails);
+      if (editingAppId) {
+        await updateAppMemory(editingAppId, {
+          category: newAppCategory,
+          title: newAppTitle,
+          summary: newAppSummary,
+          details: newAppDetails,
+        });
+      } else {
+        await addAppMemory(newAppCategory, newAppTitle, newAppSummary, newAppDetails);
+      }
       setNewAppTitle('');
       setNewAppSummary('');
       setNewAppDetails('');
+      setEditingAppId(null);
       setIsAdding(false);
     } catch {
       // The store already surfaced the encryption/write error. Keep the form
@@ -242,6 +276,16 @@ export const MemoryModal: React.FC = () => {
                 <Plus size={13} strokeWidth={2.5} />
                 <span>Add Memory</span>
               </button>
+              {activeTab === 'task' && taskMemories.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void clearTaskMemories()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-xs font-semibold transition-all cursor-pointer active:scale-95 shadow-xs shrink-0"
+                >
+                  <Trash2 size={13} strokeWidth={2.5} />
+                  <span>Clear All</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -262,7 +306,7 @@ export const MemoryModal: React.FC = () => {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setIsAdding(false)}
+                    onClick={() => { setEditingTaskId(null); setEditingAppId(null); setIsAdding(false); }}
                     className="text-foreground-muted hover:text-foreground cursor-pointer"
                   >
                     ✕
@@ -294,7 +338,7 @@ export const MemoryModal: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setIsAdding(false)}
+                    onClick={() => { setEditingTaskId(null); setEditingAppId(null); setIsAdding(false); }}
                     className="px-3 py-1.5 text-foreground-muted hover:text-foreground rounded-lg cursor-pointer"
                   >
                     Cancel
@@ -334,9 +378,23 @@ export const MemoryModal: React.FC = () => {
                       </div>
                       <button
                         type="button"
+                        onClick={() => {
+                          setEditingTaskId(mem.id);
+                          setNewTaskTitle(mem.title);
+                          setNewTaskContent(mem.content);
+                          setNewTaskTags((mem.tags || []).join(', '));
+                          setIsAdding(true);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-foreground-muted hover:text-foreground rounded-lg transition-opacity cursor-pointer shrink-0"
+                        title="Edit entry"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => deleteTaskMemory(mem.id)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-foreground-muted hover:text-red-400 rounded-lg transition-opacity cursor-pointer shrink-0"
-                        title="Delete entry"
+                        title="Forget entry"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -408,7 +466,7 @@ export const MemoryModal: React.FC = () => {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setIsAdding(false)}
+                    onClick={() => { setEditingTaskId(null); setEditingAppId(null); setIsAdding(false); }}
                     className="text-foreground-muted hover:text-foreground cursor-pointer"
                   >
                     ✕
@@ -452,7 +510,7 @@ export const MemoryModal: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setIsAdding(false)}
+                    onClick={() => { setEditingTaskId(null); setEditingAppId(null); setIsAdding(false); }}
                     className="px-3 py-1.5 text-foreground-muted hover:text-foreground rounded-lg cursor-pointer"
                   >
                     Cancel
@@ -499,9 +557,24 @@ export const MemoryModal: React.FC = () => {
                         <Toggle checked={mem.enabled} onChange={() => toggleAppMemory(mem.id)} />
                         <button
                           type="button"
+                          onClick={() => {
+                            setEditingAppId(mem.id);
+                            setNewAppCategory(mem.category);
+                            setNewAppTitle(mem.title);
+                            setNewAppSummary(mem.summary);
+                            setNewAppDetails(mem.details || '');
+                            setIsAdding(true);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-foreground-muted hover:text-foreground rounded-lg transition-opacity cursor-pointer"
+                          title="Edit entry"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => deleteAppMemory(mem.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 text-foreground-muted hover:text-red-400 rounded-lg transition-opacity cursor-pointer"
-                          title="Delete memory"
+                          title="Forget entry"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -575,6 +648,26 @@ export const MemoryModal: React.FC = () => {
                     {memoryConfig.storageBackend || 'SQLite'}
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void exportMemoryBackup()}
+                  className="px-3.5 py-2 bg-surface hover:bg-surface-raised text-foreground rounded-xl transition-all cursor-pointer text-xs border border-border font-medium"
+                >
+                  Create Backup
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const folder = await desktopBridge.fs.selectFolderDialog();
+                    if (folder) void restoreMemoryBackup(folder);
+                  }}
+                  className="px-3.5 py-2 bg-surface hover:bg-surface-raised text-foreground rounded-xl transition-all cursor-pointer text-xs border border-border font-medium"
+                >
+                  Restore Backup
+                </button>
               </div>
 
               <div className="p-3.5 bg-surface-raised border border-border rounded-xl flex items-center justify-between gap-3">

@@ -973,3 +973,58 @@ export function backupMemory(): boolean {
     return false;
   }
 }
+
+
+// ---------------- Secure local backup / restore ----------------
+
+export function exportMemoryBackup(): { success: boolean; path?: string; error?: string } {
+  try {
+    const source = memoryRoot();
+    ensureDir(source);
+    const backupRoot = path.join(app.getPath('appData'), 'Refx AI', 'memory-backups');
+    ensureDir(backupRoot);
+    const destination = path.join(backupRoot, `memory-backup-${Date.now()}`);
+    ensureDir(destination);
+    copyDir(source, destination);
+    return { success: true, path: destination };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to create memory backup.' };
+  }
+}
+
+export function restoreMemoryBackup(backupPath: string): { success: boolean; error?: string } {
+  const resolved = path.resolve(String(backupPath || ''));
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+    return { success: false, error: 'Backup folder does not exist.' };
+  }
+  const hasMemoryData =
+    fs.existsSync(path.join(resolved, 'app-memory')) ||
+    fs.existsSync(path.join(resolved, 'tasks')) ||
+    fs.existsSync(path.join(resolved, 'memory_config.json'));
+  if (!hasMemoryData) {
+    return { success: false, error: 'The selected folder is not a Refx memory backup.' };
+  }
+
+  const target = memoryRoot();
+  const safetyPath = `${target}.pre-restore-${Date.now()}`;
+  try {
+    if (fs.existsSync(target)) {
+      fs.renameSync(target, safetyPath);
+    }
+    ensureDir(target);
+    copyDir(resolved, target);
+    syncMemoryIndexIfNeeded(true);
+    return { success: true };
+  } catch (err: any) {
+    // Restore the previous data if the replacement failed.
+    try {
+      if (fs.existsSync(safetyPath)) {
+        if (fs.existsSync(target)) fs.rmSync(target, { recursive: true, force: true });
+        fs.renameSync(safetyPath, target);
+      }
+    } catch {
+      // ignore secondary failure
+    }
+    return { success: false, error: err?.message || 'Failed to restore memory backup.' };
+  }
+}

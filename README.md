@@ -268,3 +268,4 @@ MIT
 | 11/4/2026 | Phase 4: Diff IDs, SQLite memory, file viewer, CI scanner | Refx (AI coding agent) |
 | 11/4/2026 | P5-P6: Tool calling, path fixes, feedback, P6-A/P6-B terminal, effort/approval controls | Refx (AI coding agent) |
 | 11/6/2026 | UI/theme: light-mode token pass, overview squeeze/slide, sidebar pin/filter, skills form, AI feedback memory, undo | Refx (AI coding agent) |
+| 11/7/2026 | Memory management: edit/forget/clear task memories, app memory edits, secure local backup/restore | Refx (AI coding agent) |

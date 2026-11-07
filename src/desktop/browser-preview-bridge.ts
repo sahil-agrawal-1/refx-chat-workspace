@@ -423,6 +423,13 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.saveToStorage('refx_app_memories', this.appMemories);
       return newEntry;
     },
+    updateAppMemory: async (id: string, changes: any): Promise<AppMemoryEntry | null> => {
+      const target = this.appMemories.find((m) => m.id === id);
+      if (!target) return null;
+      Object.assign(target, changes, { updatedAt: Date.now() });
+      this.saveToStorage('refx_app_memories', this.appMemories);
+      return { ...target };
+    },
     deleteAppMemory: async (id: string): Promise<boolean> => {
       this.appMemories = this.appMemories.filter((m) => m.id !== id);
       this.saveToStorage('refx_app_memories', this.appMemories);
@@ -441,6 +448,14 @@ export class BrowserPreviewBridgeAdapter implements IDesktopBridge {
       this.saveToStorage('refx_app_memories', this.appMemories);
       return true;
     },
+    exportMemoryBackup: async (): Promise<{ success: boolean; path?: string; error?: string }> => ({
+      success: false,
+      error: 'Memory backup is only available in the desktop app.',
+    }),
+    restoreMemoryBackup: async (): Promise<{ success: boolean; error?: string }> => ({
+      success: false,
+      error: 'Memory restore is only available in the desktop app.',
+    }),
     retrieveMemories: async (options) => {
       const includeApp = options.includeAppMemory !== false;
       const includeTask = options.includeTaskMemory !== false;

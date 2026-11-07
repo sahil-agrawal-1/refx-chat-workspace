@@ -277,3 +277,9 @@ See `security.md` for full security documentation including:
 - No plaintext API keys in SQLite or localStorage.
 - Credentials remain in Electron safeStorage (DPAPI).
 - CI scanner validates absence of illegal localStorage API key persistence.
+
+## 11. Recent Updates (2026-11-07)
+
+- Memory management now supports edit, forget, clear-task, and secure local backup/restore.
+- All tracked tests pass (129/129).
+

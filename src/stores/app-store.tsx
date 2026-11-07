@@ -88,6 +88,8 @@ interface AppContextValue {
   memoryConfig: MemoryConfig;
   addTaskMemory: (title: string, content: string, tags?: string[]) => Promise<void>;
   deleteTaskMemory: (id: string) => Promise<void>;
+  updateTaskMemory: (conversationId: string, id: string, changes: any) => Promise<void>;
+  clearTaskMemories: () => Promise<void>;
   addAppMemory: (
     category: AppMemoryEntry['category'],
     title: string,
@@ -96,8 +98,11 @@ interface AppContextValue {
     confidence?: number
   ) => Promise<void>;
   deleteAppMemory: (id: string) => Promise<void>;
+  updateAppMemory: (id: string, changes: any) => Promise<void>;
   toggleAppMemory: (id: string) => Promise<void>;
   clearAppMemories: () => Promise<void>;
+  exportMemoryBackup: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  restoreMemoryBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
   updateMemoryConfig: (config: Partial<MemoryConfig>) => Promise<void>;
   memoryGovernance: MemoryGovernanceSummary;
   refreshMemoryGovernance: () => Promise<void>;
@@ -1168,6 +1173,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateTaskMemory = async (conversationId: string, id: string, changes: any) => {
+    try {
+      await desktopBridge.memory.updateTaskMemory(conversationId, id, changes);
+      setTaskMemories((prev) => prev.map((m) => (m.id === id ? { ...m, ...changes, updatedAt: Date.now() } : m)));
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Update Failed');
+    }
+  };
+
+  const clearTaskMemories = async () => {
+    try {
+      for (const mem of taskMemories) {
+        await desktopBridge.memory.deleteTaskMemory(mem.id).catch(() => {});
+      }
+      setTaskMemories([]);
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Clear Failed');
+    }
+  };
+
   const addAppMemory = async (
     category: AppMemoryEntry['category'],
     title: string,
@@ -1202,6 +1229,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const updateAppMemory = async (id: string, changes: any) => {
+    try {
+      await desktopBridge.memory.updateAppMemory(id, changes);
+      setAppMemories((prev) => prev.map((m) => (m.id === id ? { ...m, ...changes, updatedAt: Date.now() } : m)));
+      void refreshMemoryGovernance();
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Update Failed');
+    }
+  };
+
   const toggleAppMemory = async (id: string) => {
     const target = appMemories.find((m) => m.id === id);
     if (!target) return;
@@ -1232,6 +1269,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       void refreshMemoryGovernance();
     } catch (err) {
       notifyMemoryError(err, 'Memory Clear Failed');
+    }
+  };
+
+  const exportMemoryBackup = async () => {
+    try {
+      const result = await desktopBridge.memory.exportMemoryBackup();
+      if (result.success && result.path) {
+        setNotification({ title: 'Memory Backup Created', message: result.path, type: 'success' });
+      } else {
+        notifyMemoryError(new Error(result.error || 'Backup failed'), 'Memory Backup Failed');
+      }
+      return result;
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Backup Failed');
+      return { success: false, error: err instanceof Error ? err.message : 'Backup failed' };
+    }
+  };
+
+  const restoreMemoryBackup = async (backupPath: string) => {
+    try {
+      const result = await desktopBridge.memory.restoreMemoryBackup(backupPath);
+      if (result.success) {
+        const tMem = await desktopBridge.memory.getTaskMemories('default-task');
+        setTaskMemories(tMem);
+        const aMem = await desktopBridge.memory.getAppMemories();
+        setAppMemories(aMem);
+        const mCfg = await desktopBridge.memory.getMemoryConfig();
+        setMemoryConfig(mCfg);
+        void refreshMemoryGovernance();
+        setNotification({ title: 'Memory Restored', message: 'Memory data restored from backup.', type: 'success' });
+      } else {
+        notifyMemoryError(new Error(result.error || 'Restore failed'), 'Memory Restore Failed');
+      }
+      return result;
+    } catch (err) {
+      notifyMemoryError(err, 'Memory Restore Failed');
+      return { success: false, error: err instanceof Error ? err.message : 'Restore failed' };
     }
   };
 
@@ -1988,10 +2062,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         memoryConfig,
         addTaskMemory,
         deleteTaskMemory,
+        updateTaskMemory,
+        clearTaskMemories,
         addAppMemory,
         deleteAppMemory,
+        updateAppMemory,
         toggleAppMemory,
         clearAppMemories,
+        exportMemoryBackup,
+        restoreMemoryBackup,
         updateMemoryConfig,
         memoryGovernance,
         refreshMemoryGovernance,
