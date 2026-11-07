@@ -560,6 +560,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const density = (settings.density as string) || 'Comfortable';
     const fontSize = (settings.fontSize as string) || '14';
     const reduceMotion = Boolean(settings.reduceMotion);
+    const highContrast = Boolean(settings.highContrast);
+    const fontFamily = (settings.fontFamily as string) || '';
     const root = document.documentElement;
 
     const resolveTheme = () =>
@@ -572,6 +574,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       root.setAttribute('data-accent', accent);
       root.setAttribute('data-density', density);
       root.style.fontSize = `${fontSize}px`;
+      if (highContrast) {
+        root.setAttribute('data-contrast', 'high');
+      } else if (typeof root.removeAttribute === 'function') {
+        root.removeAttribute('data-contrast');
+      }
+      if (fontFamily && fontFamily !== 'default') {
+        if (typeof root.style?.setProperty === 'function') {
+          root.style.setProperty('--app-font-family', fontFamily);
+        }
+      } else if (typeof root.style?.removeProperty === 'function') {
+        root.style.removeProperty('--app-font-family');
+      }
       if (reduceMotion) root.classList.add('reduce-motion'); else root.classList.remove('reduce-motion');
     };
 

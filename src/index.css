@@ -6,41 +6,51 @@
 :root { color-scheme: dark; }
 :root[data-theme="Light" i], :root[data-theme="light" i] { color-scheme: light; }
 
+/* Refined Accents */
+:root[data-accent="Neutral"] { --accent: #303034; --accent-primary: #F2F2F2; --accent-soft: rgba(255, 255, 255, 0.08); }
+:root[data-accent="Blue"] { --accent: #1e3a8a; --accent-primary: #3b82f6; --accent-soft: rgba(59, 130, 246, 0.15); }
+:root[data-accent="Purple"], :root[data-accent="Indigo"] { --accent: #4338ca; --accent-primary: #818cf8; --accent-soft: rgba(129, 140, 248, 0.15); }
+:root[data-accent="Green"], :root[data-accent="Emerald"] { --accent: #064e3b; --accent-primary: #10b981; --accent-soft: rgba(16, 185, 129, 0.15); }
+:root[data-accent="Orange"], :root[data-accent="Amber"] { --accent: #78350f; --accent-primary: #f59e0b; --accent-soft: rgba(245, 158, 11, 0.15); }
+:root[data-accent="Rose"] { --accent: #881337; --accent-primary: #f43f5e; --accent-soft: rgba(244, 63, 94, 0.15); }
+
 @layer base {
-  :root {
-    --surface: #000000;
-    --surface-raised: #0c0c0e;
-    --surface-card: #141416;
-    --surface-input: #141416;
-    --border: #222226;
-    --border-subtle: #18181b;
-    --text: #f4f4f5;
-    --text-muted: #71717a;
-    --accent: #27272a;
-  }
+  :root,
   :root[data-theme="Dark" i],
   :root[data-theme="dark" i] {
-    --surface: #000000;
-    --surface-raised: #0c0c0e;
-    --surface-card: #141416;
+    --surface: #171717;
+    --surface-raised: #1D1D1F;
+    --surface-card: #242426;
     --surface-input: #141416;
-    --border: #222226;
-    --border-subtle: #18181b;
-    --text: #f4f4f5;
-    --text-muted: #71717a;
-    --accent: #27272a;
+    --border: #303034;
+    --border-subtle: #242428;
+    --text: #F2F2F2;
+    --text-muted: #A1A1AA;
+    --text-faint: #71717A;
+    --accent: #303034;
+    --accent-primary: #F2F2F2;
+    --accent-soft: rgba(255, 255, 255, 0.08);
   }
   :root[data-theme="Light" i],
   :root[data-theme="light" i] {
     --surface: #f4f4f5;
     --surface-raised: #ffffff;
     --surface-card: #ffffff;
-    --surface-input: #ffffff;
+    --surface-input: #f4f4f5;
     --border: #e4e4e7;
-    --border-subtle: #f4f4f5;
+    --border-subtle: #f0f0f2;
     --text: #18181b;
-    --text-muted: #6b7280;
+    --text-muted: #71717a;
+    --text-faint: #a1a1aa;
     --accent: #d4d4d8;
+    --accent-primary: #18181b;
+    --accent-soft: rgba(0, 0, 0, 0.06);
+  }
+
+  :root[data-contrast="high"] {
+    --border: #52525c;
+    --border-subtle: #3f3f46;
+    --text-muted: #d4d4d8;
   }
 
   body {

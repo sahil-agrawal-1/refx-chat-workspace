@@ -28,6 +28,7 @@ const makeNode = () => ({
   namespaceURI: 'http://www.w3.org/1999/xhtml',
   ownerDocument: doc,
   childNodes: [] as unknown[],
+  options: [] as unknown[],
   appendChild: function (this: any, n: any) {
     this.childNodes.push(n);
     return n;
@@ -38,6 +39,7 @@ const makeNode = () => ({
     return n;
   },
   setAttribute: () => {},
+  removeAttribute: () => {},
   classList: { add: () => {}, remove: () => {}, contains: () => false },
   style: {},
   addEventListener: () => {},
@@ -51,6 +53,7 @@ const makeNode = () => ({
 
 doc.documentElement = makeNode();
 doc.createElement = () => makeNode();
+doc.createElementNS = () => makeNode();
 doc.addEventListener = () => {};
 doc.removeEventListener = () => {};
 doc.activeElement = null;
