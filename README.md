@@ -199,6 +199,12 @@ pnpm build:electron
 # Build the Refx CLI (dist-cli/refx.js)
 pnpm build:cli
 
+# Build a standalone refx.exe (Node SEA)
+pnpm build:exe
+
+# Install refx.exe onto PATH (Windows)
+pnpm install:cli
+
 # Package for Windows (NSIS installer + portable)
 pnpm electron:build
 ```
@@ -211,6 +217,8 @@ pnpm electron:build
 | `pnpm build` | Vite production web build |
 | `pnpm build:electron` | Bundle Electron main & preload |
 | `pnpm build:cli` | Bundle the Refx CLI (`dist-cli/refx.js`) |
+| `pnpm build:exe` | Build standalone `refx.exe` (Node SEA) |
+| `pnpm install:cli` | Install `refx.exe` onto user PATH |
 | `pnpm refx` | Run the Refx CLI |
 | `pnpm build:icon` | Generate Windows app icon (16/32/48/256) |
 | `pnpm build:all` | Web build + Electron build + icon |
@@ -225,9 +233,10 @@ pnpm electron:build
 A terminal companion that shares the app's workspace authorization and containment rules.
 
 ```bash
-pnpm build:cli
-node dist-cli/refx.js help
-node dist-cli/refx.js workspace C:\\path\\to\\project
+pnpm build:exe
+pnpm install:cli   # adds refx to PATH (restart terminal)
+refx help
+refx workspace C:\\path\\to\\project
 node dist-cli/refx.js ls
 node dist-cli/refx.js read src/index.ts
 node dist-cli/refx.js search "TODO"
