@@ -196,6 +196,9 @@ pnpm build
 # Build Electron main + preload
 pnpm build:electron
 
+# Build the Refx CLI (dist-cli/refx.js)
+pnpm build:cli
+
 # Package for Windows (NSIS installer + portable)
 pnpm electron:build
 ```
@@ -207,6 +210,8 @@ pnpm electron:build
 | `pnpm dev` | Start Vite dev server |
 | `pnpm build` | Vite production web build |
 | `pnpm build:electron` | Bundle Electron main & preload |
+| `pnpm build:cli` | Bundle the Refx CLI (`dist-cli/refx.js`) |
+| `pnpm refx` | Run the Refx CLI |
 | `pnpm build:icon` | Generate Windows app icon (16/32/48/256) |
 | `pnpm build:all` | Web build + Electron build + icon |
 | `pnpm test` | Run every tracked test file |
@@ -214,6 +219,26 @@ pnpm electron:build
 | `pnpm electron:dev` | Dev server + Electron |
 | `pnpm electron:start` | Production Electron |
 | `pnpm electron:build` | Package Windows installer & portable |
+
+## Refx CLI
+
+A terminal companion that shares the app's workspace authorization and containment rules.
+
+```bash
+pnpm build:cli
+node dist-cli/refx.js help
+node dist-cli/refx.js workspace C:\\path\\to\\project
+node dist-cli/refx.js ls
+node dist-cli/refx.js read src/index.ts
+node dist-cli/refx.js search "TODO"
+node dist-cli/refx.js create notes.txt --content "hello"
+node dist-cli/refx.js edit notes.txt --content "updated"
+node dist-cli/refx.js delete notes.txt --yes
+node dist-cli/refx.js chat
+```
+
+Global options: `--workspace <path>` / `-w`, `REFX_WORKSPACE`, `REFX_USER_DATA`.
+Chat mode uses Ollama by default (`REFX_PROVIDER`, `REFX_MODEL`, `REFX_BASE_URL`, `REFX_API_KEY`).
 
 ## Security Pipeline
 

@@ -130,7 +130,7 @@ export const AppearanceSettings: React.FC = () => {
     updateSetting('accent', 'Neutral');
     updateSetting('density', 'Comfortable');
     updateSetting('fontSize', '14');
-    updateSetting('codeFontFamily', 'JetBrains Mono');
+    updateSetting('codeFontFamily', 'System Default');
     updateSetting('reduceMotion', false);
     updateSetting('highContrast', false);
   };
@@ -289,10 +289,10 @@ export const AppearanceSettings: React.FC = () => {
             value={codeFontFamily}
             onChange={(v) => updateSetting('codeFontFamily', v)}
             options={[
-              { value: 'JetBrains Mono', label: 'JetBrains Mono' },
-              { value: 'Fira Code', label: 'Fira Code' },
-              { value: 'Cascadia Code', label: 'Cascadia Code' },
-              { value: 'Consolas', label: 'Consolas' },
+              { value: 'System Default', label: 'System Default (Production)' },
+              { value: 'Inter', label: 'Inter' },
+              { value: 'Montserrat', label: 'Montserrat' },
+              { value: 'Roboto', label: 'Roboto' },
             ]}
           />
         </SettingsRow>

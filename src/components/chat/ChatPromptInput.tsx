@@ -12,6 +12,7 @@ import {
   Check,
   Globe,
   Zap,
+  Search,
   Sparkles,
   Shield,
   ShieldCheck,
@@ -61,6 +62,8 @@ export const ChatPromptInput: React.FC = () => {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [showEffortPicker, setShowEffortPicker] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
@@ -106,6 +109,8 @@ export const ChatPromptInput: React.FC = () => {
     providers,
     selectedModel,
     selectedProvider,
+    openModal,
+    settings,
     webSearchActive,
     setWebSearchActive,
   } = useAppStore();
@@ -291,7 +296,15 @@ export const ChatPromptInput: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    const submitKey = (settings?.chatSubmitKey as string) || 'enter';
+    if (submitKey === 'cmd_enter') {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       handleSubmit();
     }
@@ -620,9 +633,9 @@ export const ChatPromptInput: React.FC = () => {
             </div>
 
             {/* Right Tools: Save Memory toggle, Model selector pill, Mic, Circular Send */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Save Memory Toggle */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className="text-xs text-foreground-muted font-normal">Save Memory</span>
                 <Toggle checked={saveMemoryActive} onChange={setSaveMemoryActive} />
               </div>
@@ -631,15 +644,52 @@ export const ChatPromptInput: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowModelPicker(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-foreground-muted hover:text-white bg-surface-raised/40 hover:bg-surface-raised/80 border border-border transition-colors cursor-pointer font-mono"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-foreground-muted hover:text-foreground bg-surface-raised/40 hover:bg-surface-raised/80 border border-border transition-colors cursor-pointer font-mono"
                 title="Select active model"
               >
-                <span className="truncate max-w-[130px]">
+                <span className="truncate max-w-[110px]">
                   {selectedModel || 'Ollama qwen-coder 1.1'}
                 </span>
-                <span className="text-foreground-muted font-sans text-[11px]">{effort || 'Medium'}</span>
                 <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
               </button>
+
+              {/* Reasoning Effort Control */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowEffortPicker((v) => !v)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-foreground-muted hover:text-foreground bg-surface-raised/40 hover:bg-surface-raised/80 border border-border transition-colors cursor-pointer"
+                  title="Reasoning effort"
+                >
+                  <Zap size={12} strokeWidth={1.8} className="text-amber-400" />
+                  <span className="font-medium">{effortSupport.supported ? (effort || 'Medium') : 'Auto'}</span>
+                  <ChevronDown size={11} strokeWidth={2} className="text-foreground-muted" />
+                </button>
+                {showEffortPicker && (
+                  <div className="absolute right-0 bottom-full mb-2 w-72 rounded-xl border border-border bg-surface-raised shadow-2xl p-4 z-50">
+                    <div className="text-xs font-semibold text-foreground mb-1">Reasoning effort</div>
+                    <p className="text-[11px] text-foreground-muted mb-3">
+                      {effortSupport.supported
+                        ? (effort === 'Low' && 'Faster responses with lighter reasoning.') ||
+                          (effort === 'Medium' && 'Balanced reasoning and response speed.') ||
+                          (effort === 'High' && 'Deeper reasoning for complex tasks.') ||
+                          (effort === 'Max' && 'Maximum supported reasoning effort for demanding tasks.') ||
+                          'Balanced reasoning and response speed.'
+                        : 'This model does not support adjustable reasoning effort. Auto/default mode is used.'}
+                    </p>
+                    <EffortSlider
+                      value={effort || 'Medium'}
+                      onChange={setEffort}
+                      showTitle={false}
+                      disabled={!effortSupport.supported}
+                      availableLevels={effortSupport.levels}
+                    />
+                    <div className="mt-3 text-[10px] text-foreground-muted">
+                      {effortSupport.supported ? `Supported: ${effortSupport.levels.join(', ')}` : 'Unsupported for this model'}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Mic Button */}
               <button
@@ -741,48 +791,105 @@ export const ChatPromptInput: React.FC = () => {
 
       {/* Model Picker Modal for /model command */}
       {showModelPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="w-full max-w-md max-h-[70vh] overflow-hidden flex flex-col bg-surface-raised border border-border rounded-3xl shadow-2xl p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <span className="text-sm font-semibold text-foreground">Select Active Model</span>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowModelPicker(false)}
+        >
+          <div
+            className="w-full max-w-lg max-h-[75vh] overflow-hidden flex flex-col rounded-2xl border border-border bg-surface-raised shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Choose a model</h2>
+                <p className="text-xs text-foreground-muted mt-0.5">Select the AI model you want to use.</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowModelPicker(false)}
-                className="text-foreground-muted hover:text-foreground p-1 rounded-lg cursor-pointer"
+                className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface rounded-lg cursor-pointer"
+                aria-label="Close model selector"
               >
-                ✕
+                <X size={16} strokeWidth={1.8} />
               </button>
             </div>
-            <div className="space-y-2 mt-3 overflow-y-auto custom-scrollbar flex-1 pr-1">
-              {providers
-                .filter((p) => p.status === 'connected')
-                .map((p) => (
-                  <div key={p.id} className="space-y-1">
-                    <div className="text-[10px] font-semibold text-foreground-muted uppercase px-2 py-1">
-                      {p.name}
-                    </div>
-                    {p.discoveredModels.map((m) => (
+
+            <div className="px-5 py-3 border-b border-border">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-2.5 text-foreground-muted" />
+                <input
+                  type="text"
+                  value={modelSearch}
+                  onChange={(e) => setModelSearch(e.target.value)}
+                  placeholder="Search models..."
+                  className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
+              {(() => {
+                const query = modelSearch.trim().toLowerCase();
+                const connected = providers.filter((p) => p.status === 'connected');
+                const filtered = connected
+                  .map((p) => ({
+                    provider: p,
+                    models: p.discoveredModels.filter((m) => !query || m.toLowerCase().includes(query) || p.name.toLowerCase().includes(query)),
+                  }))
+                  .filter((group) => group.models.length > 0);
+
+                if (connected.length === 0) {
+                  return (
+                    <div className="py-8 text-center space-y-2">
+                      <p className="text-xs text-foreground-muted">No connected providers found.</p>
                       <button
-                        key={m}
                         type="button"
                         onClick={() => {
-                          setSelectedModel(m, p.id);
                           setShowModelPicker(false);
-                          setPrompt('');
+                          openModal('providers');
                         }}
-                        className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-surface rounded-xl transition-colors cursor-pointer flex items-center justify-between"
+                        className="px-3 py-1.5 bg-surface hover:bg-surface-raised text-foreground rounded-lg text-xs transition-colors cursor-pointer"
                       >
-                        <span className="font-mono">{m}</span>
-                        <span className="text-[10px] text-foreground-muted font-sans">{p.name}</span>
+                        Configure Providers
                       </button>
-                    ))}
-                  </div>
-                ))}
-              {providers.filter((p) => p.status === 'connected').length === 0 && (
-                <div className="text-center py-6 text-foreground-muted text-xs">
-                  No connected providers found. Configure a provider in Providers menu.
-                </div>
-              )}
+                    </div>
+                  );
+                }
+
+                if (filtered.length === 0) {
+                  return <div className="py-8 text-center text-xs text-foreground-muted">No models match your search.</div>;
+                }
+
+                return filtered.map(({ provider: p, models }) => (
+                  <section key={p.id} className="space-y-1">
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
+                      {p.name}
+                    </div>
+                    {models.map((m) => {
+                      const isSelected = selectedModel === m;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel(m, p.id);
+                            setShowModelPicker(false);
+                            setModelSearch('');
+                            setPrompt('');
+                          }}
+                          className={`w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors cursor-pointer ${isSelected ? 'bg-surface-raised text-foreground border border-border' : 'text-foreground-muted hover:text-foreground hover:bg-surface'}`}
+                        >
+                          <span className="truncate font-mono text-xs">{m}</span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] text-foreground-muted">{p.name}</span>
+                            {isSelected && <Check size={14} strokeWidth={2} className="text-foreground" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </section>
+                ));
+              })()}
             </div>
           </div>
         </div>

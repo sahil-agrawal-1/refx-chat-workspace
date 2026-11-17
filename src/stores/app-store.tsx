@@ -212,6 +212,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [selectedModel, setSelectedModelInternal] = useState<string>('');
   const [selectedProviderId, setSelectedProviderId] = useState<string>('');
+  const [activeEffort, setActiveEffort] = useState<string>(() => {
+    try {
+      return localStorage.getItem('refx_active_effort') || 'Medium';
+    } catch {
+      return 'Medium';
+    }
+  });
 
   // Workspaces (No hardcoded fake projects)
   const [selectedWorkspace, setSelectedWorkspace] = useState<ProjectWorkspace | null>(() => {
@@ -298,7 +305,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (allowed) {
         let sessionId: string | undefined;
         if (req.interactive) {
-          const session = await desktopBridge.terminal.createSession('powershell.exe', selectedWorkspace?.path);
+          const session = await desktopBridge.terminal.createSession((settings.defaultShell as string) || 'powershell.exe', selectedWorkspace?.path);
           setTerminalSessions((prev) => [...prev, session]);
           setActiveTerminalId(session.id);
           desktopBridge.terminal.onOutput(session.id, (data) => {
@@ -416,6 +423,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSettings(loadedSettings || {});
         if (typeof loadedSettings?.selectedModel === 'string') setSelectedModelInternal(loadedSettings.selectedModel);
         if (typeof loadedSettings?.selectedProviderId === 'string') setSelectedProviderId(loadedSettings.selectedProviderId);
+        if (typeof loadedSettings?.effort === 'string') setActiveEffort(loadedSettings.effort);
         const currentId = loadedSettings?.currentConversationId;
         if (typeof currentId === 'string' && mapped.some((c) => c.id === currentId)) {
           setCurrentConversationId(currentId);
@@ -470,7 +478,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Create an initial session if workspace or requested
       const session = await desktopBridge.terminal.createSession(
-        'powershell.exe',
+        (settings.defaultShell as string) || 'powershell.exe',
         selectedWorkspace?.path
       );
       setTerminalSessions([session]);
@@ -562,6 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const reduceMotion = Boolean(settings.reduceMotion);
     const highContrast = Boolean(settings.highContrast);
     const fontFamily = (settings.fontFamily as string) || '';
+    const codeFontFamily = (settings.codeFontFamily as string) || 'System Default';
     const root = document.documentElement;
 
     const resolveTheme = () =>
@@ -574,6 +583,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       root.setAttribute('data-accent', accent);
       root.setAttribute('data-density', density);
       root.style.fontSize = `${fontSize}px`;
+      if (codeFontFamily && codeFontFamily !== 'System Default') {
+        if (typeof root.style?.setProperty === 'function') {
+          root.style.setProperty('--code-font-family', codeFontFamily);
+        }
+      } else if (typeof root.style?.removeProperty === 'function') {
+        root.style.removeProperty('--code-font-family');
+      }
+      if (density === 'Compact') root.classList.add('density-compact'); else root.classList.remove('density-compact');
       if (highContrast) {
         root.setAttribute('data-contrast', 'high');
       } else if (typeof root.removeAttribute === 'function') {
@@ -598,6 +615,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, [settings]);
+
+  useEffect(() => {
+    setSaveMemoryActive(Boolean(settings.autoSaveMemory ?? true));
+  }, [settings.autoSaveMemory]);
 
   const updateSetting = useCallback((key: string, value: unknown) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -639,8 +660,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       model: selectedModel || 'No model connected',
       providerId: selectedProviderId || '',
       projectId: selectedWorkspace?.path,
-      effort: 'auto',
-      approvalMode: 'ask',
+      effort: activeEffort || 'Medium',
+      approvalMode: (settings.approvalMode as 'ask' | 'turbo' | 'auto_preview') || 'ask',
       saveMemoryDefault: saveMemoryActive,
       messages: [],
     };
@@ -659,7 +680,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         metadata: { saveMemoryDefault: newConv.saveMemoryDefault, effort: newConv.effort, approvalMode: newConv.approvalMode },
       })
       .catch(() => {});
-  }, [selectedModel, selectedProviderId, saveMemoryActive, selectedWorkspace]);
+  }, [selectedModel, selectedProviderId, saveMemoryActive, selectedWorkspace, settings.approvalMode]);
 
   const selectConversation = (id: string) => {
     setCurrentConversationId(id);

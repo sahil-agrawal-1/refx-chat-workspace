@@ -22,6 +22,7 @@ export const TerminalPanel: React.FC = () => {
     terminalLogs,
     createNewTerminalSession,
     clearTerminalLogs,
+    settings,
   } = useAppStore();
 
   const isTerminalOpen = bottomPanels.has('terminal');
@@ -37,9 +38,10 @@ export const TerminalPanel: React.FC = () => {
     if (!containerRef.current) return;
     if (!termRef.current) {
       const term = new XTerm({
-        fontFamily: 'Cascadia Code, Consolas, monospace',
+        fontFamily: `${(settings?.codeFontFamily as string) || 'Cascadia Code'}, Consolas, monospace`,
         fontSize: 13,
         lineHeight: 1.4,
+        scrollback: Number(settings?.terminalScrollback) || 5000,
         theme: { background: '#0d0d0f', foreground: '#a1a1aa', cursor: '#e4e4e7' },
         cursorBlink: true,
         allowProposedApi: true,

@@ -111,7 +111,8 @@ export type ActiveModal =
   | 'permission'
   | 'diff-review'
   | 'onboarding'
-  | 'conversation-history';
+  | 'conversation-history'
+  | 'select-model';
 
 export type ActiveDrawer =
   | null

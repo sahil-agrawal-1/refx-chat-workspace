@@ -29,10 +29,10 @@ export function buildCspDirectives(options: CspOptions): CspDirectives {
     'script-src-attr': ["'none'"],
     // Tailwind and React style attributes need inline CSS. Inline style is far
     // less dangerous than inline script and does not enable code execution.
-    'style-src': ["'self'", "'unsafe-inline'"],
+    'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
     // Attachment previews use blob: URLs; icons may be inline data: SVGs.
     'img-src': ["'self'", 'data:', 'blob:'],
-    'font-src': ["'self'", 'data:'],
+    'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
     'connect-src': ["'self'"],
     'media-src': ["'self'", 'data:', 'blob:'],
     'worker-src': ["'self'", 'blob:'],
@@ -48,6 +48,11 @@ export function buildCspDirectives(options: CspOptions): CspDirectives {
     // Vite's React plugin injects an inline module preamble for React Refresh.
     // This concession is development-only and never shipped in a build.
     directives['script-src'] = ["'self'", "'unsafe-inline'"];
+    // Tailwind and React style attributes need inline CSS. Inline style is far
+    // less dangerous than inline script and does not enable code execution.
+    // Google Fonts is allowed for the optional editor font choices.
+    directives['style-src'] = ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'];
+    directives['font-src'] = ["'self'", 'data:', 'https://fonts.gstatic.com'];
     // HMR uses a websocket. Browser-preview provider discovery may also call
     // local/LAN model endpoints, so development allows network schemes.
     directives['connect-src'] = ["'self'", 'http:', 'https:', 'ws:', 'wss:'];

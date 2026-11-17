@@ -395,8 +395,10 @@ function getWorkspaceGuard(): WorkspaceGuard {
       // Restoring is allowed only for roots the user already authorized. The
       // renderer-controlled setting cannot grant a new root by itself.
       const settings = db.getAppSettings();
-      const savedPath = settings?.selectedWorkspacePath as string | undefined;
-      if (savedPath) workspaceGuard.restore(savedPath);
+      if (settings?.restoreWorkspaceOnLaunch !== false) {
+        const savedPath = settings?.selectedWorkspacePath as string | undefined;
+        if (savedPath) workspaceGuard.restore(savedPath);
+      }
     } catch {
       // ignore
     }

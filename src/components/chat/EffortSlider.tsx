@@ -12,12 +12,16 @@ interface EffortSliderProps {
   value: string;
   onChange: (value: string) => void;
   showTitle?: boolean;
+  disabled?: boolean;
+  availableLevels?: string[];
 }
 
 export const EffortSlider: React.FC<EffortSliderProps> = ({
   value,
   onChange,
   showTitle = true,
+  disabled = false,
+  availableLevels,
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -33,8 +37,17 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({
 
   const currentLevel = EFFORT_LEVELS[currentIndex];
 
+  const allowedLevels = new Set(
+    (availableLevels && availableLevels.length ? availableLevels : EFFORT_LEVELS.map((l) => l.label))
+      .map((level) => String(level).toLowerCase())
+  );
+  const isLevelAvailable = (level: { id: string; label: string }) =>
+    allowedLevels.has(level.id) || allowedLevels.has(level.label.toLowerCase());
+
   const handleSelectStep = (index: number) => {
+    if (disabled) return;
     const clamped = Math.max(0, Math.min(EFFORT_LEVELS.length - 1, index));
+    if (!isLevelAvailable(EFFORT_LEVELS[clamped])) return;
     onChange(EFFORT_LEVELS[clamped].label);
   };
 
@@ -114,8 +127,18 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({
       {/* Stepped Slider Track matching reference images */}
       <div
         ref={trackRef}
-        onMouseDown={handleMouseDown}
-        className="relative h-4 rounded-full bg-surface-raised/90 border border-white/10 cursor-pointer flex items-center shadow-inner"
+        tabIndex={0}
+        onMouseDown={disabled ? undefined : handleMouseDown}
+        onKeyDown={disabled ? undefined : (e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            handleSelectStep(currentIndex - 1);
+          } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            handleSelectStep(currentIndex + 1);
+          }
+        }}
+        className={`relative h-4 rounded-full border flex items-center shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500/40 ${disabled ? 'bg-surface-raised/40 border-border cursor-not-allowed opacity-60' : 'bg-surface-raised/90 border-white/10 cursor-pointer'}`}
       >
         {/* Active Purple/Indigo Bar container with rounded-full overflow-hidden so it clips cleanly */}
         <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
@@ -162,8 +185,9 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({
           <button
             key={lvl.id}
             type="button"
+            disabled={disabled || !isLevelAvailable(lvl)}
             onClick={() => handleSelectStep(idx)}
-            className={`cursor-pointer hover:text-foreground transition-colors ${
+            className={`cursor-pointer hover:text-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               idx === currentIndex ? 'text-[#5c60f5] font-semibold' : ''
             }`}
           >

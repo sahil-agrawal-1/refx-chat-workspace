@@ -9,3 +9,5 @@ release/
 .env*
 modelchatmemory.md
 !.env.example
+
+dist-cli/
